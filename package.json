@@ -1,0 +1,23 @@
+{
+  "name": "dex-protocol",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/davionlabs/dex-protocol.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/davionlabs/dex-protocol/issues"
+  },
+  "homepage": "https://github.com/davionlabs/dex-protocol#readme",
+  "devDependencies": {
+    "hardhat": "^2.6.5"
+  }
+}
