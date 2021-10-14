@@ -2,3 +2,4 @@ node_modules
 .vscode
 artifacts
 cache
+package-lock.json

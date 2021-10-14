@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "npx hardhat watch test",
+    "compile": "npx hardhat watch compilation"
   },
   "repository": {
     "type": "git",
@@ -26,6 +27,7 @@
     "hardhat": "^2.6.5"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.3.2"
+    "@openzeppelin/contracts": "^4.3.2",
+    "hardhat-watcher": "^2.1.1"
   }
 }
