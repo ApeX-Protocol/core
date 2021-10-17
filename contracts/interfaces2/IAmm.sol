@@ -14,7 +14,7 @@ interface IAmm {
     function config() external view returns (address);
     function margin() external view returns (address);
     function vault() external view returns (address);
-    function getReserves(address baseToken, address quoteToken) external view returns (uint reserveBase, uint reserveQuote);
+    function getReserves() external view returns (uint reserveBase, uint reserveQuote);
     
     // only factory can call this function
     function initialize(address baseToken, address quoteToken, address config, address margin, address vault) external;
