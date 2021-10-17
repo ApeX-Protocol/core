@@ -15,7 +15,7 @@ interface IMargin {
     function vault() external view returns (address);
     function getPosition(address trader) external view returns (uint baseSize, uint quoteSize, uint tradeSize);
     function getWithdrawable(address trader) external view returns (uint amount);
-    function canLiquidate(address trade) external view returns (bool);
+    function canLiquidate(address trader) external view returns (bool);
 
     // only factory can call this function
     function initialize(address baseToken, address quoteToken, address config, address amm, address vault) external;

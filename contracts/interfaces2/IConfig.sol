@@ -12,6 +12,7 @@ interface IConfig {
     function priceOracle() external view returns (address);
     function liquidateIncentive() external view returns (uint);
     function rebasePriceGap() external view returns (uint);
+    function onlyPCV() external view returns (bool);
 
     function setPendingAdmin(address newPendingAdmin) external;
     function acceptAdmin() external;

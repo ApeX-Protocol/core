@@ -21,7 +21,7 @@ interface IAmm {
     function mint(address to) external returns (uint quoteAmount, uint liquidity);
     function burn(address to) external returns (uint baseAmount, uint quoteAmount);
     // only binding margin can call this functiion
-    function swap(address inputToken, address outputToken, uint inputAmount, uint outputAmount) external returns (uint[] memory amounts);
+    function swap(address inputToken, address outputToken, uint inputAmount, uint outputAmount) external returns (uint[2] memory amounts);
     // only binding margin can call this functiion
     function forceSwap(address inputToken, address outputToken, uint inputAmount, uint outputAmount) external;
     function rebase() external returns (int amount);
