@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IVault} from "./interfaces/IVault.sol";
-import {IVAmm} from "./interfaces/IVAmm.sol";
+import {IAmm} from "./interfaces/IAmm.sol";
 import {IRouter} from "./interfaces/IRouter.sol";
 import {Math} from "./libraries/Math.sol";
 import {Decimal} from "./libraries/Decimal.sol";
@@ -23,7 +23,7 @@ contract Margin {
     }
 
     address public factory;
-    IVAmm public vAmm;
+    IAmm public vAmm;
     IERC20 public baseToken;
     IERC20 public quoteToken;
     IVault public vault;
@@ -55,7 +55,7 @@ contract Margin {
         uint256 _liquidateFeeRatio
     ) {
         factory = msg.sender;
-        vAmm = IVAmm(_vAmm);
+        vAmm = IAmm(_vAmm);
         vault = IVault(_vault);
         initMarginRatio = _initMarginRatio;
         liquidateThreshold = _liquidateThreshold;
@@ -97,12 +97,12 @@ contract Margin {
         }
         _setPosition(trader, traderPosition);
 
-        vault.transferToReceiver(trader, _withdrawAmount);
+        vault.withdraw(trader, _withdrawAmount);
 
         emit RemoveMargin(trader, _withdrawAmount);
     }
 
-    function openPosition(uint8 _side, uint256 _baseAmount) external {
+    function openPosition(uint8 _side, uint256 _baseAmount) external returns (uint256) {
         require(_baseAmount != 0, "open 0");
         //fixme
         // address trader = msg.sender;
@@ -137,9 +137,11 @@ contract Margin {
         _checkInitMarginRatio(traderPosition);
         _setPosition(trader, traderPosition);
         emit OpenPosition(trader, _side, _baseAmount, quoteAmount);
+
+        return quoteAmount;
     }
 
-    function closePosition(uint256 _quoteAmount) external {
+    function closePosition(uint256 _quoteAmount) external returns (uint256) {
         //fixme
         // address trader = msg.sender;
         address trader = tx.origin;
@@ -165,9 +167,17 @@ contract Margin {
         _checkInitMarginRatio(traderPosition);
         _setPosition(trader, traderPosition);
         emit ClosePosition(trader, _quoteAmount, baseAmount);
+        return baseAmount;
     }
 
-    function liquidate(address _trader) public {
+    function liquidate(address _trader)
+        external
+        returns (
+            uint256 quoteAmount,
+            uint256 baseAmount,
+            uint256 bonus
+        )
+    {
         Position memory traderPosition = traderPositionMap[_trader];
         int256 quoteSize = traderPosition.quoteSize;
         require(traderPosition.quoteSize != 0, "position 0");
@@ -176,14 +186,15 @@ contract Margin {
         bool isLong = traderPosition.quoteSize < 0;
 
         //query swap exact quote to base
-        uint256 baseAmount = _querySwapBaseWithVAmm(isLong, traderPosition.quoteSize.abs());
+        quoteAmount = traderPosition.quoteSize.abs();
+        baseAmount = _querySwapBaseWithVAmm(isLong, quoteAmount);
 
         //calc liquidate fee
-        uint256 liquidateFee = baseAmount.mul(liquidateFeeRatio).div(100);
-        int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(liquidateFee));
+        bonus = baseAmount.mul(liquidateFeeRatio).div(100);
+        int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(bonus));
         if (remainBaseAmount > 0) {
             _minusPositionWithVAmm(isLong, traderPosition.quoteSize.abs());
-            vault.transferToReceiver(_trader, uint256(remainBaseAmount));
+            vault.withdraw(_trader, uint256(remainBaseAmount));
         } else {
             //with bad debt, update directly
             if (isLong) {
@@ -202,12 +213,12 @@ contract Margin {
                 );
             }
         }
-        vault.transferToReceiver(msg.sender, liquidateFee);
+        vault.withdraw(msg.sender, bonus);
         traderPosition.baseSize = 0;
         traderPosition.quoteSize = 0;
         traderPosition.tradeSize = 0;
         _setPosition(_trader, traderPosition);
-        emit Liquidate(_trader, quoteSize, baseAmount, liquidateFee);
+        emit Liquidate(_trader, quoteSize, baseAmount, bonus);
     }
 
     function canLiquidate(address _trader) public view returns (bool) {
@@ -265,7 +276,7 @@ contract Margin {
         );
     }
 
-    function _addPositionWithVAmm(bool isLong, uint256 _baseAmount) internal returns (uint256 quoteAmount) {
+    function _addPositionWithVAmm(bool isLong, uint256 _baseAmount) internal returns (uint256) {
         address input;
         address output;
         uint256 inputAmount;
@@ -278,10 +289,11 @@ contract Margin {
             inputAmount = _baseAmount;
         }
 
-        quoteAmount = vAmm.swap(input, output, inputAmount, outputAmount);
+        uint256[2] memory result = vAmm.swap(input, output, inputAmount, outputAmount);
+        return result[1];
     }
 
-    function _minusPositionWithVAmm(bool isLong, uint256 _quoteAmount) internal returns (uint256 baseAmount) {
+    function _minusPositionWithVAmm(bool isLong, uint256 _quoteAmount) internal returns (uint256) {
         address input;
         address output;
         uint256 inputAmount;
@@ -294,10 +306,11 @@ contract Margin {
             inputAmount = _quoteAmount;
         }
 
-        baseAmount = vAmm.swap(input, output, inputAmount, outputAmount);
+        uint256[2] memory result = vAmm.swap(input, output, inputAmount, outputAmount);
+        return result[1];
     }
 
-    function _querySwapBaseWithVAmm(bool isLong, uint256 _quoteAmount) internal view returns (uint256 baseAmount) {
+    function _querySwapBaseWithVAmm(bool isLong, uint256 _quoteAmount) internal view returns (uint256) {
         address input;
         address output;
         uint256 inputAmount;
@@ -310,7 +323,8 @@ contract Margin {
             inputAmount = _quoteAmount;
         }
 
-        baseAmount = vAmm.swapQuery(input, output, inputAmount, outputAmount);
+        uint256[2] memory result = vAmm.swapQuery(input, output, inputAmount, outputAmount);
+        return result[1];
     }
 
     function _setPosition(address _trader, Position memory _position) internal {
