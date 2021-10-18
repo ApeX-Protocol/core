@@ -18,4 +18,13 @@ library Decimal {
     function div(uint256 x, uint256 y) internal pure returns (uint256) {
         return x / y;
     }
+
+    //example:
+    //int is -100 -> 100, uint is 0 -> 200,
+    //so 100 -> 200 is -100 -> 0
+    function oppo(uint256 x) internal pure returns (int256) {
+        int256 _x = 0 - int256(x);
+        require(uint256(_x) >= x, "overflow");
+        return _x;
+    }
 }
