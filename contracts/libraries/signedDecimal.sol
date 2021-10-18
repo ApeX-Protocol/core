@@ -34,6 +34,10 @@ library SignedDecimal {
         return x - int256(y);
     }
 
+    function mulU(int256 x, uint256 y) internal pure returns (int256) {
+        return x * int256(y);
+    }
+
     function divU(int256 x, uint256 y) internal pure returns (int256) {
         return x / int256(y);
     }
