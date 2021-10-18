@@ -3,5 +3,93 @@
 pragma solidity ^0.8.0;
 
 interface IRouter {
-    function XX(address _receiver, uint256 _amount) external;
+    function factory() external pure returns (address);
+
+    function addLiquidity(
+        address baseToken,
+        address quoteToken,
+        uint256 baseAmount,
+        uint256 quoteAmountMin,
+        uint256 deadline,
+        bool autoStake
+    ) external returns (uint256 quoteAmount, uint256 liquidity);
+
+    function removeLiquidity(
+        address baseToken,
+        address quoteToken,
+        uint256 liquidity,
+        uint256 baseAmountMin,
+        uint256 deadline
+    ) external returns (uint256 baseAmount, uint256 quoteAmount);
+
+    function deposit(
+        address baseToken,
+        address quoteToken,
+        address holder,
+        uint256 amount
+    ) external;
+
+    function withdraw(
+        address baseToken,
+        address quoteToken,
+        uint256 amount
+    ) external;
+
+    function openPositionWithWallet(
+        address baseToken,
+        address quoteToken,
+        uint256 side,
+        uint256 marginAmount,
+        uint256 baseAmount,
+        uint256 quoteAmountLimit,
+        uint256 deadline
+    ) external returns (uint256 quoteAmount);
+
+    function openPositionWithMargin(
+        address baseToken,
+        address quoteToken,
+        uint256 side,
+        uint256 baseAmount,
+        uint256 quoteAmountLimit,
+        uint256 deadline
+    ) external returns (uint256 quoteAmount);
+
+    function closePosition(
+        address baseToken,
+        address quoteToken,
+        uint256 quoteAmount,
+        uint256 deadline,
+        bool autoWithdraw
+    ) external returns (uint256 baseAmount, uint256 marginAmount);
+
+    function getReserves(address baseToken, address quoteToken)
+        external
+        view
+        returns (uint256 reserveBase, uint256 reserveQuote);
+
+    function getQuoteAmount(
+        address baseToken,
+        address quoteToken,
+        uint256 side,
+        uint256 baseAmount
+    ) external view returns (uint256 quoteAmount);
+
+    function getWithdrawable(
+        address baseToken,
+        address quoteToken,
+        address holder
+    ) external view returns (uint256 amount);
+
+    function getPosition(
+        address baseToken,
+        address quoteToken,
+        address holder
+    )
+        external
+        view
+        returns (
+            int256 baseSize,
+            int256 quoteSize,
+            int256 tradeSize
+        );
 }

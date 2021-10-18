@@ -11,7 +11,7 @@ contract Vault {
     address public vAmm;
     address public factory;
 
-    event TransferToReceiver(address indexed receiver, uint256 amount);
+    event Withdraw(address indexed receiver, uint256 amount);
 
     constructor(address baseToken, address _vAmm) {
         factory = msg.sender;
@@ -25,9 +25,9 @@ contract Vault {
         margin = _margin;
     }
 
-    function transferToReceiver(address _receiver, uint256 _amount) external vAmmOrMargin {
+    function withdraw(address _receiver, uint256 _amount) external vAmmOrMargin {
         token.transfer(_receiver, _amount);
-        emit TransferToReceiver(_receiver, _amount);
+        emit Withdraw(_receiver, _amount);
     }
 
     modifier vAmmOrMargin() {
