@@ -3,5 +3,25 @@
 pragma solidity ^0.8.0;
 
 interface IVault {
-    function transferToReceiver(address _receiver, uint256 _amount) external;
+    event Withdraw(address indexed caller, address indexed to, uint256 amount);
+
+    function baseToken() external view returns (address);
+
+    function factory() external view returns (address);
+
+    function amm() external view returns (address);
+
+    function margin() external view returns (address);
+
+    function getReserve() external view returns (uint256);
+
+    // only factory can call this function
+    function initialize(
+        address _baseToken,
+        address _amm,
+        address _margin
+    ) external;
+
+    // only amm or margin can call this function
+    function withdraw(address to, uint256 amount) external;
 }
