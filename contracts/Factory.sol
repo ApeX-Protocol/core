@@ -1,5 +1,14 @@
 pragma solidity ^0.8.0;
 
+import './interfaces/IFactory.sol';
+import './interfaces/IAmm.sol';
+import './interfaces/IMargin.sol';
+import './interfaces/IVault.sol';
+import './Amm.sol';
+import './Margin.sol';
+import './Vault.sol';
+import './Staking.sol';
+
 contract Factory is IFactory {
     address public pendingAdmin;
     address public admin;
