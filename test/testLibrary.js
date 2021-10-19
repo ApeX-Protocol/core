@@ -3,8 +3,14 @@ const { expect } = require("chai");
 
 describe("Library contract", function () {
     let testLibrary;
-    let uintMaxHex = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+    let uintMaxHex = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"//2^256-1
     let uintMax = BigNumber.from(uintMaxHex)
+    let intMaxStr = "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"//2^255-1
+    let intMax = BigNumber.from(intMaxStr)
+    let uintMinHex = "0x0"//0
+    let uintMin = BigNumber.from(uintMinHex)
+    let intMinStr = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"//-2^255
+    let intMin = BigNumber.from(intMinStr)
 
     beforeEach(async function () {
         const TestLibrary = await ethers.getContractFactory("TestLibrary");
@@ -132,6 +138,10 @@ describe("Library contract", function () {
             expect(await testLibrary.signedDecimalSub(2, 1)).to.equal(1)
         });
 
+        it("signedDecimalSub(-2,-1) is -1", async function () {
+            expect(await testLibrary.signedDecimalSub(-2, -1)).to.equal(-1)
+        });
+
         it("signedDecimalAdd(2,1) is 3", async function () {
             expect(await testLibrary.signedDecimalAdd(2, 1)).to.equal(3)
         });
@@ -140,10 +150,28 @@ describe("Library contract", function () {
             expect(await testLibrary.signedDecimalAddU(-1, 2)).to.equal(1)
         });
 
-        it("fail signedDecimalAdd(1,uintMax)", async function () {
+        it("signedDecimalAddU(1,intMax-1) is intMax", async function () {
+            expect(await testLibrary.signedDecimalAddU(1, intMax.sub(1))).to.equal(intMax)
+        });
+
+        it("fail signedDecimalAddU(1,intMax+1), reverted", async function () {
+            await expect(testLibrary.signedDecimalAddU(1, intMax.add(1))).to.be.revertedWith("overflow")
+        });
+
+        it("fail signedDecimalAddU(1,intMax)", async function () {
             let e;
             try {
-                await testLibrary.signedDecimalAdd(1, uintMax)
+                await testLibrary.signedDecimalAddU(1, intMax)
+            } catch (error) {
+                e = error
+            }
+            expect(e).to.not.equal(undefined)
+        });
+
+        it("fail signedDecimalAddU(1,uintMax)", async function () {
+            let e;
+            try {
+                await testLibrary.signedDecimalAddU(1, uintMax)
             } catch (error) {
                 e = error
             }

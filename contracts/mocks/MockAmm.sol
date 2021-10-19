@@ -7,20 +7,16 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract MockVAmm is ERC20 {
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
 
-    function getBaseWithMarkPrice(uint256 quoteAmount) public returns (uint256) {
-        return quoteAmount;
-    }
-
     function swapQuery(
         address input,
         address output,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external view returns (uint256) {
+    ) external view returns (uint256[2] memory) {
         if (inputAmount != 0) {
-            return inputAmount;
+            return [0, inputAmount];
         }
-        return outputAmount;
+        return [0, outputAmount];
     }
 
     function swap(
@@ -28,11 +24,11 @@ contract MockVAmm is ERC20 {
         address output,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external returns (uint256) {
+    ) external returns (uint256[2] memory) {
         if (inputAmount != 0) {
-            return inputAmount;
+            return [0, inputAmount];
         }
-        return outputAmount;
+        return [0, outputAmount];
     }
 
     function forceSwap(
@@ -42,7 +38,15 @@ contract MockVAmm is ERC20 {
         uint256 outputAmount
     ) external {}
 
-    function getAccountSpecificMarkPrice() external view returns (uint256) {
-        return 10; //bad for long
+    function swapQueryWithAcctSpecMarkPrice(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external view returns (uint256[2] memory amounts) {
+        if (inputAmount != 0) {
+            return [0, inputAmount];
+        }
+        return [0, outputAmount];
     }
 }

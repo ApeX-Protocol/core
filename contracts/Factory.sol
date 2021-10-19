@@ -1,5 +1,14 @@
 pragma solidity ^0.8.0;
 
+import './interfaces/IFactory.sol';
+import './interfaces/IAmm.sol';
+import './interfaces/IMargin.sol';
+import './interfaces/IVault.sol';
+import './Amm.sol';
+import './Margin.sol';
+import './Vault.sol';
+import './Staking.sol';
+
 contract Factory is IFactory {
     address public pendingAdmin;
     address public admin;
@@ -56,6 +65,7 @@ contract Factory is IFactory {
         emit NewPair(baseToken, quoteToken, amm, margin, vault);
     }
 
+    // TODO: 改用创建Staking代理合约
     function createStaking(address baseToken, address quoteToken) external override returns (address staking) {
         address amm = getAmm[baseToken][quoteToken];
         require(amm != address(0), 'Factory: PAIR_NOT_EXIST');
