@@ -62,8 +62,10 @@ interface IAmm {
         uint256 outputAmount
     ) external view returns (uint256[2] memory amounts);
 
-    // get base with quote
-    function getBaseWithMarkPrice(uint256 quoteAmount) external view returns (uint256);
-
-    function getAccountSpecificMarkPrice() external view returns (uint256);
+    function swapQueryWithAcctSpecMarkPrice(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external view returns (uint256[2] memory amounts);
 }
