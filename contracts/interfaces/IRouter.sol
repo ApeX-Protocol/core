@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 interface IRouter {
     function factory() external pure returns (address);
+    function WETH() external pure returns (address);
 
     function addLiquidity(
         address baseToken,
@@ -60,7 +61,7 @@ interface IRouter {
         uint256 quoteAmount,
         uint256 deadline,
         bool autoWithdraw
-    ) external returns (uint256 baseAmount, uint256 marginAmount);
+    ) external returns (uint256 baseAmount, uint256 withdrawAmount);
 
     function getReserves(address baseToken, address quoteToken)
         external

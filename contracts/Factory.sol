@@ -65,6 +65,7 @@ contract Factory is IFactory {
         emit NewPair(baseToken, quoteToken, amm, margin, vault);
     }
 
+    // TODO: 改用创建Staking代理合约
     function createStaking(address baseToken, address quoteToken) external override returns (address staking) {
         address amm = getAmm[baseToken][quoteToken];
         require(amm != address(0), 'Factory: PAIR_NOT_EXIST');
