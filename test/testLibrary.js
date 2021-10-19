@@ -140,10 +140,10 @@ describe("Library contract", function () {
             expect(await testLibrary.signedDecimalAddU(-1, 2)).to.equal(1)
         });
 
-        it("fail signedDecimalAdd(1,uintMax)", async function () {
+        it("fail signedDecimalAddU(1,uintMax)", async function () {
             let e;
             try {
-                await testLibrary.signedDecimalAdd(1, uintMax)
+                await testLibrary.signedDecimalAddU(1, uintMax)
             } catch (error) {
                 e = error
             }

@@ -27,18 +27,22 @@ library SignedDecimal {
     }
 
     function addU(int256 x, uint256 y) internal pure returns (int256) {
+        require(y <= uint256(type(int256).max), "overflow");
         return x + int256(y);
     }
 
     function subU(int256 x, uint256 y) internal pure returns (int256) {
+        require(y <= uint256(type(int256).max), "overflow");
         return x - int256(y);
     }
 
     function mulU(int256 x, uint256 y) internal pure returns (int256) {
+        require(y <= uint256(type(int256).max), "overflow");
         return x * int256(y);
     }
 
     function divU(int256 x, uint256 y) internal pure returns (int256) {
+        require(y <= uint256(type(int256).max), "overflow");
         return x / int256(y);
     }
 }
