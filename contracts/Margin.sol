@@ -9,6 +9,7 @@ import {IRouter} from "./interfaces/IRouter.sol";
 import {Math} from "./libraries/Math.sol";
 import {Decimal} from "./libraries/Decimal.sol";
 import {SignedDecimal} from "./libraries/SignedDecimal.sol";
+import {IConfig} from "./interfaces/IConfig.sol";
 
 import "hardhat/console.sol";
 
@@ -28,11 +29,8 @@ contract Margin {
     IERC20 public quoteToken;
     IVault public vault;
     IRouter public router;
+    IConfig public config;
     mapping(address => Position) public traderPositionMap;
-
-    uint256 public initMarginRatio; //if 10, means margin ratio >= 10%
-    uint256 public liquidateThreshold; //if 100, means debt ratio < 100%
-    uint256 public liquidateFeeRatio; //if 1, means liquidator bot get 1% as fee
 
     //add $depositAmount into trader position
     event AddMargin(address trader, uint256 depositAmount);
@@ -45,26 +43,23 @@ contract Margin {
     //liquidate $trader's position $quoteAmount
     event Liquidate(address trader, int256 quoteSize, uint256 baseAmount, uint256 liquidateFee);
 
-    constructor(
+    constructor() {
+        factory = msg.sender;
+    }
+
+    function initialize(
         address _baseToken,
         address _quoteToken,
-        address _vAmm,
-        address _vault,
-        uint256 _initMarginRatio,
-        uint256 _liquidateThreshold,
-        uint256 _liquidateFeeRatio
-    ) {
-        factory = msg.sender;
-        vAmm = IAmm(_vAmm);
+        address _config,
+        address _amm,
+        address _vault
+    ) external onlyFactory {
+        vAmm = IAmm(_amm);
         vault = IVault(_vault);
-        initMarginRatio = _initMarginRatio;
-        liquidateThreshold = _liquidateThreshold;
-        liquidateFeeRatio = _liquidateFeeRatio;
+        config = IConfig(_config);
         baseToken = IERC20(_baseToken);
         quoteToken = IERC20(_quoteToken);
     }
-
-    function initialize() external onlyFactory {}
 
     // transferring token is in router.sol
     function addMargin(address _trader, uint256 _depositAmount) external {
@@ -190,6 +185,7 @@ contract Margin {
         baseAmount = _querySwapBaseWithVAmm(isLong, quoteAmount);
 
         //calc liquidate fee
+        uint256 liquidateFeeRatio = config.liquidateFeeRatio();
         bonus = baseAmount.mul(liquidateFeeRatio).div(100);
         int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(bonus));
         if (remainBaseAmount > 0) {
@@ -224,7 +220,7 @@ contract Margin {
     function canLiquidate(address _trader) public view returns (bool) {
         Position memory traderPosition = traderPositionMap[_trader];
         uint256 debtRatio = uint256(100).sub(_calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize));
-        return debtRatio >= liquidateThreshold;
+        return debtRatio >= config.liquidateThreshold();
     }
 
     function _calDebtRatio(int256 quoteSize, int256 baseSize) public view returns (uint256) {
@@ -271,7 +267,7 @@ contract Margin {
 
     function _checkInitMarginRatio(Position memory traderPosition) internal view {
         require(
-            _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= initMarginRatio,
+            _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= config.initMarginRatio(),
             "initMarginRatio"
         );
     }
@@ -331,29 +327,18 @@ contract Margin {
         traderPositionMap[_trader] = _position;
     }
 
-    function setInitMarginRatio(uint256 _initMarginRatio) external {
-        require(_initMarginRatio >= 10, "ratio >= 10");
-        initMarginRatio = _initMarginRatio;
-    }
-
-    function setLiquidateThreshold(uint256 _liquidateThreshold) external {
-        require(_liquidateThreshold > 90 && _liquidateThreshold <= 100, "90 < liquidateThreshold <= 100");
-        liquidateThreshold = _liquidateThreshold;
-    }
-
-    function setLiquidateFeeRatio(uint256 _liquidateFeeRatio) external {
-        require(_liquidateFeeRatio > 0 && _liquidateFeeRatio <= 10, "0 < liquidateFeeRatio <= 10");
-        liquidateFeeRatio = _liquidateFeeRatio;
-    }
-
     function getWithdrawableMargin() public view returns (uint256) {
         Position memory traderPosition = traderPositionMap[msg.sender];
         uint256 baseAmount = vAmm.getBaseWithMarkPrice(traderPosition.quoteSize.abs());
         uint256 withdrawableMargin;
         if (traderPosition.quoteSize < 0) {
-            withdrawableMargin = baseAmount.mul(100).div(100 - initMarginRatio).sub(traderPosition.baseSize.abs());
+            withdrawableMargin = baseAmount.mul(100).div(100 - config.initMarginRatio()).sub(
+                traderPosition.baseSize.abs()
+            );
         } else {
-            withdrawableMargin = traderPosition.baseSize.abs().mul(100).div(100 - initMarginRatio).sub(baseAmount);
+            withdrawableMargin = traderPosition.baseSize.abs().mul(100).div(100 - config.initMarginRatio()).sub(
+                baseAmount
+            );
         }
         return withdrawableMargin;
     }

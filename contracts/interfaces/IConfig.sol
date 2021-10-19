@@ -17,6 +17,12 @@ interface IConfig {
 
     function liquidateIncentive() external view returns (uint256);
 
+    function initMarginRatio() external view returns (uint256);
+
+    function liquidateThreshold() external view returns (uint256);
+
+    function liquidateFeeRatio() external view returns (uint256);
+
     function rebasePriceGap() external view returns (uint256);
 
     function onlyPCV() external view returns (bool);

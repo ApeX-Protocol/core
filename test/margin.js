@@ -31,17 +31,19 @@ describe("Margin contract", function () {
         const Vault = await ethers.getContractFactory("Vault");
         vault = await Vault.deploy(mockBaseToken.address, mockVAmm.address);
 
+        const Config = await ethers.getContractFactory("Config");
+        config = await Config.deploy(10, 100, 20);
+
         const Margin = await ethers.getContractFactory("Margin");
-        margin = await Margin.deploy(
+        margin = await Margin.deploy();
+
+        await margin.initialize(
             mockBaseToken.address,
             mockQuoteToken.address,
+            config.address,
             mockVAmm.address,
-            vault.address,
-            10,
-            100,
-            20
-        );
-
+            vault.address
+        )
         await mockRouter.setMarginContract(margin.address);
         await vault.setMargin(margin.address);
 
@@ -98,8 +100,6 @@ describe("Margin contract", function () {
                 expect(position[2]).to.equal(10);
             });
         })
-
-
     });
 
     describe("remove margin", async function () {
@@ -338,36 +338,4 @@ describe("Margin contract", function () {
 
     });
 
-    describe("set initMarginRatio", async function () {
-        it("set correct ratio", async function () {
-            await margin.setInitMarginRatio(10);
-            expect(await margin.initMarginRatio()).to.equal(10);
-        });
-
-        it("set wrong ratio", async function () {
-            await expect(margin.setInitMarginRatio(9)).to.be.revertedWith("ratio >= 10");
-        });
-    });
-
-    describe("set liquidateThreshold", async function () {
-        it("set correct threshold", async function () {
-            await margin.setLiquidateThreshold(100);
-            expect(await margin.liquidateThreshold()).to.equal(100);
-        });
-
-        it("set wrong threshold", async function () {
-            await expect(margin.setLiquidateThreshold(80)).to.be.revertedWith("90 < liquidateThreshold <= 100");
-        });
-    });
-
-    describe("set liquidateFeeRatio", async function () {
-        it("set correct fee ratio", async function () {
-            await margin.setLiquidateFeeRatio(10);
-            expect(await margin.liquidateFeeRatio()).to.equal(10);
-        });
-
-        it("set wrong fee ratio", async function () {
-            await expect(margin.setLiquidateFeeRatio(20)).to.be.revertedWith("0 < liquidateFeeRatio <= 10");
-        });
-    });
 });
