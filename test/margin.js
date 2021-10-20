@@ -132,27 +132,37 @@ describe("Margin contract", function () {
                 expect(position[0]).to.equal(-10);
                 expect(position[1]).to.equal(routerAllowance + 10);
                 expect(position[2]).to.equal(10);
+
+                await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
+                await margin.connect(addr1).openPosition(shortSide, baseAmount);
+                position = await margin.traderPositionMap(addr1.address);
+                expect(position[0]).to.equal(10);
+                expect(position[1]).to.equal(addr1InitBaseAmount - 10);
+                expect(position[2]).to.equal(10);
             });
 
-            describe("operate margin with old short position", function () {
-                beforeEach(async function () {
-                    let baseAmount = 10;
-                    await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
-                    await margin.connect(addr1).openPosition(shortSide, baseAmount);
-                    let position = await margin.traderPositionMap(addr1.address);
-                    expect(position[0]).to.equal(10);
-                    expect(position[1]).to.equal(addr1InitBaseAmount - 10);
-                    expect(position[2]).to.equal(10);
-                });
+            it("withdraw maximum margin from an old short position", async function () {
+                await margin.connect(addr1).openPosition(shortSide, 5);
+                position = await margin.traderPositionMap(addr1.address);
+                expect(position[0]).to.equal(15);
+                expect(position[1]).to.equal(85);
+                expect(position[2]).to.equal(15);
 
-                it("withdraw maximum margin from an old short position", async function () {
-                    await mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 1);
-                    position = await margin.traderPositionMap(addr1.address);
-                    expect(position[0]).to.equal(10);
-                    expect(position[1]).to.equal(-9);
-                    expect(position[2]).to.equal(10);
-                });
-            })
+                await expect(mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 1)).to.be.revertedWith("preCheck withdrawable");
+                await mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 2)
+                position = await margin.traderPositionMap(addr1.address);
+                expect(position[0]).to.equal(15);
+                expect(position[1]).to.equal(-13);
+                expect(position[2]).to.equal(15);
+            });
+
+            it("withdraw maximum margin from an old short position", async function () {
+                await mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 1);
+                position = await margin.traderPositionMap(addr1.address);
+                expect(position[0]).to.equal(10);
+                expect(position[1]).to.equal(-9);
+                expect(position[2]).to.equal(10);
+            });
 
             it("withdraw margin from an old position", async function () {
                 await mockRouter.removeMargin(1);
@@ -334,6 +344,7 @@ describe("Margin contract", function () {
             expect(position[0]).to.equal(0);
             expect(position[1]).to.equal(0);
             expect(position[2]).to.equal(0);
+            expect((await mockBaseToken.balanceOf(liquidator.address)).toNumber()).to.greaterThan(0)
         })
 
     });

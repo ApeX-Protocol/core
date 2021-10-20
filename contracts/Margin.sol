@@ -83,7 +83,7 @@ contract Margin {
         address trader = tx.origin;
 
         Position memory traderPosition = traderPositionMap[trader];
-        //todo check before subtract
+        // check before subtract
         require(_withdrawAmount <= _getWithdrawableMargin(trader), "preCheck withdrawable");
 
         traderPosition.baseSize = traderPosition.baseSize.subU(_withdrawAmount);
@@ -246,8 +246,7 @@ contract Margin {
             inputAmount,
             outputAmount
         );
-
-        return result[1];
+        return isLong ? result[0] : result[1];
     }
 
     function getWithdrawableMargin() external view returns (uint256) {
@@ -297,7 +296,7 @@ contract Margin {
                 quoteSize.abs()
             );
             //todo need to delete 10, this 10 is for simulating price fluctuation, bad for long
-            uint256 baseAmount = result[1] * 10;
+            uint256 baseAmount = result[0] * 10;
             uint256 ratio = baseAmount.mul(10000).div(baseSize.abs());
             if (10000 < ratio) {
                 return 10000;
@@ -336,7 +335,7 @@ contract Margin {
                 quoteSize.abs()
             );
 
-            uint256 baseAmount = result[1];
+            uint256 baseAmount = result[0];
             uint256 ratio = baseAmount.mul(10000).div(baseSize.abs());
             if (10000 < ratio) {
                 return 0;
@@ -359,7 +358,7 @@ contract Margin {
         }
 
         uint256[2] memory result = vAmm.swap(inputToken, outputToken, inputAmount, outputAmount);
-        return result[1];
+        return isLong ? result[0] : result[1];
     }
 
     function _minusPositionWithVAmm(bool isLong, uint256 _quoteAmount) internal returns (uint256) {
@@ -376,7 +375,7 @@ contract Margin {
         }
 
         uint256[2] memory result = vAmm.swap(inputToken, outputToken, inputAmount, outputAmount);
-        return result[1];
+        return isLong ? result[0] : result[1];
     }
 
     function _querySwapBaseWithVAmm(bool isLong, uint256 _quoteAmount) internal view returns (uint256) {
@@ -393,7 +392,7 @@ contract Margin {
         }
 
         uint256[2] memory result = vAmm.swapQuery(inputToken, outputToken, inputAmount, outputAmount);
-        return result[1];
+        return isLong ? result[0] : result[1];
     }
 
     function _setPosition(address _trader, Position memory _position) internal {
@@ -412,7 +411,7 @@ contract Margin {
                 traderPosition.quoteSize.abs()
             );
 
-            uint256 baseAmount = result[1];
+            uint256 baseAmount = result[0];
             uint256 baseNeeded = baseAmount.mul(10000).div(10000 - config.initMarginRatio());
             if (baseAmount.mul(10000) % (10000 - config.initMarginRatio()) != 0) {
                 baseNeeded += 1;
