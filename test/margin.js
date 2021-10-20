@@ -114,6 +114,7 @@ describe("Margin contract", function () {
         });
 
         it("no position, have baseToken, remove wrong margin", async function () {
+            await expect(margin.removeMargin(0)).to.be.revertedWith(">0");
             await expect(margin.removeMargin(routerAllowance + 1)).to.be.revertedWith("preCheck withdrawable");
         });
 
@@ -210,7 +211,7 @@ describe("Margin contract", function () {
         });
 
         it("open wrong position", async function () {
-            await expect(margin.openPosition(longSide, 0)).to.be.revertedWith("open 0");
+            await expect(margin.openPosition(longSide, 0)).to.be.revertedWith(">0");
         });
 
         describe("open long first, then open long", async function () {
