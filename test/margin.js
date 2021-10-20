@@ -360,21 +360,21 @@ describe("Margin contract", function () {
         });
 
         it("quote -10, base 11; 1/11, margin ratio is 9.09%", async function () {
-            expect(await margin.getMarginRatio()).to.equal(910)
+            expect(await margin.getMarginRatio(owner.address)).to.equal(910)
         });
 
         it("quote -10, base 12; 2/12, margin ratio is 16.66%", async function () {
             await mockRouter.addMargin(owner.address, 1);
-            expect(await margin.getMarginRatio()).to.equal(1667)
+            expect(await margin.getMarginRatio(owner.address)).to.equal(1667)
         });
 
         it("quote 10, base -9; 1/10, margin ratio is 10.00%", async function () {
-            expect(await margin.connect(addr1).getMarginRatio()).to.equal(1000)
+            expect(await margin.getMarginRatio(addr1.address)).to.equal(1000)
         });
 
         it("quote 10, base -8; 2/10, margin ratio is 20.00%", async function () {
             await mockRouter.addMargin(addr1.address, 1);
-            expect(await margin.connect(addr1).getMarginRatio()).to.equal(2000)
+            expect(await margin.getMarginRatio(addr1.address)).to.equal(2000)
         });
     });
 
@@ -391,21 +391,21 @@ describe("Margin contract", function () {
         });
 
         it("quote -10, base 11; withdrawable is 0", async function () {
-            expect(await margin.getWithdrawableMargin()).to.equal(0)
+            expect(await margin.getWithdrawableMargin(owner.address)).to.equal(0)
         });
 
         it("quote -10, base 12; withdrawable is 1", async function () {
             await mockRouter.addMargin(owner.address, 1);
-            expect(await margin.getWithdrawableMargin()).to.equal(1)
+            expect(await margin.getWithdrawableMargin(owner.address)).to.equal(1)
         });
 
         it("quote 10, base -9; withdrawable is 0", async function () {
-            expect(await margin.connect(addr1).getWithdrawableMargin()).to.equal(0)
+            expect(await margin.getWithdrawableMargin(addr1.address)).to.equal(0)
         });
 
         it("quote 10, base -8; withdrawable is 1", async function () {
             await mockRouter.addMargin(addr1.address, 1);
-            expect(await margin.connect(addr1).getWithdrawableMargin()).to.equal(1)
+            expect(await margin.getWithdrawableMargin(addr1.address)).to.equal(1)
         });
     });
 
