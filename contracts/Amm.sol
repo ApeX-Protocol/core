@@ -7,6 +7,7 @@ import './libraries/Math.sol';
 import './libraries/UQ112x112.sol';
 import './interfaces/IERC20.sol';
 import './interfaces/IFactory.sol';
+import {IConfig} from "./interfaces/IConfig.sol";
 
 
 contract Amm is IAmm, LiquidityERC20 {
@@ -182,34 +183,50 @@ contract Amm is IAmm, LiquidityERC20 {
         uint _outputAmount ;
         
         if(inputAddress != 0x0 && inputAmount != 0) {
-           uint outputAmount =  swapInput(inputAddress, inputAmount);
+           _outputAmount =  swapInput(inputAddress, inputAmount);
            _inputAmount  =  inputAmount;
-           _outputAmount =  outputAmount;
+         
         } else {
-           uint inputAmount =  swapOutput(outputAddress, outputAmount);
-            _inputAmount = inputAmount;
+            _inputAmount =  swapOutput(outputAddress, outputAmount);
             _outputAmount = outputAmout;
         }
         emit Swap( inputAddress, outputAddress, _inputAmount, _outputAmount);
-       
+        return [_inputAmount, _outputAmount ];
         
     }
 
+ function swapQuery(address inputAddress, address outputAddress, uint inputAmount, uint outputAmount) public view  returns (uint256[2] memory amounts) {
+        require(inputAmount > 0 || outputAmount > 0, 'AMM: INSUFFICIENT_OUTPUT_AMOUNT');
+
+        require(inputAmount < _baseReserve && outputAmount < _quoteReserve, 'AMM: INSUFFICIENT_LIQUIDITY');
+
+        uint _inputAmount ;
+        uint _outputAmount ;
+        
+        if(inputAddress != 0x0 && inputAmount != 0) {
+           _outputAmount =  swapInputQuery(inputAddress, inputAmount);
+           _inputAmount  =  inputAmount;
+           
+        } else {
+            _inputAmount =  swapOutputQuery(outputAddress, outputAmount);
+            _outputAmount = outputAmout;
+        }
+
+       
+        return [_inputAmount, _outputAmount];
+    }
 
     function forceSwap(address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount ) onlyMargin external {
         require((inputToken == baseToken || inputToken == quoteToken) , " wrong input address");
         require((outputToken == baseToken || outputToken == quoteToken) , " wrong output address");
-
+        (uint112 _baseReserve, uint112 _quoteReserve,) = getReserves();
         if(inputToken == baseToken) {
-
             uint balance0 = baseReserve + inputAmount;
-            uint balance1 = quoteReserve - outputAmount;
-        
-        
+            uint balance1 = quoteReserve - outputAmount;  
         } 
         else {
-            uint balance0 = baseReserve - inputAmount;
-            uint balance1 = quoteReserve + outputAmount;
+            uint balance0 = baseReserve - outputAmount;
+            uint balance1 = quoteReserve + inputAmount;
 
         }
         _update(balance0, balance1, _reserve0, _reserve1);
@@ -251,11 +268,11 @@ contract Amm is IAmm, LiquidityERC20 {
         _update(balance0, balance1, _baseReserve, _quoteReserve);
     }
 
+     
     function swapOutput( address outputAddress, uint outputAmount) internal  returns(uint amountIn) {
         require((outputAddress == baseToken || outputAddress == quoteToken) , "AMM: wrong output address");
         uint balance0;
         uint balance1;
-        uint amountIn;
         (uint112 _baseReserve, uint112 _quoteReserve,) = getReserves(); // gas savings
         if(outputAddress == baseToken) {
             amountIn=  AMMlibarary.getAmoutIn(outputAmount,_quoteReserve, _baseReserve ); 
@@ -263,16 +280,40 @@ contract Amm is IAmm, LiquidityERC20 {
             balance1 = _quoteReserve + amountIn; 
         
         } else {
-            amountIn =  libarary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve ); 
+            amountIn =  AMMlibarary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve ); 
             balance0 = _baseReserve +  amountIn; 
             balance1 = _quoteReserve - outputAmount; 
         }
         _update(balance0, balance1, _reserve0, _reserve1);
         emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
-        require(balance0Adjusted.mul(balance1Adjusted) >= uint(_reserve0).mul(_reserve1).mul(1000**2), 'AMM: K');
-    
     }
 
+    function swapInputQuery(address inputAddress, uint inputAmount)  internal returns(uint amountOut) {
+        require((inputAddress == baseToken || inputAddress == quoteToken) , "AMM: wrong input address");
+
+        (uint112 _baseReserve, uint112 _quoteReserve,) = getReserves(); // gas savings
+        
+        if(inputAddress == baseToken) {  
+            amountOut=  AMMlibarary.getAmoutOut(inputAmount, _baseReserve, _quoteReserve); 
+        } else {
+            amountOut=  AMMlibarary.getAmoutOut(inputAmount, _quoteReserve, _baseReserve ); 
+        }
+       
+    }
+
+     function swapOutputQuery( address outputAddress, uint outputAmount) internal  returns(uint amountIn) {
+        require((outputAddress == baseToken || outputAddress == quoteToken) , "AMM: wrong output address");
+        
+        uint amountIn;
+        (uint112 _baseReserve, uint112 _quoteReserve,) = getReserves(); // gas savings
+       
+        if(outputAddress == baseToken) {
+            amountIn=  AMMlibarary.getAmoutIn(outputAmount,_quoteReserve, _baseReserve ); 
+        } else {
+            amountIn =  AMMlibarary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve ); 
+        }
+    
+    }
 
 
 
