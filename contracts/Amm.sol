@@ -151,7 +151,7 @@ contract Amm is IAmm, LiquidityERC20 {
         address priceOracle = IConfig.getPriceOracle();
         uint256 price = IPriceOracle(priceOracle).getMarkPrice(baseToken, quoteToken);
         require(price != 0, "AMM: oracle price must not be zero");
-        return baseTokenAmount.div(price);
+        return baseTokenAmount/(price);
     }
 
     function getSpotPrice() public returns (uint256) {
