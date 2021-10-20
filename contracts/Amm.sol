@@ -31,7 +31,7 @@ contract Amm is IAmm, LiquidityERC20 {
     //todo
     uint256 public price0CumulativeLast;
     uint256 public price1CumulativeLast;
-    uint256 public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
+   // uint256 public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
     uint256 private unlocked = 1;
     modifier lock() {
@@ -147,8 +147,9 @@ contract Amm is IAmm, LiquidityERC20 {
 
     function getQuoteAmountByPriceOracle(uint112 baseTokenAmount) internal returns (uint112 quoteTokenAmount) {
         // get price oracle
-        // todo
-        uint256 price = IPriceOracle(address).getMarkPrice(baseToken, quoteToken);
+        // todo 
+        address priceOracle = IConfig.getPriceOracle();
+        uint256 price = IPriceOracle(priceOracle).getMarkPrice(baseToken, quoteToken);
         require(price != 0, "AMM: oracle price must not be zero");
         return baseTokenAmount.div(price);
     }
@@ -334,19 +335,6 @@ contract Amm is IAmm, LiquidityERC20 {
             amountIn = AMMlibarary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve);
         }
     }
-
-    // force balances to match reserves
-    // function skim(address to) external lock {
-    //     address _token0 = token0; // gas savings
-    //     address _token1 = token1; // gas savings
-    //     _safeTransfer(_token0, to, IERC20(_token0).balanceOf(address(this)).sub(reserve0));
-    //     _safeTransfer(_token1, to, IERC20(_token1).balanceOf(address(this)).sub(reserve1));
-    // }
-
-    // // force reserves to match balances
-    // function sync() external lock {
-    //     _update(IERC20(token0).balanceOf(address(this)), IERC20(token1).balanceOf(address(this)), reserve0, reserve1);
-    // }
 
     //fallback
 }
