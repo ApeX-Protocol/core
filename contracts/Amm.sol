@@ -31,7 +31,7 @@ contract Amm is IAmm, LiquidityERC20 {
     //todo
     uint256 public price0CumulativeLast;
     uint256 public price1CumulativeLast;
-   // uint256 public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
+    // uint256 public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
     uint256 private unlocked = 1;
     modifier lock() {
@@ -147,7 +147,7 @@ contract Amm is IAmm, LiquidityERC20 {
 
     function getQuoteAmountByPriceOracle(uint112 baseTokenAmount) internal returns (uint112 quoteTokenAmount) {
         // get price oracle
-        // todo 
+        // todo
         address priceOracle = IConfig.getPriceOracle();
         uint256 price = IPriceOracle(priceOracle).getMarkPrice(baseToken, quoteToken);
         require(price != 0, "AMM: oracle price must not be zero");
@@ -337,4 +337,28 @@ contract Amm is IAmm, LiquidityERC20 {
     }
 
     //fallback
+
+    function baseToken() external view returns (address) {
+        return baseToken;
+    }
+
+    function quoteToken() external view returns (address) {
+        return quoteToken;
+    }
+
+    function factory() external view returns (address) {
+        return factory;
+    }
+
+    function config() external view returns (address) {
+        return config;
+    }
+
+    function margin() external view returns (address) {
+        return margin;
+    }
+
+    function vault() external view returns (address) {
+        return vault;
+    }
 }
