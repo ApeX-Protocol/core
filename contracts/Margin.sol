@@ -83,7 +83,8 @@ contract Margin {
         address trader = tx.origin;
 
         Position memory traderPosition = traderPositionMap[trader];
-        //todo check before sub is better
+        //todo check before subtract
+        require(_withdrawAmount <= _getWithdrawableMargin(trader), "preCheck withdrawable");
 
         traderPosition.baseSize = traderPosition.baseSize.subU(_withdrawAmount);
         if (traderPosition.quoteSize == 0) {
@@ -188,7 +189,7 @@ contract Margin {
 
         //calc liquidate fee
         uint256 liquidateFeeRatio = config.liquidateFeeRatio();
-        bonus = baseAmount.mul(liquidateFeeRatio).div(100);
+        bonus = baseAmount.mul(liquidateFeeRatio).div(10000);
         int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(bonus));
         if (remainBaseAmount > 0) {
             _minusPositionWithVAmm(isLong, traderPosition.quoteSize.abs());
@@ -225,11 +226,51 @@ contract Margin {
         return debtRatio >= config.liquidateThreshold();
     }
 
+    function queryMaxOpenPosition(uint8 _side, uint256 _baseAmount) external view returns (uint256) {
+        bool isLong = _side == 0;
+        address outputToken;
+        address inputToken;
+        uint256 inputAmount;
+        uint256 outputAmount;
+        if (isLong) {
+            outputToken = address(baseToken);
+            outputAmount = _baseAmount;
+        } else {
+            inputToken = address(baseToken);
+            inputAmount = _baseAmount;
+        }
+
+        uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount
+        );
+
+        return result[1];
+    }
+
+    function getWithdrawableMargin() external view returns (uint256) {
+        return _getWithdrawableMargin(msg.sender);
+    }
+
+    function getMarginRatio() external view returns (uint256) {
+        Position memory position = traderPositionMap[msg.sender];
+        return _calMarginRatio(position.quoteSize, position.baseSize);
+    }
+
+    function _checkInitMarginRatio(Position memory traderPosition) internal view {
+        require(
+            _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= config.initMarginRatio(),
+            "initMarginRatio"
+        );
+    }
+
     function _calDebtRatio(int256 quoteSize, int256 baseSize) public view returns (uint256) {
         if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
             return 0;
         } else if (quoteSize < 0 && baseSize <= 0) {
-            return 100;
+            return 10000;
         } else if (quoteSize > 0) {
             //case: quote 10, base -9
             //calculate asset
@@ -243,9 +284,9 @@ contract Margin {
             uint256 baseAmount = result[1] * 10;
             //fixme check baseAmount == 0
             if (baseAmount == 0) {
-                return 100;
+                return 10000;
             }
-            return baseSize.mul(-100).divU(baseAmount).abs();
+            return baseSize.mul(-10000).divU(baseAmount).abs();
         } else {
             //case: quote -10, base 11
             //calculate debt
@@ -257,9 +298,9 @@ contract Margin {
             );
             //todo need to delete 10, this 10 is for simulating price fluctuation, bad for long
             uint256 baseAmount = result[1] * 10;
-            uint256 ratio = baseAmount.mul(100).div(baseSize.abs());
-            if (100 < ratio) {
-                return 100;
+            uint256 ratio = baseAmount.mul(10000).div(baseSize.abs());
+            if (10000 < ratio) {
+                return 10000;
             }
             return ratio;
         }
@@ -267,7 +308,7 @@ contract Margin {
 
     function _calMarginRatio(int256 quoteSize, int256 baseSize) public view returns (uint256) {
         if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
-            return 100;
+            return 10000;
         } else if (quoteSize < 0 && baseSize <= 0) {
             return 0;
         } else if (quoteSize > 0) {
@@ -284,7 +325,7 @@ contract Margin {
             if (baseSize.abs() >= baseAmount || baseAmount == 0) {
                 return 0;
             }
-            return baseSize.mul(100).divU(baseAmount).add(100).abs();
+            return baseSize.mul(10000).divU(baseAmount).add(10000).abs();
         } else {
             //case: quote -10, base 11
             //calculate debt
@@ -296,20 +337,12 @@ contract Margin {
             );
 
             uint256 baseAmount = result[1];
-
-            uint256 ratio = baseAmount.mul(100).div(baseSize.abs());
-            if (100 < ratio) {
+            uint256 ratio = baseAmount.mul(10000).div(baseSize.abs());
+            if (10000 < ratio) {
                 return 0;
             }
-            return uint256(100).sub(ratio);
+            return uint256(10000).sub(ratio);
         }
-    }
-
-    function _checkInitMarginRatio(Position memory traderPosition) internal view {
-        require(
-            _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= config.initMarginRatio(),
-            "initMarginRatio"
-        );
     }
 
     function _addPositionWithVAmm(bool isLong, uint256 _baseAmount) internal returns (uint256) {
@@ -367,10 +400,6 @@ contract Margin {
         traderPositionMap[_trader] = _position;
     }
 
-    function getWithdrawableMargin() external view returns (uint256) {
-        return _getWithdrawableMargin(msg.sender);
-    }
-
     function _getWithdrawableMargin(address _trader) internal view returns (uint256) {
         Position memory traderPosition = traderPositionMap[_trader];
         uint256 withdrawableMargin;
@@ -384,7 +413,11 @@ contract Margin {
             );
 
             uint256 baseAmount = result[1];
-            uint256 baseNeeded = baseAmount.mul(100).div(100 - config.initMarginRatio());
+            uint256 baseNeeded = baseAmount.mul(10000).div(10000 - config.initMarginRatio());
+            if (baseAmount.mul(10000) % (10000 - config.initMarginRatio()) != 0) {
+                baseNeeded += 1;
+            }
+
             if (traderPosition.baseSize.abs() < baseNeeded) {
                 withdrawableMargin = 0;
             } else {
@@ -392,7 +425,7 @@ contract Margin {
             }
         } else {
             //quoteSize 10, baseSize -9
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+            uint256[2] memory result = vAmm.swapQuery(
                 address(quoteToken),
                 address(baseToken),
                 traderPosition.quoteSize.abs(),
@@ -400,7 +433,7 @@ contract Margin {
             );
 
             uint256 baseAmount = result[1];
-            uint256 baseNeeded = baseAmount.mul(100 - config.initMarginRatio()).div(100);
+            uint256 baseNeeded = baseAmount.mul(10000 - config.initMarginRatio()).div(10000);
             if (traderPosition.baseSize < int256(-1).mulU(baseNeeded)) {
                 withdrawableMargin = 0;
             } else {

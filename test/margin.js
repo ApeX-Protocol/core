@@ -32,7 +32,7 @@ describe("Margin contract", function () {
         vault = await Vault.deploy(mockBaseToken.address, mockVAmm.address);
 
         const Config = await ethers.getContractFactory("Config");
-        config = await Config.deploy(10, 100, 20);
+        config = await Config.deploy(909, 10000, 2000);
 
         const Margin = await ethers.getContractFactory("Margin");
         margin = await Margin.deploy();
@@ -114,12 +114,12 @@ describe("Margin contract", function () {
         });
 
         it("no position, have baseToken, remove wrong margin", async function () {
-            await expect(margin.removeMargin(routerAllowance + 1)).to.be.revertedWith("insufficient withdrawable");
+            await expect(margin.removeMargin(routerAllowance + 1)).to.be.revertedWith("preCheck withdrawable");
         });
 
         it("no position and no baseToken, remove margin", async function () {
             await margin.removeMargin(routerAllowance)
-            await expect(margin.removeMargin(1)).to.be.revertedWith("insufficient withdrawable");
+            await expect(margin.removeMargin(1)).to.be.revertedWith("preCheck withdrawable");
         });
 
 
@@ -171,7 +171,7 @@ describe("Margin contract", function () {
             });
 
             it("withdraw wrong margin from an old position", async function () {
-                await expect(mockRouter.removeMargin(routerAllowance)).to.be.revertedWith("initMarginRatio");
+                await expect(mockRouter.removeMargin(routerAllowance)).to.be.revertedWith("preCheck withdrawable");
             });
         })
     });
@@ -337,5 +337,65 @@ describe("Margin contract", function () {
         })
 
     });
+    describe("get margin ratio", async function () {
+        beforeEach(async function () {
+            await mockRouter.addMargin(owner.address, 1);
+            let baseAmount = 10;
+            await margin.openPosition(longSide, baseAmount);
+
+            await mockRouter.addMargin(addr1.address, 1);
+            await margin.connect(addr1).openPosition(shortSide, baseAmount);
+        });
+
+        it("quote -10, base 11; 1/11, margin ratio is 9.09%", async function () {
+            expect(await margin.getMarginRatio()).to.equal(910)
+        });
+
+        it("quote -10, base 12; 2/12, margin ratio is 16.66%", async function () {
+            await mockRouter.addMargin(owner.address, 1);
+            expect(await margin.getMarginRatio()).to.equal(1667)
+        });
+
+        it("quote 10, base -9; 1/10, margin ratio is 10.00%", async function () {
+            expect(await margin.connect(addr1).getMarginRatio()).to.equal(1000)
+        });
+
+        it("quote 10, base -8; 2/10, margin ratio is 20.00%", async function () {
+            await mockRouter.addMargin(addr1.address, 1);
+            expect(await margin.connect(addr1).getMarginRatio()).to.equal(2000)
+        });
+    });
+
+
+
+    describe("get withdrawable margin", async function () {
+        beforeEach(async function () {
+            await mockRouter.addMargin(owner.address, 1);
+            let baseAmount = 10;
+            await margin.openPosition(longSide, baseAmount);
+
+            await mockRouter.addMargin(addr1.address, 1);
+            await margin.connect(addr1).openPosition(shortSide, baseAmount);
+        });
+
+        it("quote -10, base 11; withdrawable is 0", async function () {
+            expect(await margin.getWithdrawableMargin()).to.equal(0)
+        });
+
+        it("quote -10, base 12; withdrawable is 1", async function () {
+            await mockRouter.addMargin(owner.address, 1);
+            expect(await margin.getWithdrawableMargin()).to.equal(1)
+        });
+
+        it("quote 10, base -9; withdrawable is 0", async function () {
+            expect(await margin.connect(addr1).getWithdrawableMargin()).to.equal(0)
+        });
+
+        it("quote 10, base -8; withdrawable is 1", async function () {
+            await mockRouter.addMargin(addr1.address, 1);
+            expect(await margin.connect(addr1).getWithdrawableMargin()).to.equal(1)
+        });
+    });
+
 
 });
