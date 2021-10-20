@@ -32,7 +32,7 @@ describe("Margin contract", function () {
         vault = await Vault.deploy(mockBaseToken.address, mockVAmm.address);
 
         const Config = await ethers.getContractFactory("Config");
-        config = await Config.deploy(10, 100, 20);
+        config = await Config.deploy(909, 10000, 2000);
 
         const Margin = await ethers.getContractFactory("Margin");
         margin = await Margin.deploy();
@@ -114,12 +114,13 @@ describe("Margin contract", function () {
         });
 
         it("no position, have baseToken, remove wrong margin", async function () {
-            await expect(margin.removeMargin(routerAllowance + 1)).to.be.revertedWith("insufficient withdrawable");
+            await expect(margin.removeMargin(0)).to.be.revertedWith(">0");
+            await expect(margin.removeMargin(routerAllowance + 1)).to.be.revertedWith("preCheck withdrawable");
         });
 
         it("no position and no baseToken, remove margin", async function () {
             await margin.removeMargin(routerAllowance)
-            await expect(margin.removeMargin(1)).to.be.revertedWith("insufficient withdrawable");
+            await expect(margin.removeMargin(1)).to.be.revertedWith("preCheck withdrawable");
         });
 
 
@@ -132,27 +133,37 @@ describe("Margin contract", function () {
                 expect(position[0]).to.equal(-10);
                 expect(position[1]).to.equal(routerAllowance + 10);
                 expect(position[2]).to.equal(10);
+
+                await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
+                await margin.connect(addr1).openPosition(shortSide, baseAmount);
+                position = await margin.traderPositionMap(addr1.address);
+                expect(position[0]).to.equal(10);
+                expect(position[1]).to.equal(addr1InitBaseAmount - 10);
+                expect(position[2]).to.equal(10);
             });
 
-            describe("operate margin with old short position", function () {
-                beforeEach(async function () {
-                    let baseAmount = 10;
-                    await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
-                    await margin.connect(addr1).openPosition(shortSide, baseAmount);
-                    let position = await margin.traderPositionMap(addr1.address);
-                    expect(position[0]).to.equal(10);
-                    expect(position[1]).to.equal(addr1InitBaseAmount - 10);
-                    expect(position[2]).to.equal(10);
-                });
+            it("withdraw maximum margin from an old short position", async function () {
+                await margin.connect(addr1).openPosition(shortSide, 5);
+                position = await margin.traderPositionMap(addr1.address);
+                expect(position[0]).to.equal(15);
+                expect(position[1]).to.equal(85);
+                expect(position[2]).to.equal(15);
 
-                it("withdraw maximum margin from an old short position", async function () {
-                    await mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 1);
-                    position = await margin.traderPositionMap(addr1.address);
-                    expect(position[0]).to.equal(10);
-                    expect(position[1]).to.equal(-9);
-                    expect(position[2]).to.equal(10);
-                });
-            })
+                await expect(mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 1)).to.be.revertedWith("preCheck withdrawable");
+                await mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 2)
+                position = await margin.traderPositionMap(addr1.address);
+                expect(position[0]).to.equal(15);
+                expect(position[1]).to.equal(-13);
+                expect(position[2]).to.equal(15);
+            });
+
+            it("withdraw maximum margin from an old short position", async function () {
+                await mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 1);
+                position = await margin.traderPositionMap(addr1.address);
+                expect(position[0]).to.equal(10);
+                expect(position[1]).to.equal(-9);
+                expect(position[2]).to.equal(10);
+            });
 
             it("withdraw margin from an old position", async function () {
                 await mockRouter.removeMargin(1);
@@ -171,7 +182,7 @@ describe("Margin contract", function () {
             });
 
             it("withdraw wrong margin from an old position", async function () {
-                await expect(mockRouter.removeMargin(routerAllowance)).to.be.revertedWith("initMarginRatio");
+                await expect(mockRouter.removeMargin(routerAllowance)).to.be.revertedWith("preCheck withdrawable");
             });
         })
     });
@@ -200,7 +211,7 @@ describe("Margin contract", function () {
         });
 
         it("open wrong position", async function () {
-            await expect(margin.openPosition(longSide, 0)).to.be.revertedWith("open 0");
+            await expect(margin.openPosition(longSide, 0)).to.be.revertedWith(">0");
         });
 
         describe("open long first, then open long", async function () {
@@ -334,8 +345,69 @@ describe("Margin contract", function () {
             expect(position[0]).to.equal(0);
             expect(position[1]).to.equal(0);
             expect(position[2]).to.equal(0);
+            expect((await mockBaseToken.balanceOf(liquidator.address)).toNumber()).to.greaterThan(0)
         })
 
     });
+    describe("get margin ratio", async function () {
+        beforeEach(async function () {
+            await mockRouter.addMargin(owner.address, 1);
+            let baseAmount = 10;
+            await margin.openPosition(longSide, baseAmount);
+
+            await mockRouter.addMargin(addr1.address, 1);
+            await margin.connect(addr1).openPosition(shortSide, baseAmount);
+        });
+
+        it("quote -10, base 11; 1/11, margin ratio is 9.09%", async function () {
+            expect(await margin.getMarginRatio()).to.equal(910)
+        });
+
+        it("quote -10, base 12; 2/12, margin ratio is 16.66%", async function () {
+            await mockRouter.addMargin(owner.address, 1);
+            expect(await margin.getMarginRatio()).to.equal(1667)
+        });
+
+        it("quote 10, base -9; 1/10, margin ratio is 10.00%", async function () {
+            expect(await margin.connect(addr1).getMarginRatio()).to.equal(1000)
+        });
+
+        it("quote 10, base -8; 2/10, margin ratio is 20.00%", async function () {
+            await mockRouter.addMargin(addr1.address, 1);
+            expect(await margin.connect(addr1).getMarginRatio()).to.equal(2000)
+        });
+    });
+
+
+
+    describe("get withdrawable margin", async function () {
+        beforeEach(async function () {
+            await mockRouter.addMargin(owner.address, 1);
+            let baseAmount = 10;
+            await margin.openPosition(longSide, baseAmount);
+
+            await mockRouter.addMargin(addr1.address, 1);
+            await margin.connect(addr1).openPosition(shortSide, baseAmount);
+        });
+
+        it("quote -10, base 11; withdrawable is 0", async function () {
+            expect(await margin.getWithdrawableMargin()).to.equal(0)
+        });
+
+        it("quote -10, base 12; withdrawable is 1", async function () {
+            await mockRouter.addMargin(owner.address, 1);
+            expect(await margin.getWithdrawableMargin()).to.equal(1)
+        });
+
+        it("quote 10, base -9; withdrawable is 0", async function () {
+            expect(await margin.connect(addr1).getWithdrawableMargin()).to.equal(0)
+        });
+
+        it("quote 10, base -8; withdrawable is 1", async function () {
+            await mockRouter.addMargin(addr1.address, 1);
+            expect(await margin.connect(addr1).getWithdrawableMargin()).to.equal(1)
+        });
+    });
+
 
 });

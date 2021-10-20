@@ -3,17 +3,18 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {IVault} from "./interfaces/IVault.sol";
 import {IAmm} from "./interfaces/IAmm.sol";
 import {IRouter} from "./interfaces/IRouter.sol";
+import {IConfig} from "./interfaces/IConfig.sol";
 import {Math} from "./libraries/Math.sol";
 import {Decimal} from "./libraries/Decimal.sol";
 import {SignedDecimal} from "./libraries/SignedDecimal.sol";
-import {IConfig} from "./interfaces/IConfig.sol";
 
 import "hardhat/console.sol";
 
-contract Margin {
+contract Margin is ReentrancyGuard {
     using Decimal for uint256;
     using SignedDecimal for int256;
 
@@ -22,6 +23,8 @@ contract Margin {
         int256 baseSize;
         uint256 tradeSize;
     }
+
+    uint256 constant MAXRATIO = 10000;
 
     address public factory;
     IAmm public vAmm;
@@ -63,7 +66,7 @@ contract Margin {
     }
 
     // transferring token is in router.sol
-    function addMargin(address _trader, uint256 _depositAmount) external {
+    function addMargin(address _trader, uint256 _depositAmount) external nonReentrant {
         require(_depositAmount > 0, ">0");
         Position memory traderPosition = traderPositionMap[_trader];
 
@@ -77,13 +80,15 @@ contract Margin {
         emit AddMargin(_trader, _depositAmount);
     }
 
-    function removeMargin(uint256 _withdrawAmount) external {
+    function removeMargin(uint256 _withdrawAmount) external nonReentrant {
+        require(_withdrawAmount > 0, ">0");
         //fixme
         // address trader = msg.sender;
         address trader = tx.origin;
 
         Position memory traderPosition = traderPositionMap[trader];
-        //todo check before sub is better
+        // check before subtract
+        require(_withdrawAmount <= _getWithdrawableMargin(trader), "preCheck withdrawable");
 
         traderPosition.baseSize = traderPosition.baseSize.subU(_withdrawAmount);
         if (traderPosition.quoteSize == 0) {
@@ -99,8 +104,8 @@ contract Margin {
         emit RemoveMargin(trader, _withdrawAmount);
     }
 
-    function openPosition(uint8 _side, uint256 _baseAmount) external returns (uint256) {
-        require(_baseAmount != 0, "open 0");
+    function openPosition(uint8 _side, uint256 _baseAmount) external nonReentrant returns (uint256) {
+        require(_baseAmount > 0, ">0");
         //fixme
         // address trader = msg.sender;
         address trader = tx.origin;
@@ -128,7 +133,7 @@ contract Margin {
         if (sameDir) {
             traderPosition.tradeSize = traderPosition.tradeSize.add(_baseAmount);
         } else {
-            traderPosition.tradeSize = int256(traderPosition.tradeSize).subU(_baseAmount).abs();
+            traderPosition.tradeSize = traderPosition.tradeSize.sub(_baseAmount);
         }
 
         _checkInitMarginRatio(traderPosition);
@@ -138,7 +143,7 @@ contract Margin {
         return quoteAmount;
     }
 
-    function closePosition(uint256 _quoteAmount) external returns (uint256) {
+    function closePosition(uint256 _quoteAmount) external nonReentrant returns (uint256) {
         //fixme
         // address trader = msg.sender;
         address trader = tx.origin;
@@ -169,6 +174,7 @@ contract Margin {
 
     function liquidate(address _trader)
         external
+        nonReentrant
         returns (
             uint256 quoteAmount,
             uint256 baseAmount,
@@ -188,11 +194,11 @@ contract Margin {
 
         //calc liquidate fee
         uint256 liquidateFeeRatio = config.liquidateFeeRatio();
-        bonus = baseAmount.mul(liquidateFeeRatio).div(100);
+        bonus = baseAmount.mul(liquidateFeeRatio).div(MAXRATIO);
         int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(bonus));
         if (remainBaseAmount > 0) {
             _minusPositionWithVAmm(isLong, traderPosition.quoteSize.abs());
-            vault.withdraw(_trader, uint256(remainBaseAmount));
+            vault.withdraw(_trader, remainBaseAmount.abs());
         } else {
             //with bad debt, update directly
             if (isLong) {
@@ -225,83 +231,78 @@ contract Margin {
         return debtRatio >= config.liquidateThreshold();
     }
 
-    function _calDebtRatio(int256 quoteSize, int256 baseSize) public view returns (uint256) {
-        if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
-            return 0;
-        } else if (quoteSize < 0 && baseSize <= 0) {
-            return 100;
-        } else if (quoteSize > 0) {
-            //case: quote 10, base -9
-            //calculate asset
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
-                address(quoteToken),
-                address(baseToken),
-                quoteSize.abs(),
-                0
-            );
-            //todo need to delete 10, this 10 is for simulating price fluctuation, bad for long
-            uint256 baseAmount = result[1] * 10;
-            //fixme check baseAmount == 0
-            if (baseAmount == 0) {
-                return 100;
-            }
-            return baseSize.mul(-100).divU(baseAmount).abs();
-        } else {
-            //case: quote -10, base 11
-            //calculate debt
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
-                address(baseToken),
-                address(quoteToken),
-                0,
-                quoteSize.abs()
-            );
-            //todo need to delete 10, this 10 is for simulating price fluctuation, bad for long
-            uint256 baseAmount = result[1] * 10;
-            uint256 ratio = baseAmount.mul(100).div(baseSize.abs());
-            if (100 < ratio) {
-                return 100;
-            }
-            return ratio;
-        }
+    function queryMaxOpenPosition(uint8 _side, uint256 _baseAmount) external view returns (uint256) {
+        bool isLong = _side == 0;
+        (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
+            isLong,
+            _baseAmount,
+            address(baseToken)
+        );
+
+        uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount
+        );
+        return isLong ? result[0] : result[1];
     }
 
-    function _calMarginRatio(int256 quoteSize, int256 baseSize) public view returns (uint256) {
-        if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
-            return 100;
-        } else if (quoteSize < 0 && baseSize <= 0) {
-            return 0;
-        } else if (quoteSize > 0) {
-            //case: quote 10, base -9
-            //calculate asset
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
-                address(quoteToken),
-                address(baseToken),
-                quoteSize.abs(),
-                0
-            );
-            uint256 baseAmount = result[1];
-            //todo check baseAmount == 0
-            if (baseSize.abs() >= baseAmount || baseAmount == 0) {
-                return 0;
-            }
-            return baseSize.mul(100).divU(baseAmount).add(100).abs();
+    function getWithdrawableMargin() external view returns (uint256) {
+        return _getWithdrawableMargin(msg.sender);
+    }
+
+    function getMarginRatio() external view returns (uint256) {
+        Position memory position = traderPositionMap[msg.sender];
+        return _calMarginRatio(position.quoteSize, position.baseSize);
+    }
+
+    function _setPosition(address _trader, Position memory _position) internal {
+        traderPositionMap[_trader] = _position;
+    }
+
+    function _addPositionWithVAmm(bool isLong, uint256 _baseAmount) internal returns (uint256) {
+        (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
+            isLong,
+            _baseAmount,
+            address(baseToken)
+        );
+
+        uint256[2] memory result = vAmm.swap(inputToken, outputToken, inputAmount, outputAmount);
+        return isLong ? result[0] : result[1];
+    }
+
+    function _minusPositionWithVAmm(bool isLong, uint256 _quoteAmount) internal returns (uint256) {
+        (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
+            isLong,
+            _quoteAmount,
+            address(quoteToken)
+        );
+
+        uint256[2] memory result = vAmm.swap(inputToken, outputToken, inputAmount, outputAmount);
+        return isLong ? result[0] : result[1];
+    }
+
+    function _getSwapParam(
+        bool isLong,
+        uint256 _quoteAmount,
+        address _quoteToken
+    )
+        internal
+        pure
+        returns (
+            address inputToken,
+            address outputToken,
+            uint256 inputAmount,
+            uint256 outputAmount
+        )
+    {
+        if (isLong) {
+            outputToken = _quoteToken;
+            outputAmount = _quoteAmount;
         } else {
-            //case: quote -10, base 11
-            //calculate debt
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
-                address(baseToken),
-                address(quoteToken),
-                0,
-                quoteSize.abs()
-            );
-
-            uint256 baseAmount = result[1];
-
-            uint256 ratio = baseAmount.mul(100).div(baseSize.abs());
-            if (100 < ratio) {
-                return 0;
-            }
-            return uint256(100).sub(ratio);
+            inputToken = _quoteToken;
+            inputAmount = _quoteAmount;
         }
     }
 
@@ -312,70 +313,95 @@ contract Margin {
         );
     }
 
-    function _addPositionWithVAmm(bool isLong, uint256 _baseAmount) internal returns (uint256) {
-        address inputToken;
-        address outputToken;
-        uint256 inputAmount;
-        uint256 outputAmount;
-        if (isLong) {
-            outputToken = address(baseToken);
-            outputAmount = _baseAmount;
+    function _calDebtRatio(int256 quoteSize, int256 baseSize) internal view returns (uint256) {
+        if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
+            return 0;
+        } else if (quoteSize < 0 && baseSize <= 0) {
+            return MAXRATIO;
+        } else if (quoteSize > 0) {
+            //calculate asset
+            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+                address(quoteToken),
+                address(baseToken),
+                quoteSize.abs(),
+                0
+            );
+            //todo need to delete 10, this 10 is for simulating price fluctuation, bad for long
+            uint256 baseAmount = result[1] * 10;
+            //fixme max debt ratio is MAXRATIO, ok?
+            if (baseAmount == 0) {
+                return MAXRATIO;
+            }
+            return baseSize.mul(-1).mulU(MAXRATIO).divU(baseAmount).abs();
         } else {
-            inputToken = address(baseToken);
-            inputAmount = _baseAmount;
+            //calculate debt
+            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+                address(baseToken),
+                address(quoteToken),
+                0,
+                quoteSize.abs()
+            );
+            //todo need to delete 10, this 10 is for simulating price fluctuation, bad for long
+            uint256 baseAmount = result[0] * 10;
+            uint256 ratio = baseAmount.mul(MAXRATIO).div(baseSize.abs());
+            if (MAXRATIO < ratio) {
+                return MAXRATIO;
+            }
+            return ratio;
         }
-
-        uint256[2] memory result = vAmm.swap(inputToken, outputToken, inputAmount, outputAmount);
-        return result[1];
-    }
-
-    function _minusPositionWithVAmm(bool isLong, uint256 _quoteAmount) internal returns (uint256) {
-        address inputToken;
-        address outputToken;
-        uint256 inputAmount;
-        uint256 outputAmount;
-        if (isLong) {
-            outputToken = address(quoteToken);
-            outputAmount = _quoteAmount;
-        } else {
-            inputToken = address(quoteToken);
-            inputAmount = _quoteAmount;
-        }
-
-        uint256[2] memory result = vAmm.swap(inputToken, outputToken, inputAmount, outputAmount);
-        return result[1];
     }
 
     function _querySwapBaseWithVAmm(bool isLong, uint256 _quoteAmount) internal view returns (uint256) {
-        address inputToken;
-        address outputToken;
-        uint256 inputAmount;
-        uint256 outputAmount;
-        if (isLong) {
-            outputToken = address(quoteToken);
-            outputAmount = _quoteAmount;
-        } else {
-            inputToken = address(quoteToken);
-            inputAmount = _quoteAmount;
-        }
+        (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
+            isLong,
+            _quoteAmount,
+            address(quoteToken)
+        );
 
         uint256[2] memory result = vAmm.swapQuery(inputToken, outputToken, inputAmount, outputAmount);
-        return result[1];
+        return isLong ? result[0] : result[1];
     }
 
-    function _setPosition(address _trader, Position memory _position) internal {
-        traderPositionMap[_trader] = _position;
-    }
+    function _calMarginRatio(int256 quoteSize, int256 baseSize) internal view returns (uint256) {
+        if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
+            return MAXRATIO;
+        } else if (quoteSize < 0 && baseSize <= 0) {
+            return 0;
+        } else if (quoteSize > 0) {
+            //calculate asset
+            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+                address(quoteToken),
+                address(baseToken),
+                quoteSize.abs(),
+                0
+            );
+            uint256 baseAmount = result[1];
+            if (baseSize.abs() >= baseAmount || baseAmount == 0) {
+                return 0;
+            }
+            return baseSize.mulU(MAXRATIO).divU(baseAmount).addU(MAXRATIO).abs();
+        } else {
+            //calculate debt
+            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+                address(baseToken),
+                address(quoteToken),
+                0,
+                quoteSize.abs()
+            );
 
-    function getWithdrawableMargin() external view returns (uint256) {
-        return _getWithdrawableMargin(msg.sender);
+            uint256 baseAmount = result[0];
+            uint256 ratio = baseAmount.mul(MAXRATIO).div(baseSize.abs());
+            if (MAXRATIO < ratio) {
+                return 0;
+            }
+            return MAXRATIO.sub(ratio);
+        }
     }
 
     function _getWithdrawableMargin(address _trader) internal view returns (uint256) {
         Position memory traderPosition = traderPositionMap[_trader];
         uint256 withdrawableMargin;
         if (traderPosition.quoteSize < 0) {
-            //quoteSize -10, baseSize 11
             uint256[2] memory result = vAmm.swapQuery(
                 address(baseToken),
                 address(quoteToken),
@@ -383,16 +409,19 @@ contract Margin {
                 traderPosition.quoteSize.abs()
             );
 
-            uint256 baseAmount = result[1];
-            uint256 baseNeeded = baseAmount.mul(100).div(100 - config.initMarginRatio());
+            uint256 baseAmount = result[0];
+            uint256 baseNeeded = baseAmount.mul(MAXRATIO).div(MAXRATIO - config.initMarginRatio());
+            if (baseAmount.mul(MAXRATIO) % (MAXRATIO - config.initMarginRatio()) != 0) {
+                baseNeeded += 1;
+            }
+
             if (traderPosition.baseSize.abs() < baseNeeded) {
                 withdrawableMargin = 0;
             } else {
                 withdrawableMargin = traderPosition.baseSize.abs().sub(baseNeeded);
             }
         } else {
-            //quoteSize 10, baseSize -9
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+            uint256[2] memory result = vAmm.swapQuery(
                 address(quoteToken),
                 address(baseToken),
                 traderPosition.quoteSize.abs(),
@@ -400,7 +429,7 @@ contract Margin {
             );
 
             uint256 baseAmount = result[1];
-            uint256 baseNeeded = baseAmount.mul(100 - config.initMarginRatio()).div(100);
+            uint256 baseNeeded = baseAmount.mul(MAXRATIO - config.initMarginRatio()).div(MAXRATIO);
             if (traderPosition.baseSize < int256(-1).mulU(baseNeeded)) {
                 withdrawableMargin = 0;
             } else {

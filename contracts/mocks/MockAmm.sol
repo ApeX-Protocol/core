@@ -16,7 +16,7 @@ contract MockVAmm is ERC20 {
         if (inputAmount != 0) {
             return [0, inputAmount];
         }
-        return [0, outputAmount];
+        return [outputAmount, 0];
     }
 
     function swap(
@@ -28,7 +28,7 @@ contract MockVAmm is ERC20 {
         if (inputAmount != 0) {
             return [0, inputAmount];
         }
-        return [0, outputAmount];
+        return [outputAmount, 0];
     }
 
     function forceSwap(
@@ -47,6 +47,6 @@ contract MockVAmm is ERC20 {
         if (inputAmount != 0) {
             return [0, inputAmount];
         }
-        return [0, outputAmount];
+        return [outputAmount, 0];
     }
 }
