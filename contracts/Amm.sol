@@ -7,6 +7,7 @@ import "./libraries/Math.sol";
 import "./libraries/UQ112x112.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IFactory.sol";
+import "./interfaces/IPriceOracle.sol";
 import {IConfig} from "./interfaces/IConfig.sol";
 
 contract Amm is IAmm, LiquidityERC20 {
@@ -27,6 +28,7 @@ contract Amm is IAmm, LiquidityERC20 {
     uint112 private quoteReserve; // uses single storage slot, accessible via getReserves
     uint32 private blockTimestampLast; // uses single storage slot, accessible via getReserves
 
+    //todo
     uint256 public price0CumulativeLast;
     uint256 public price1CumulativeLast;
     uint256 public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
@@ -67,7 +69,7 @@ contract Amm is IAmm, LiquidityERC20 {
     event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
     event ForceSwap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
 
-    event Rebase(uint256 priceBefore, uint256 priceAfter, uint256 modifyAmount);
+    event Rebase(uint256 quoteAmountBefore, uint256 quoteAmountAfter, uint256 baseAmount);
 
     event Sync(uint112 reserveBase, uint112 reserveQuote);
 
@@ -145,8 +147,10 @@ contract Amm is IAmm, LiquidityERC20 {
 
     function getQuoteAmountByPriceOracle(uint112 baseTokenAmount) internal returns (uint112 quoteTokenAmount) {
         // get price oracle
-
-        return AMMLibary.quote(baseTokenAmount, baseReserve, quoteReserve);
+        // todo
+        uint256 price = IPriceOracle(address).getMarkPrice(baseToken, quoteToken);
+        require(price != 0, "AMM: oracle price must not be zero");
+        return baseTokenAmount.div(price);
     }
 
     function getSpotPrice() public returns (uint256) {
@@ -252,13 +256,17 @@ contract Amm is IAmm, LiquidityERC20 {
     }
 
     function rebase() public {
-        require(checkPriceBias(), "price in range");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-        uint256 balance0 = _baseReserve;
-        uint256 balance1 = balance0.mul(price);
-        _update(balance0, balance1, _reserve0, _reserve1);
+        uint256 quoteReserveDesired = getQuoteAmountByPriceOracle(_baseReserve);
+        //todo config
+        if (
+            quoteReserveDesired.mul(100) >= _quoteReserve.mul(105) ||
+            uoteReserveDesired.mul(100) <= _quoteReserve.mul(95)
+        ) {
+            _update(_baseReserve, quoteReserveDesired, _baseReserve, _quoteReserve);
 
-        emit Rebase();
+            emit Rebase(_quoteReserve, quoteReserveDesired, _baseReserve);
+        }
     }
 
     function swapInput(address inputAddress, uint256 inputAmount) internal returns (uint256 amountOut) {
