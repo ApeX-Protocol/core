@@ -6,19 +6,29 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./libraries/Ownable.sol";
 import "hardhat/console.sol";
 
-contract Config is Ownable {
+import "./interfaces/IConfig.sol";
+
+contract Config is IConfig, Ownable {
+    address public priceOracle;
+    uint256 public rebasePriceGap;
     uint256 public initMarginRatio; //if 10, means margin ratio >= 10%
     uint256 public liquidateThreshold; //if 100, means debt ratio < 100%
     uint256 public liquidateFeeRatio; //if 1, means liquidator bot get 1% as fee
 
-    constructor(
-        uint256 _initMarginRatio,
-        uint256 _liquidateThreshold,
-        uint256 _liquidateFeeRatio
-    ) {
-        initMarginRatio = _initMarginRatio;
-        liquidateThreshold = _liquidateThreshold;
-        liquidateFeeRatio = _liquidateFeeRatio;
+    constructor() public {
+        owner = msg.sender;
+    }
+
+    function setPriceOracle(address newOracle) external {
+        require(newOracle != address(0), "Config: ZERO_ADDRESS");
+        emit PriceOracleChanged(priceOracle, newOracle);
+        priceOracle = newOracle;
+    }
+
+    function setRebasePriceGap(uint256 newGap) external {
+        require(newGap > 0, "Config: ZERO_GAP");
+        emit RebasePriceGapChanged(rebasePriceGap, newGap);
+        rebasePriceGap = newGap;
     }
 
     function setInitMarginRatio(uint256 _initMarginRatio) external onlyOwner {
