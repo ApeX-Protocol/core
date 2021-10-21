@@ -341,26 +341,32 @@ contract Amm is IAmm, LiquidityERC20 {
     ) external view returns (uint256[2] memory amounts) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
 
-        uint256 inputSquare = inputAmount * inputAmount;
-        // L/vusd > 10000
-        uint256 _inputAmount = inputAmount;
-        uint256 _outputAmount;
+        uint256 quoteAmount;
+        uint256 baseAmount;
+        if(inputAmount != 0 ) {
+            quoteAmount = inputAmount;
+        } else {
+            quoteAmount = outputAmount;
+        }
 
+        uint256 inputSquare = quoteAmount * quoteAmount;
+        // L/vusd > 10000
         if (FullMath.mulDiv(_baseReserve, _quoteReserve, inputSquare) >= 10000) {
-            _outputAmount = AMMLibrary.quote(inputAmount, _quoteReserve, _baseReserve);
+            baseAmount = AMMLibrary.quote(quoteAmount, _quoteReserve, _baseReserve);
         } else {
             // (sqrt(y/x)+ betal * deltay/L)
             uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
             uint8 beta = IConfig(config).beta();
             require(beta >= 50 && beta <= 100, "beta error");
             //112
-            uint256 denominator = _quoteReserve + beta * _inputAmount;
+            uint256 denominator = _quoteReserve + beta * quoteAmount;
             //224
             denominator = denominator * denominator;
 
-            _outputAmount = FullMath.mulDiv(inputAmount, L, denominator);
+            baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
         }
-        return [_inputAmount, _outputAmount];
+       
+        return inputAmount == 0 ? [baseAmount, quoteAmount]:[quoteAmount, baseAmount];
     }
 
     //fallback
