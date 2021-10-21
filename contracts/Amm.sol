@@ -65,14 +65,6 @@ contract Amm is IAmm, LiquidityERC20 {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "AMM: TRANSFER_FAILED");
     }
 
-    event Mint(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount, uint256 liquidity);
-    event Burn(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount);
-    event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
-    event ForceSwap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
-
-    event Rebase(uint256 quoteAmountBefore, uint256 quoteAmountAfter, uint256 baseAmount);
-
-    event Sync(uint112 reserveBase, uint112 reserveQuote);
 
     constructor() public {
         factory = msg.sender;

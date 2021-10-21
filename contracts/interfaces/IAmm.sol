@@ -7,7 +7,7 @@ interface IAmm {
     event Burn(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount);
     event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
     event ForceSwap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
-    event Rebase(uint256 priceBefore, uint256 priceAfter, uint256 modifyAmount);
+    event Rebase(uint256 quoteAmountBefore, uint256 quoteAmountAfter, uint256 baseAmount);
     event Sync(uint112 reserveBase, uint112 reserveQuote);
 
     function baseToken() external view returns (address);
@@ -22,7 +22,14 @@ interface IAmm {
 
     function vault() external view returns (address);
 
-    function getReserves() external view returns (uint256 reserveBase, uint256 reserveQuote, uint32 blockTimestamp);
+    function getReserves()
+        external
+        view
+        returns (
+            uint256 reserveBase,
+            uint256 reserveQuote,
+            uint32 blockTimestamp
+        );
 
     // only factory can call this function
     function initialize(
