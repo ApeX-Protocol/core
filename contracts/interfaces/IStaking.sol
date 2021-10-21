@@ -8,7 +8,7 @@ interface IStaking {
 
     function factory() external view returns (address);
 
-    function amm() external view returns (address);
+    function stakingToken() external view returns (address);
 
     function totalSupply() external view returns (uint256);
 

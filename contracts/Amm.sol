@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IAmm.sol";
 import "./interfaces/IVault.sol";
-import "./amm/LiquidityERC20.sol";
+import "./LiquidityERC20.sol";
 import "./libraries/Math.sol";
 import "./libraries/UQ112x112.sol";
 import "./interfaces/IERC20.sol";

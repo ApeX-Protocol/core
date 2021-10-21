@@ -6,7 +6,7 @@ import "./libraries/UniswapV2Library.sol";
 contract PriceOracle is IPriceOracle {
     address public uniswapV2Factory;
 
-    constructor(address _uniswapV2Facroty) public {
+    constructor(address _uniswapV2Facroty) {
         uniswapV2Factory = _uniswapV2Facroty;
     }
 
