@@ -2,9 +2,10 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IAmm.sol";
 import "./interfaces/IVault.sol";
-import "./amm/LiquidityERC20.sol";
+import "./LiquidityERC20.sol";
 import "./libraries/Math.sol";
 import "./libraries/UQ112x112.sol";
+import "./libraries/AMMLibrary.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IPriceOracle.sol";
@@ -236,12 +237,14 @@ contract Amm is IAmm, LiquidityERC20 {
         return [_inputAmount, _outputAmount];
     }
 
+
+// todo onlyMargin
     function forceSwap(
         address inputToken,
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external onlyMargin {
+    ) external  {
         require((inputToken == baseToken || inputToken == quoteToken), " wrong input address");
         require((outputToken == baseToken || outputToken == quoteToken), " wrong output address");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -262,7 +265,7 @@ contract Amm is IAmm, LiquidityERC20 {
         //todo config
         if (
             quoteReserveDesired.mul(100) >= _quoteReserve.mul(105) ||
-            uoteReserveDesired.mul(100) <= _quoteReserve.mul(95)
+            quoteReserveDesired.mul(100) <= _quoteReserve.mul(95)
         ) {
             _update(_baseReserve, quoteReserveDesired, _baseReserve, _quoteReserve);
 
@@ -278,7 +281,7 @@ contract Amm is IAmm, LiquidityERC20 {
         uint256 balance1;
 
         if (inputAddress == baseToken) {
-            amountOut = AMMlibarary.getAmoutOut(inputAmount, _baseReserve, _quoteReserve);
+            amountOut = AMMLibrary.getAmoutOut(inputAmount, _baseReserve, _quoteReserve);
             balance0 = _baseReserve + inputAmount;
             balance1 = _quoteReserve - amountOut;
             // if necessary open
@@ -286,7 +289,7 @@ contract Amm is IAmm, LiquidityERC20 {
             // uint balance1Adjusted = balance1.mul(1000);
             // require(balance0Adjusted.mul(balance1Adjusted) >= uint(_baseReserve).mul(_quoteReserve).mul(1000**2), 'AMM: K');
         } else {
-            amountOut = AMMlibarary.getAmoutOut(inputAmount, _quoteReserve, _baseReserve);
+            amountOut = AMMLibrary.getAmoutOut(inputAmount, _quoteReserve, _baseReserve);
             balance0 = _baseReserve - amountOut;
             balance1 = _quoteReserve + inputAmount;
         }
@@ -299,11 +302,11 @@ contract Amm is IAmm, LiquidityERC20 {
         uint256 balance1;
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         if (outputAddress == baseToken) {
-            amountIn = AMMlibarary.getAmoutIn(outputAmount, _quoteReserve, _baseReserve);
+            amountIn = AMMLibrary.getAmoutIn(outputAmount, _quoteReserve, _baseReserve);
             balance0 = _baseReserve - outputAmount;
             balance1 = _quoteReserve + amountIn;
         } else {
-            amountIn = AMMlibarary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve);
+            amountIn = AMMLibrary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve);
             balance0 = _baseReserve + amountIn;
             balance1 = _quoteReserve - outputAmount;
         }
@@ -317,9 +320,9 @@ contract Amm is IAmm, LiquidityERC20 {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
         if (inputAddress == baseToken) {
-            amountOut = AMMlibarary.getAmoutOut(inputAmount, _baseReserve, _quoteReserve);
+            amountOut = AMMLibrary.getAmoutOut(inputAmount, _baseReserve, _quoteReserve);
         } else {
-            amountOut = AMMlibarary.getAmoutOut(inputAmount, _quoteReserve, _baseReserve);
+            amountOut = AMMLibrary.getAmoutOut(inputAmount, _quoteReserve, _baseReserve);
         }
     }
 
@@ -330,35 +333,12 @@ contract Amm is IAmm, LiquidityERC20 {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
         if (outputAddress == baseToken) {
-            amountIn = AMMlibarary.getAmoutIn(outputAmount, _quoteReserve, _baseReserve);
+            amountIn = AMMLibrary.getAmoutIn(outputAmount, _quoteReserve, _baseReserve);
         } else {
-            amountIn = AMMlibarary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve);
+            amountIn = AMMLibrary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve);
         }
     }
 
     //fallback
 
-    function baseToken() external view returns (address) {
-        return baseToken;
-    }
-
-    function quoteToken() external view returns (address) {
-        return quoteToken;
-    }
-
-    function factory() external view returns (address) {
-        return factory;
-    }
-
-    function config() external view returns (address) {
-        return config;
-    }
-
-    function margin() external view returns (address) {
-        return margin;
-    }
-
-    function vault() external view returns (address) {
-        return vault;
-    }
 }
