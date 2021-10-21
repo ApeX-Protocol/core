@@ -13,14 +13,10 @@ interface IVault {
 
     function margin() external view returns (address);
 
-    function getReserve() external view returns (uint256);
-
     // only factory can call this function
-    function initialize(
-        address _baseToken,
-        address _amm,
-        address _margin
-    ) external;
+    function initialize(address _baseToken, address _amm) external;
+
+    function setMargin(address _margin) external;
 
     // only amm or margin can call this function
     function withdraw(address to, uint256 amount) external;

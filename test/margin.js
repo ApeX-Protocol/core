@@ -30,7 +30,7 @@ describe("Margin contract", function () {
         mockRouter = await MockRouter.deploy(mockBaseToken.address);
 
         const Vault = await ethers.getContractFactory("Vault");
-        vault = await Vault.deploy(mockBaseToken.address, mockVAmm.address);
+        vault = await Vault.deploy();
 
         const Config = await ethers.getContractFactory("Config");
         config = await Config.deploy();
@@ -46,6 +46,7 @@ describe("Margin contract", function () {
             vault.address
         )
         await mockRouter.setMarginContract(margin.address);
+        await vault.initialize(mockBaseToken.address, mockVAmm.address);
         await vault.setMargin(margin.address);
 
         await mockBaseToken.mint(owner.address, ownerInitBaseAmount);

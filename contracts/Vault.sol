@@ -3,41 +3,41 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./interfaces/IVault.sol";
+import "./utils/Reentrant.sol";
 import "./utils/Ownable.sol";
 import "hardhat/console.sol";
 
-contract Vault is ReentrancyGuard, Ownable {
-    IERC20 public token;
-    address public margin;
-    address public vAmm;
-    address public factory;
+contract Vault is IVault, Reentrant, Ownable {
+    address public override baseToken;
+    address public override margin;
+    address public override amm;
+    address public override factory;
 
-    event Withdraw(address indexed receiver, uint256 amount);
-
-    constructor(address _baseToken, address _vAmm) {
+    constructor() {
         factory = msg.sender;
-        token = IERC20(_baseToken);
-        vAmm = _vAmm;
     }
 
-    function initialize() external onlyFactory {}
-
-    function withdraw(address _receiver, uint256 _amount) external nonReentrant vAmmOrMargin {
-        token.transfer(_receiver, _amount);
-        emit Withdraw(_receiver, _amount);
+    function initialize(address _baseToken, address _amm) external override onlyFactory {
+        baseToken = _baseToken;
+        amm = _amm;
     }
 
-    function setMargin(address _margin) external onlyAdmin {
+    function withdraw(address _receiver, uint256 _amount) external override nonReentrant vAmmOrMargin {
+        IERC20(baseToken).transfer(_receiver, _amount);
+        emit Withdraw(msg.sender, _receiver, _amount);
+    }
+
+    function setMargin(address _margin) external override onlyAdmin {
         margin = _margin;
     }
 
     function setAmm(address _amm) external onlyAdmin {
-        vAmm = _amm;
+        amm = _amm;
     }
 
     modifier vAmmOrMargin() {
-        require(msg.sender == margin || msg.sender == vAmm, "vAmm or margin");
+        require(msg.sender == margin || msg.sender == amm, "vAmm or margin");
         _;
     }
 
