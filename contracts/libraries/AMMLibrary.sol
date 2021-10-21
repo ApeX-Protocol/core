@@ -34,7 +34,7 @@ library AMMLibrary {
     ) internal pure returns (uint256 amountOut) {
         require(amountIn > 0, "AMMLibrary: INSUFFICIENT_INPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "AMMLibrary: INSUFFICIENT_LIQUIDITY");
-        uint256 amountInWithFee = amountIn.mul(997);
+        uint256 amountInWithFee = amountIn.mul(999);
         uint256 numerator = amountInWithFee.mul(reserveOut);
         uint256 denominator = reserveIn.mul(1000).add(amountInWithFee);
         amountOut = numerator / denominator;
@@ -49,7 +49,7 @@ library AMMLibrary {
         require(amountOut > 0, "AMMLibrary: INSUFFICIENT_OUTPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "AMMLibrary: INSUFFICIENT_LIQUIDITY");
         uint256 numerator = reserveIn.mul(amountOut).mul(1000);
-        uint256 denominator = reserveOut.sub(amountOut).mul(997);
+        uint256 denominator = reserveOut.sub(amountOut).mul(999);
         amountIn = (numerator / denominator).add(1);
     }
 }

@@ -146,8 +146,7 @@ contract Amm is IAmm, LiquidityERC20 {
         quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
     }
 
-
-    //todo 
+    //todo
     function getSpotPrice() public returns (uint256) {
         if (quoteReserve == 0) {
             return 0;
@@ -335,40 +334,34 @@ contract Amm is IAmm, LiquidityERC20 {
     }
 
     function swapQueryWithAcctSpecMarkPrice(
-            address inputToken,
-            address outputToken,
-            uint256 inputAmount,
-            uint256 outputAmount
-        ) external view returns (uint256[2] memory amounts) {
-
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external view returns (uint256[2] memory amounts) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-        
-         uint256  inputSquare =     inputAmount * inputAmount;
-       // L/vusd > 10000
+
+        uint256 inputSquare = inputAmount * inputAmount;
+        // L/vusd > 10000
         uint256 _inputAmount = inputAmount;
-        uint256 _outputAmount; 
+        uint256 _outputAmount;
 
-
-        if(FullMath.mulDiv(_baseReserve,_quoteReserve,inputSquare )>=10000){
+        if (FullMath.mulDiv(_baseReserve, _quoteReserve, inputSquare) >= 10000) {
             _outputAmount = AMMLibrary.quote(inputAmount, _quoteReserve, _baseReserve);
         } else {
-         // (sqrt(y/x)+ betal * deltay/L)   
-         uint L =  uint(_baseReserve) * uint(_quoteReserve);
-         uint beta = Iconfig(config).beta();
-         require(beta>=50&& beta<=100, "beta error");
-         // 112
-         uint denominator =  _quoteReserve + beta * _inputAmount;
-         //224
-         uint denominator = denominator * denominator;
+            // (sqrt(y/x)+ betal * deltay/L)
+            uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
+            uint8 beta = IConfig(config).beta();
+            require(beta >= 50 && beta <= 100, "beta error");
+            //112
+            uint256 denominator = _quoteReserve + beta * _inputAmount;
+            //224
+            denominator = denominator * denominator;
 
-         _outputAmount =  FullMath.mulDiv(inputAmount, L ,denominator);
-    
+            _outputAmount = FullMath.mulDiv(inputAmount, L, denominator);
         }
         return [_inputAmount, _outputAmount];
-
-
-
-    
+    }
 
     //fallback
 
@@ -376,7 +369,4 @@ contract Amm is IAmm, LiquidityERC20 {
         require(margin == msg.sender, "AMM:  margin ");
         _;
     }
-
-
-
 }
