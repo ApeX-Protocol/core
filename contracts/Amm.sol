@@ -65,15 +65,6 @@ contract Amm is IAmm, LiquidityERC20 {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "AMM: TRANSFER_FAILED");
     }
 
-    event Mint(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount, uint256 liquidity);
-    event Burn(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount);
-    event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
-    event ForceSwap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
-
-    event Rebase(uint256 quoteAmountBefore, uint256 quoteAmountAfter, uint256 baseAmount);
-
-    event Sync(uint112 reserveBase, uint112 reserveQuote);
-
     constructor() public {
         factory = msg.sender;
     }
@@ -101,7 +92,7 @@ contract Amm is IAmm, LiquidityERC20 {
         uint112 _reserve0,
         uint112 _reserve1
     ) private {
-        require(balance0 <= uint112(-1) && balance1 <= uint112(-1), "AMM: OVERFLOW");
+        require(balance0 <= type(uint112).max && balance1 <= type(uint112).max, "AMM: OVERFLOW");
         uint32 blockTimestamp = uint32(block.timestamp % 2**32);
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
         if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
@@ -117,7 +108,7 @@ contract Amm is IAmm, LiquidityERC20 {
 
     // this low-level function should be called from a contract which performs important safety checks
     //todo
-    function mint(address to) external lock returns (uint256 liquidity) {
+    function mint(address to) external lock returns (uint256 quoteAmount, uint256 liquidity) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         uint256 baseAmount = IERC20(baseToken).balanceOf(address(this));
 
@@ -139,11 +130,11 @@ contract Amm is IAmm, LiquidityERC20 {
 
         _update(_baseReserve + baseAmount, _quoteReserve + quoteAmountMinted, _baseReserve, _quoteReserve);
         _safeTransfer(baseToken, vault, baseAmount);
-
+        quoteAmount = quoteAmountMinted;
         emit Mint(msg.sender, to, baseAmount, quoteAmountMinted, liquidity);
     }
 
-    function getQuoteAmountByCurrentPrice(uint256 baseAmount) internal returns (uint112 quoteAmount) {
+    function getQuoteAmountByCurrentPrice(uint256 baseAmount) internal returns (uint256 quoteAmount) {
         return AMMLibrary.quote(baseAmount, uint256(baseReserve), uint256(quoteReserve));
     }
 
@@ -151,9 +142,7 @@ contract Amm is IAmm, LiquidityERC20 {
         // get price oracle
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         address priceOracle = IConfig(config).priceOracle();
-        uint256 price = IPriceOracle(priceOracle).quote(baseAmount, uint256(_baseReserve), uint256(_quoteReserve));
-        require(price != 0, "AMM: oracle price must not be zero");
-        return baseAmount;
+        quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
     }
 
     function getSpotPrice() public returns (uint256) {
@@ -195,7 +184,7 @@ contract Amm is IAmm, LiquidityERC20 {
         address outputAddress,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external lock returns (uint256[2] memory amounts) {
+    ) external onlyMargin lock returns (uint256[2] memory amounts) {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -241,13 +230,12 @@ contract Amm is IAmm, LiquidityERC20 {
         return [_inputAmount, _outputAmount];
     }
 
-    // todo onlyMargin
     function forceSwap(
         address inputToken,
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external {
+    ) external onlyMargin {
         require((inputToken == baseToken || inputToken == quoteToken), " wrong input address");
         require((outputToken == baseToken || outputToken == quoteToken), " wrong output address");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -344,4 +332,9 @@ contract Amm is IAmm, LiquidityERC20 {
     }
 
     //fallback
+
+    modifier onlyMargin() {
+        require(margin == msg.sender, "AMM:  margin ");
+        _;
+    }
 }
