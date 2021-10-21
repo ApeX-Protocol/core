@@ -116,43 +116,44 @@ contract Amm is IAmm, LiquidityERC20 {
     }
 
     // this low-level function should be called from a contract which performs important safety checks
+    //todo
     function mint(address to) external lock returns (uint256 liquidity) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
-        uint256 baseTokenAmount = IERC20(token0).balanceOf(address(this));
+        uint256 baseAmount = IERC20(baseToken).balanceOf(address(this));
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
-
+        uint256 quoteAmountMinted;
         if (_totalSupply == 0) {
-            uint256 quoteAmountMinted = getQuoteAmountByPriceOracle(baseTokenAmount);
-            liquidity = Math.sqrt(baseTokenAmount.mul(quoteAmountMinted)).sub(MINIMUM_LIQUIDITY);
+            quoteAmountMinted = getQuoteAmountByPriceOracle(baseAmount);
+            liquidity = Math.sqrt(baseAmount.mul(quoteAmountMinted)).sub(MINIMUM_LIQUIDITY);
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
         } else {
-            uint256 quoteAmountMinted = getQuoteAmountByCurrentPrice(baseTokenAmount);
-            liquidity = Math.min(
-                baseTokenAmount.mul(_totalSupply) / _baseReserve,
+            quoteAmountMinted = getQuoteAmountByCurrentPrice(baseAmount);
+            liquidity = Math.minU(
+                baseAmount.mul(_totalSupply) / _baseReserve,
                 quoteAmountMinted.mul(_totalSupply) / _quoteReserve
             );
         }
         require(liquidity > 0, "AMM: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
 
-        _update(_baseReserve + baseTokenAmount, _quoteReserve + quoteAmountMinted, _baseReserve, _quoteReserve);
-        _safeTransfer(token0, vault, baseTokenAmount);
+        _update(_baseReserve + baseAmount, _quoteReserve + quoteAmountMinted, _baseReserve, _quoteReserve);
+        _safeTransfer(baseToken, vault, baseAmount);
 
-        emit Mint(msg.sender, to, amount0, amount1);
+        emit Mint(msg.sender, to, baseAmount, quoteAmountMinted, liquidity);
     }
 
-    function getQuoteAmountByCurrentPrice(uint112 baseTokenAmount) internal returns (uint112 quoteTokenAmount) {
-        return AMMLibary.quote(baseTokenAmount, baseReserve, quoteReserve);
+    function getQuoteAmountByCurrentPrice(uint256 baseAmount) internal returns (uint112 quoteAmount) {
+        return AMMLibrary.quote(baseAmount, uint256(baseReserve), uint256(quoteReserve));
     }
 
-    function getQuoteAmountByPriceOracle(uint112 baseTokenAmount) internal returns (uint112 quoteTokenAmount) {
+    function getQuoteAmountByPriceOracle(uint256 baseAmount) internal returns (uint256 quoteAmount) {
         // get price oracle
-        // todo
-        address priceOracle = IConfig.getPriceOracle();
-        uint256 price = IPriceOracle(priceOracle).getMarkPrice(baseToken, quoteToken);
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+        address priceOracle = IConfig(config).priceOracle();
+        uint256 price = IPriceOracle(priceOracle).quote(baseAmount, uint256(_baseReserve), uint256(_quoteReserve));
         require(price != 0, "AMM: oracle price must not be zero");
-        return baseTokenAmount/(price);
+        return baseAmount;
     }
 
     function getSpotPrice() public returns (uint256) {
@@ -168,7 +169,7 @@ contract Amm is IAmm, LiquidityERC20 {
         address _baseToken = baseToken; // gas savings
 
         uint256 vaultAmount = IERC20(_baseToken).balanceOf(address(vault));
-        uint256 liquidity = balanceOf(address(this));
+        uint256 liquidity = balanceOf[address(this)];
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
         amount0 = liquidity.mul(_baseReserve) / _totalSupply; // using balances ensures pro-rata distribution
@@ -178,14 +179,14 @@ contract Amm is IAmm, LiquidityERC20 {
 
         _burn(address(this), liquidity);
 
-        uint256 balance0 = baseTokenAmount - amount0;
-        uint256 balance1 = quoteTokenAmount - amount1;
+        uint256 balance0 = _baseReserve - amount0;
+        uint256 balance1 = _quoteReserve - amount1;
 
         _update(balance0, balance1, _baseReserve, _quoteReserve);
         //  if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
         // vault withdraw
         IVault(vault).withdraw(to, amount0);
-        emit Burn(msg.sender, amount0, amount1, to);
+        emit Burn(msg.sender, to, amount0, amount1);
     }
 
     // this low-level function should be called from a contract which performs important safety checks
@@ -197,17 +198,19 @@ contract Amm is IAmm, LiquidityERC20 {
     ) external lock returns (uint256[2] memory amounts) {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+
         require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
 
         uint256 _inputAmount;
         uint256 _outputAmount;
 
-        if (inputAddress != 0x0 && inputAmount != 0) {
+        if (inputAddress != address(0x0) && inputAmount != 0) {
             _outputAmount = swapInput(inputAddress, inputAmount);
             _inputAmount = inputAmount;
         } else {
             _inputAmount = swapOutput(outputAddress, outputAmount);
-            _outputAmount = outputAmout;
+            _outputAmount = outputAmount;
         }
         emit Swap(inputAddress, outputAddress, _inputAmount, _outputAmount);
         return [_inputAmount, _outputAmount];
@@ -221,41 +224,43 @@ contract Amm is IAmm, LiquidityERC20 {
     ) public view returns (uint256[2] memory amounts) {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
 
         uint256 _inputAmount;
         uint256 _outputAmount;
 
-        if (inputAddress != 0x0 && inputAmount != 0) {
+        if (inputAddress != address(0x0) && inputAmount != 0) {
             _outputAmount = swapInputQuery(inputAddress, inputAmount);
             _inputAmount = inputAmount;
         } else {
             _inputAmount = swapOutputQuery(outputAddress, outputAmount);
-            _outputAmount = outputAmout;
+            _outputAmount = outputAmount;
         }
 
         return [_inputAmount, _outputAmount];
     }
 
-
-// todo onlyMargin
+    // todo onlyMargin
     function forceSwap(
         address inputToken,
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external  {
+    ) external {
         require((inputToken == baseToken || inputToken == quoteToken), " wrong input address");
         require((outputToken == baseToken || outputToken == quoteToken), " wrong output address");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+        uint256 balance0;
+        uint256 balance1;
         if (inputToken == baseToken) {
-            uint256 balance0 = baseReserve + inputAmount;
-            uint256 balance1 = quoteReserve - outputAmount;
+            balance0 = baseReserve + inputAmount;
+            balance1 = quoteReserve - outputAmount;
         } else {
-            uint256 balance0 = baseReserve - outputAmount;
-            uint256 balance1 = quoteReserve + inputAmount;
+            balance0 = baseReserve - outputAmount;
+            balance1 = quoteReserve + inputAmount;
         }
-        _update(balance0, balance1, _reserve0, _reserve1);
+        _update(balance0, balance1, _baseReserve, _quoteReserve);
         emit ForceSwap(inputToken, outputToken, inputAmount, outputAmount);
     }
 
@@ -264,8 +269,8 @@ contract Amm is IAmm, LiquidityERC20 {
         uint256 quoteReserveDesired = getQuoteAmountByPriceOracle(_baseReserve);
         //todo config
         if (
-            quoteReserveDesired.mul(100) >= _quoteReserve.mul(105) ||
-            quoteReserveDesired.mul(100) <= _quoteReserve.mul(95)
+            quoteReserveDesired.mul(100) >= uint256(_quoteReserve).mul(105) ||
+            quoteReserveDesired.mul(100) <= uint256(_quoteReserve).mul(95)
         ) {
             _update(_baseReserve, quoteReserveDesired, _baseReserve, _quoteReserve);
 
@@ -281,15 +286,15 @@ contract Amm is IAmm, LiquidityERC20 {
         uint256 balance1;
 
         if (inputAddress == baseToken) {
-            amountOut = AMMLibrary.getAmoutOut(inputAmount, _baseReserve, _quoteReserve);
+            amountOut = AMMLibrary.getAmountOut(inputAmount, _baseReserve, _quoteReserve);
             balance0 = _baseReserve + inputAmount;
             balance1 = _quoteReserve - amountOut;
-            // if necessary open
+            // if necessary open todo
             // uint balance0Adjusted = balance0.mul(1000).sub(inputAmount.mul(3));
             // uint balance1Adjusted = balance1.mul(1000);
             // require(balance0Adjusted.mul(balance1Adjusted) >= uint(_baseReserve).mul(_quoteReserve).mul(1000**2), 'AMM: K');
         } else {
-            amountOut = AMMLibrary.getAmoutOut(inputAmount, _quoteReserve, _baseReserve);
+            amountOut = AMMLibrary.getAmountOut(inputAmount, _quoteReserve, _baseReserve);
             balance0 = _baseReserve - amountOut;
             balance1 = _quoteReserve + inputAmount;
         }
@@ -302,16 +307,15 @@ contract Amm is IAmm, LiquidityERC20 {
         uint256 balance1;
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         if (outputAddress == baseToken) {
-            amountIn = AMMLibrary.getAmoutIn(outputAmount, _quoteReserve, _baseReserve);
+            amountIn = AMMLibrary.getAmountIn(outputAmount, _quoteReserve, _baseReserve);
             balance0 = _baseReserve - outputAmount;
             balance1 = _quoteReserve + amountIn;
         } else {
-            amountIn = AMMLibrary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve);
+            amountIn = AMMLibrary.getAmountIn(outputAmount, _baseReserve, _quoteReserve);
             balance0 = _baseReserve + amountIn;
             balance1 = _quoteReserve - outputAmount;
         }
-        _update(balance0, balance1, _reserve0, _reserve1);
-        emit Swap(msg.sender, amount0In, amount1In, amount0Out, amount1Out, to);
+        _update(balance0, balance1, _baseReserve, _quoteReserve);
     }
 
     function swapInputQuery(address inputAddress, uint256 inputAmount) internal returns (uint256 amountOut) {
@@ -320,9 +324,9 @@ contract Amm is IAmm, LiquidityERC20 {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
         if (inputAddress == baseToken) {
-            amountOut = AMMLibrary.getAmoutOut(inputAmount, _baseReserve, _quoteReserve);
+            amountOut = AMMLibrary.getAmountOut(inputAmount, _baseReserve, _quoteReserve);
         } else {
-            amountOut = AMMLibrary.getAmoutOut(inputAmount, _quoteReserve, _baseReserve);
+            amountOut = AMMLibrary.getAmountOut(inputAmount, _quoteReserve, _baseReserve);
         }
     }
 
@@ -333,12 +337,11 @@ contract Amm is IAmm, LiquidityERC20 {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
         if (outputAddress == baseToken) {
-            amountIn = AMMLibrary.getAmoutIn(outputAmount, _quoteReserve, _baseReserve);
+            amountIn = AMMLibrary.getAmountIn(outputAmount, _quoteReserve, _baseReserve);
         } else {
-            amountIn = AMMLibrary.getAmoutIn(outputAmount, _baseReserve, _quoteReserve);
+            amountIn = AMMLibrary.getAmountIn(outputAmount, _baseReserve, _quoteReserve);
         }
     }
 
     //fallback
-
 }

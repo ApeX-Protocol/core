@@ -14,7 +14,7 @@ contract Config is IConfig, Ownable {
     uint256 public initMarginRatio; //if 10, means margin ratio >= 10%
     uint256 public liquidateThreshold; //if 100, means debt ratio < 100%
     uint256 public liquidateFeeRatio; //if 1, means liquidator bot get 1% as fee
-
+    address public owner;
     constructor() public {
         owner = msg.sender;
     }
