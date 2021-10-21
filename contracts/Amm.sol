@@ -65,14 +65,6 @@ contract Amm is IAmm, LiquidityERC20 {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "AMM: TRANSFER_FAILED");
     }
 
-    event Mint(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount, uint256 liquidity);
-    event Burn(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount);
-    event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
-    event ForceSwap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
-
-    event Rebase(uint256 quoteAmountBefore, uint256 quoteAmountAfter, uint256 baseAmount);
-
-    event Sync(uint112 reserveBase, uint112 reserveQuote);
 
     constructor() public {
         factory = msg.sender;
@@ -101,7 +93,7 @@ contract Amm is IAmm, LiquidityERC20 {
         uint112 _reserve0,
         uint112 _reserve1
     ) private {
-        require(balance0 <= uint112(-1) && balance1 <= uint112(-1), "AMM: OVERFLOW");
+        require(balance0 <= type(uint112).max && balance1 <= type(uint112).max, "AMM: OVERFLOW");
         uint32 blockTimestamp = uint32(block.timestamp % 2**32);
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
         if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
@@ -143,7 +135,7 @@ contract Amm is IAmm, LiquidityERC20 {
         emit Mint(msg.sender, to, baseAmount, quoteAmountMinted, liquidity);
     }
 
-    function getQuoteAmountByCurrentPrice(uint256 baseAmount) internal returns (uint112 quoteAmount) {
+    function getQuoteAmountByCurrentPrice(uint256 baseAmount) internal returns (uint256 quoteAmount) {
         return AMMLibrary.quote(baseAmount, uint256(baseReserve), uint256(quoteReserve));
     }
 
@@ -151,9 +143,7 @@ contract Amm is IAmm, LiquidityERC20 {
         // get price oracle
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         address priceOracle = IConfig(config).priceOracle();
-        uint256 price = IPriceOracle(priceOracle).quote(baseAmount, uint256(_baseReserve), uint256(_quoteReserve));
-        require(price != 0, "AMM: oracle price must not be zero");
-        return baseAmount;
+        quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
     }
 
     function getSpotPrice() public returns (uint256) {
