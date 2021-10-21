@@ -3,44 +3,32 @@
 pragma solidity ^0.8.0;
 
 abstract contract Ownable {
-    address private _owner;
-    address private _pendingOwner;
+    address public _admin;
+    address public _pendingAdmin;
 
-    event OwnershipTransfer(address indexed previousOwner, address indexed pendingOwner);
-    event OwnershipAccept(address indexed currentOwner);
+    event OwnershipTransfer(address indexed previousAdmin, address indexed pendingAdmin);
+    event OwnershipAccept(address indexed currentAdmin);
 
     constructor() {
-        _owner = msg.sender;
+        _admin = msg.sender;
     }
 
-    function renounceOwnership() public onlyOwner {
-        _owner = address(0);
+    function _setPendingAdmin(address newAdmin) public onlyAdmin {
+        require(newAdmin != address(0), "Ownable: new admin is the zero address");
+        require(newAdmin != _pendingAdmin, "Ownable: already set");
+        _pendingAdmin = newAdmin;
+        emit OwnershipTransfer(_admin, newAdmin);
     }
 
-    function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0), "Ownable: new owner is the zero address");
-        require(newOwner != _pendingOwner, "Ownable: already set");
-        _pendingOwner = newOwner;
-        emit OwnershipTransfer(_owner, newOwner);
+    function _acceptAdmin() public {
+        require(msg.sender == _pendingAdmin, "Ownable: not pendingAdmin");
+        _admin = _pendingAdmin;
+        _pendingAdmin = address(0);
+        emit OwnershipAccept(_pendingAdmin);
     }
 
-    function acceptOwnership() public {
-        require(msg.sender == _pendingOwner, "Ownable: not pendingOwner");
-        _owner = _pendingOwner;
-        _pendingOwner = address(0);
-        emit OwnershipAccept(_pendingOwner);
-    }
-
-    function owner() external view returns (address) {
-        return _owner;
-    }
-
-    function pendingOwner() external view returns (address) {
-        return _pendingOwner;
-    }
-
-    modifier onlyOwner() {
-        require(_owner == msg.sender, "Ownable: caller is not the owner");
+    modifier onlyAdmin() {
+        require(_admin == msg.sender, "Ownable: caller is not the admin");
         _;
     }
 }

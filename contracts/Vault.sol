@@ -28,11 +28,11 @@ contract Vault is ReentrancyGuard, Ownable {
         emit Withdraw(_receiver, _amount);
     }
 
-    function setMargin(address _margin) external onlyOwner {
+    function setMargin(address _margin) external onlyAdmin {
         margin = _margin;
     }
 
-    function setAmm(address _amm) external onlyOwner {
+    function setAmm(address _amm) external onlyAdmin {
         vAmm = _amm;
     }
 

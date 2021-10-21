@@ -25,7 +25,7 @@ describe("Config contract", function () {
         });
 
         it("addr1 set, reverted", async function () {
-            await expect(config.connect(addr1).setInitMarginRatio(9)).to.be.revertedWith("Ownable: caller is not the owner");
+            await expect(config.connect(addr1).setInitMarginRatio(9)).to.be.revertedWith("Ownable: caller is not the admin");
         });
     });
 
