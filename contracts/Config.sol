@@ -14,10 +14,8 @@ contract Config is IConfig, Ownable {
     uint256 public initMarginRatio; //if 10, means margin ratio >= 10%
     uint256 public liquidateThreshold; //if 100, means debt ratio < 100%
     uint256 public liquidateFeeRatio; //if 1, means liquidator bot get 1% as fee
-    address public owner;
-    constructor() public {
-        owner = msg.sender;
-    }
+
+    constructor() {}
 
     function setPriceOracle(address newOracle) external {
         require(newOracle != address(0), "Config: ZERO_ADDRESS");
@@ -32,17 +30,17 @@ contract Config is IConfig, Ownable {
     }
 
     function setInitMarginRatio(uint256 _initMarginRatio) external onlyOwner {
-        require(_initMarginRatio >= 10, "ratio >= 10");
+        require(_initMarginRatio >= 500, "ratio >= 500");
         initMarginRatio = _initMarginRatio;
     }
 
     function setLiquidateThreshold(uint256 _liquidateThreshold) external onlyOwner {
-        require(_liquidateThreshold > 90 && _liquidateThreshold <= 100, "90 < liquidateThreshold <= 100");
+        require(_liquidateThreshold > 9000 && _liquidateThreshold <= 10000, "9000 < liquidateThreshold <= 10000");
         liquidateThreshold = _liquidateThreshold;
     }
 
     function setLiquidateFeeRatio(uint256 _liquidateFeeRatio) external onlyOwner {
-        require(_liquidateFeeRatio > 0 && _liquidateFeeRatio <= 10, "0 < liquidateFeeRatio <= 10");
+        require(_liquidateFeeRatio > 0 && _liquidateFeeRatio <= 2000, "0 < liquidateFeeRatio <= 2000");
         liquidateFeeRatio = _liquidateFeeRatio;
     }
 }
