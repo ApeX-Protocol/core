@@ -14,6 +14,7 @@ describe("Margin contract", function () {
     let routerAllowance = 10000;
     let longSide = 0;
     let shortSide = 1;
+    let config;
 
     beforeEach(async function () {
         [owner, addr1, liquidator, ...addrs] = await ethers.getSigners();
@@ -29,10 +30,10 @@ describe("Margin contract", function () {
         mockRouter = await MockRouter.deploy(mockBaseToken.address);
 
         const Vault = await ethers.getContractFactory("Vault");
-        vault = await Vault.deploy(mockBaseToken.address, mockVAmm.address);
+        vault = await Vault.deploy();
 
         const Config = await ethers.getContractFactory("Config");
-        config = await Config.deploy(909, 10000, 2000);
+        config = await Config.deploy();
 
         const Margin = await ethers.getContractFactory("Margin");
         margin = await Margin.deploy();
@@ -45,12 +46,17 @@ describe("Margin contract", function () {
             vault.address
         )
         await mockRouter.setMarginContract(margin.address);
+        await vault.initialize(mockBaseToken.address, mockVAmm.address);
         await vault.setMargin(margin.address);
 
         await mockBaseToken.mint(owner.address, ownerInitBaseAmount);
         await mockBaseToken.mint(addr1.address, addr1InitBaseAmount);
         await mockBaseToken.approve(mockRouter.address, routerAllowance);
         await mockBaseToken.connect(addr1).approve(mockRouter.address, addr1InitBaseAmount);
+
+        await config.setInitMarginRatio(909);
+        await config.setLiquidateThreshold(10000);
+        await config.setLiquidateFeeRatio(2000);
     });
 
     describe("add margin", function () {
@@ -391,21 +397,21 @@ describe("Margin contract", function () {
         });
 
         it("quote -10, base 11; withdrawable is 0", async function () {
-            expect(await margin.getWithdrawableMargin(owner.address)).to.equal(0)
+            expect(await margin.getWithdrawable(owner.address)).to.equal(0)
         });
 
         it("quote -10, base 12; withdrawable is 1", async function () {
             await mockRouter.addMargin(owner.address, 1);
-            expect(await margin.getWithdrawableMargin(owner.address)).to.equal(1)
+            expect(await margin.getWithdrawable(owner.address)).to.equal(1)
         });
 
         it("quote 10, base -9; withdrawable is 0", async function () {
-            expect(await margin.getWithdrawableMargin(addr1.address)).to.equal(0)
+            expect(await margin.getWithdrawable(addr1.address)).to.equal(0)
         });
 
         it("quote 10, base -8; withdrawable is 1", async function () {
             await mockRouter.addMargin(addr1.address, 1);
-            expect(await margin.getWithdrawableMargin(addr1.address)).to.equal(1)
+            expect(await margin.getWithdrawable(addr1.address)).to.equal(1)
         });
     });
 

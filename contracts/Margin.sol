@@ -3,18 +3,19 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {IVault} from "./interfaces/IVault.sol";
-import {IAmm} from "./interfaces/IAmm.sol";
-import {IRouter} from "./interfaces/IRouter.sol";
-import {IConfig} from "./interfaces/IConfig.sol";
-import {Math} from "./libraries/Math.sol";
-import {Decimal} from "./libraries/Decimal.sol";
-import {SignedDecimal} from "./libraries/SignedDecimal.sol";
+import "./interfaces/IVault.sol";
+import "./interfaces/IAmm.sol";
+import "./interfaces/IConfig.sol";
+import "./interfaces/IMargin.sol";
+import "./libraries/Math.sol";
+import "./libraries/Decimal.sol";
+import "./libraries/SignedDecimal.sol";
+import "./utils/Reentrant.sol";
 
 import "hardhat/console.sol";
 
-contract Margin is ReentrancyGuard {
+contract Margin is IMargin {
+    bool private entered = false;
     using Decimal for uint256;
     using SignedDecimal for int256;
 
@@ -26,31 +27,13 @@ contract Margin is ReentrancyGuard {
 
     uint256 constant MAXRATIO = 10000;
 
-    address public factory;
-    IAmm public vAmm;
-    IERC20 public baseToken;
-    IERC20 public quoteToken;
-    IVault public vault;
-    IRouter public router;
-    IConfig public config;
+    address public override factory;
+    address public override amm;
+    address public override baseToken;
+    address public override quoteToken;
+    address public override vault;
+    address public override config;
     mapping(address => Position) public traderPositionMap;
-
-    //add $depositAmount into trader position
-    event AddMargin(address indexed trader, uint256 depositAmount);
-    //withdraw $withdrawAmount from $trader position
-    event RemoveMargin(address indexed trader, uint256 withdrawAmount);
-    //open position with $baseAmount($side: 0 is long, 1 is short), $quoteAmount is swapped value of vAmm
-    event OpenPosition(address indexed trader, uint8 side, uint256 baseAmount, uint256 quoteAmount);
-    //close position with $quoteAmount, $baseAmount is swapped value of vAmm
-    event ClosePosition(address indexed trader, uint256 quoteAmount, uint256 baseAmount);
-    //liquidate $trader's position $quoteAmount
-    event Liquidate(
-        address indexed liquidator,
-        address indexed trader,
-        int256 quoteSize,
-        uint256 baseAmount,
-        uint256 liquidateFee
-    );
 
     constructor() {
         factory = msg.sender;
@@ -62,31 +45,30 @@ contract Margin is ReentrancyGuard {
         address _config,
         address _amm,
         address _vault
-    ) external onlyFactory {
+    ) external override onlyFactory {
         //todo check if has initialized and address != 0
-        vAmm = IAmm(_amm);
-        vault = IVault(_vault);
-        config = IConfig(_config);
-        baseToken = IERC20(_baseToken);
-        quoteToken = IERC20(_quoteToken);
+        amm = _amm;
+        vault = _vault;
+        config = _config;
+        baseToken = _baseToken;
+        quoteToken = _quoteToken;
     }
 
-    // transferring token is in router.sol
-    function addMargin(address _trader, uint256 _depositAmount) external nonReentrant {
+    function addMargin(address _trader, uint256 _depositAmount) external override nonReentrant {
         require(_depositAmount > 0, ">0");
         Position memory traderPosition = traderPositionMap[_trader];
 
-        uint256 balance = baseToken.balanceOf(address(this));
+        uint256 balance = IERC20(baseToken).balanceOf(address(this));
         require(_depositAmount <= balance, "wrong deposit amount");
 
         traderPosition.baseSize = traderPosition.baseSize.addU(_depositAmount);
-        baseToken.transfer(address(vault), _depositAmount);
+        IERC20(baseToken).transfer(address(vault), _depositAmount);
 
         _setPosition(_trader, traderPosition);
         emit AddMargin(_trader, _depositAmount);
     }
 
-    function removeMargin(uint256 _withdrawAmount) external nonReentrant {
+    function removeMargin(uint256 _withdrawAmount) external override nonReentrant {
         require(_withdrawAmount > 0, ">0");
         //fixme
         // address trader = msg.sender;
@@ -94,7 +76,7 @@ contract Margin is ReentrancyGuard {
 
         Position memory traderPosition = traderPositionMap[trader];
         // check before subtract
-        require(_withdrawAmount <= getWithdrawableMargin(trader), "preCheck withdrawable");
+        require(_withdrawAmount <= getWithdrawable(trader), "preCheck withdrawable");
 
         traderPosition.baseSize = traderPosition.baseSize.subU(_withdrawAmount);
         if (traderPosition.quoteSize == 0) {
@@ -105,12 +87,12 @@ contract Margin is ReentrancyGuard {
         }
         _setPosition(trader, traderPosition);
 
-        vault.withdraw(trader, _withdrawAmount);
+        IVault(vault).withdraw(trader, _withdrawAmount);
 
         emit RemoveMargin(trader, _withdrawAmount);
     }
 
-    function openPosition(uint8 _side, uint256 _baseAmount) external nonReentrant returns (uint256) {
+    function openPosition(uint8 _side, uint256 _baseAmount) external override nonReentrant returns (uint256) {
         require(_baseAmount > 0, ">0");
         //fixme
         // address trader = msg.sender;
@@ -151,7 +133,7 @@ contract Margin is ReentrancyGuard {
         return quoteAmount;
     }
 
-    function closePosition(uint256 _quoteAmount) external nonReentrant returns (uint256) {
+    function closePosition(uint256 _quoteAmount) external override nonReentrant returns (uint256) {
         //fixme
         // address trader = msg.sender;
         address trader = tx.origin;
@@ -182,6 +164,7 @@ contract Margin is ReentrancyGuard {
 
     function liquidate(address _trader)
         external
+        override
         nonReentrant
         returns (
             uint256 quoteAmount,
@@ -201,23 +184,23 @@ contract Margin is ReentrancyGuard {
         baseAmount = querySwapBaseWithVAmm(isLong, quoteAmount);
 
         //calc liquidate fee
-        uint256 liquidateFeeRatio = config.liquidateFeeRatio();
+        uint256 liquidateFeeRatio = IConfig(config).liquidateFeeRatio();
         bonus = baseAmount.mul(liquidateFeeRatio).div(MAXRATIO);
         int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(bonus));
         if (remainBaseAmount > 0) {
             _minusPositionWithVAmm(isLong, traderPosition.quoteSize.abs());
-            vault.withdraw(_trader, remainBaseAmount.abs());
+            IVault(vault).withdraw(_trader, remainBaseAmount.abs());
         } else {
             //with bad debt, update directly
             if (isLong) {
-                vAmm.forceSwap(
+                IAmm(amm).forceSwap(
                     address(baseToken),
                     address(quoteToken),
                     remainBaseAmount.abs(),
                     traderPosition.quoteSize.abs()
                 );
             } else {
-                vAmm.forceSwap(
+                IAmm(amm).forceSwap(
                     address(quoteToken),
                     address(baseToken),
                     traderPosition.quoteSize.abs(),
@@ -225,18 +208,18 @@ contract Margin is ReentrancyGuard {
                 );
             }
         }
-        vault.withdraw(msg.sender, bonus);
+        IVault(vault).withdraw(msg.sender, bonus);
         traderPosition.baseSize = 0;
         traderPosition.quoteSize = 0;
         traderPosition.tradeSize = 0;
         _setPosition(_trader, traderPosition);
-        emit Liquidate(msg.sender, _trader, quoteSize, baseAmount, bonus);
+        emit Liquidate(msg.sender, _trader, quoteSize.abs(), baseAmount, bonus);
     }
 
-    function canLiquidate(address _trader) public view returns (bool) {
+    function canLiquidate(address _trader) public view override returns (bool) {
         Position memory traderPosition = traderPositionMap[_trader];
         uint256 debtRatio = calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize);
-        return debtRatio >= config.liquidateThreshold();
+        return debtRatio >= IConfig(config).liquidateThreshold();
     }
 
     function queryMaxOpenPosition(uint8 _side, uint256 _baseAmount) external view returns (uint256) {
@@ -247,7 +230,7 @@ contract Margin is ReentrancyGuard {
             address(baseToken)
         );
 
-        uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+        uint256[2] memory result = IAmm(amm).swapQueryWithAcctSpecMarkPrice(
             inputToken,
             outputToken,
             inputAmount,
@@ -268,7 +251,7 @@ contract Margin is ReentrancyGuard {
             address(quoteToken)
         );
 
-        uint256[2] memory result = vAmm.swapQuery(inputToken, outputToken, inputAmount, outputAmount);
+        uint256[2] memory result = IAmm(amm).swapQuery(inputToken, outputToken, inputAmount, outputAmount);
         return isLong ? result[0] : result[1];
     }
 
@@ -279,7 +262,7 @@ contract Margin is ReentrancyGuard {
             return MAXRATIO;
         } else if (quoteSize > 0) {
             //calculate asset
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+            uint256[2] memory result = IAmm(amm).swapQueryWithAcctSpecMarkPrice(
                 address(quoteToken),
                 address(baseToken),
                 quoteSize.abs(),
@@ -294,7 +277,7 @@ contract Margin is ReentrancyGuard {
             return baseSize.mul(-1).mulU(MAXRATIO).divU(baseAmount).abs();
         } else {
             //calculate debt
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
+            uint256[2] memory result = IAmm(amm).swapQueryWithAcctSpecMarkPrice(
                 address(baseToken),
                 address(quoteToken),
                 0,
@@ -310,11 +293,25 @@ contract Margin is ReentrancyGuard {
         }
     }
 
-    function getWithdrawableMargin(address _trader) public view returns (uint256) {
+    function getPosition(address _trader)
+        external
+        view
+        override
+        returns (
+            int256,
+            int256,
+            uint256
+        )
+    {
+        Position memory position = traderPositionMap[_trader];
+        return (position.baseSize, position.quoteSize, position.tradeSize);
+    }
+
+    function getWithdrawable(address _trader) public view override returns (uint256) {
         Position memory traderPosition = traderPositionMap[_trader];
         uint256 withdrawableMargin;
         if (traderPosition.quoteSize < 0) {
-            uint256[2] memory result = vAmm.swapQuery(
+            uint256[2] memory result = IAmm(amm).swapQuery(
                 address(baseToken),
                 address(quoteToken),
                 0,
@@ -322,8 +319,8 @@ contract Margin is ReentrancyGuard {
             );
 
             uint256 baseAmount = result[0];
-            uint256 baseNeeded = baseAmount.mul(MAXRATIO).div(MAXRATIO - config.initMarginRatio());
-            if (baseAmount.mul(MAXRATIO) % (MAXRATIO - config.initMarginRatio()) != 0) {
+            uint256 baseNeeded = baseAmount.mul(MAXRATIO).div(MAXRATIO - IConfig(config).initMarginRatio());
+            if (baseAmount.mul(MAXRATIO) % (MAXRATIO - IConfig(config).initMarginRatio()) != 0) {
                 baseNeeded += 1;
             }
 
@@ -333,7 +330,7 @@ contract Margin is ReentrancyGuard {
                 withdrawableMargin = traderPosition.baseSize.abs().sub(baseNeeded);
             }
         } else {
-            uint256[2] memory result = vAmm.swapQuery(
+            uint256[2] memory result = IAmm(amm).swapQuery(
                 address(quoteToken),
                 address(baseToken),
                 traderPosition.quoteSize.abs(),
@@ -341,7 +338,7 @@ contract Margin is ReentrancyGuard {
             );
 
             uint256 baseAmount = result[1];
-            uint256 baseNeeded = baseAmount.mul(MAXRATIO - config.initMarginRatio()).div(MAXRATIO);
+            uint256 baseNeeded = baseAmount.mul(MAXRATIO - IConfig(config).initMarginRatio()).div(MAXRATIO);
             if (traderPosition.baseSize < int256(-1).mulU(baseNeeded)) {
                 withdrawableMargin = 0;
             } else {
@@ -362,7 +359,7 @@ contract Margin is ReentrancyGuard {
             address(baseToken)
         );
 
-        uint256[2] memory result = vAmm.swap(inputToken, outputToken, inputAmount, outputAmount);
+        uint256[2] memory result = IAmm(amm).swap(inputToken, outputToken, inputAmount, outputAmount);
         return isLong ? result[0] : result[1];
     }
 
@@ -373,7 +370,7 @@ contract Margin is ReentrancyGuard {
             address(quoteToken)
         );
 
-        uint256[2] memory result = vAmm.swap(inputToken, outputToken, inputAmount, outputAmount);
+        uint256[2] memory result = IAmm(amm).swap(inputToken, outputToken, inputAmount, outputAmount);
         return isLong ? result[0] : result[1];
     }
 
@@ -402,7 +399,7 @@ contract Margin is ReentrancyGuard {
 
     function _checkInitMarginRatio(Position memory traderPosition) internal view {
         require(
-            _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= config.initMarginRatio(),
+            _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= IConfig(config).initMarginRatio(),
             "initMarginRatio"
         );
     }
@@ -414,12 +411,7 @@ contract Margin is ReentrancyGuard {
             return 0;
         } else if (quoteSize > 0) {
             //calculate asset
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
-                address(quoteToken),
-                address(baseToken),
-                quoteSize.abs(),
-                0
-            );
+            uint256[2] memory result = IAmm(amm).swapQuery(address(quoteToken), address(baseToken), quoteSize.abs(), 0);
             uint256 baseAmount = result[1];
             if (baseSize.abs() >= baseAmount || baseAmount == 0) {
                 return 0;
@@ -427,12 +419,7 @@ contract Margin is ReentrancyGuard {
             return baseSize.mulU(MAXRATIO).divU(baseAmount).addU(MAXRATIO).abs();
         } else {
             //calculate debt
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
-                address(baseToken),
-                address(quoteToken),
-                0,
-                quoteSize.abs()
-            );
+            uint256[2] memory result = IAmm(amm).swapQuery(address(baseToken), address(quoteToken), 0, quoteSize.abs());
 
             uint256 baseAmount = result[0];
             uint256 ratio = baseAmount.mul(MAXRATIO).div(baseSize.abs());
@@ -446,5 +433,12 @@ contract Margin is ReentrancyGuard {
     modifier onlyFactory() {
         require(factory == msg.sender, "factory");
         _;
+    }
+
+    modifier nonReentrant() {
+        require(entered == false, "Reentrant: reentrant call");
+        entered = true;
+        _;
+        entered = false;
     }
 }

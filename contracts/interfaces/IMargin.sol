@@ -31,8 +31,8 @@ interface IMargin {
         external
         view
         returns (
-            uint256 baseSize,
-            uint256 quoteSize,
+            int256 baseSize,
+            int256 quoteSize,
             uint256 tradeSize
         );
 
