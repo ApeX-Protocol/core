@@ -414,12 +414,7 @@ contract Margin is ReentrancyGuard {
             return 0;
         } else if (quoteSize > 0) {
             //calculate asset
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
-                address(quoteToken),
-                address(baseToken),
-                quoteSize.abs(),
-                0
-            );
+            uint256[2] memory result = vAmm.swapQuery(address(quoteToken), address(baseToken), quoteSize.abs(), 0);
             uint256 baseAmount = result[1];
             if (baseSize.abs() >= baseAmount || baseAmount == 0) {
                 return 0;
@@ -427,12 +422,7 @@ contract Margin is ReentrancyGuard {
             return baseSize.mulU(MAXRATIO).divU(baseAmount).addU(MAXRATIO).abs();
         } else {
             //calculate debt
-            uint256[2] memory result = vAmm.swapQueryWithAcctSpecMarkPrice(
-                address(baseToken),
-                address(quoteToken),
-                0,
-                quoteSize.abs()
-            );
+            uint256[2] memory result = vAmm.swapQuery(address(baseToken), address(quoteToken), 0, quoteSize.abs());
 
             uint256 baseAmount = result[0];
             uint256 ratio = baseAmount.mul(MAXRATIO).div(baseSize.abs());
