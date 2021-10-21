@@ -22,7 +22,7 @@ interface IAmm {
 
     function vault() external view returns (address);
 
-    function getReserves() external view returns (uint256 reserveBase, uint256 reserveQuote);
+    function getReserves() external view returns (uint256 reserveBase, uint256 reserveQuote, uint32 blockTimestamp);
 
     // only factory can call this function
     function initialize(

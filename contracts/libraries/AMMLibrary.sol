@@ -1,6 +1,6 @@
 pragma solidity ^0.8.0;
 
-import "./interfaces/IAmm.sol";
+import "../interfaces/IAmm.sol";
 
 import "./SafeMath.sol";
 
@@ -9,13 +9,10 @@ library AMMLibrary {
 
     // fetches and sorts the reserves for a pair
     function getReserves(
-        address factory,
-        address tokenA,
-        address tokenB
-    ) internal view returns (uint256 reserveA, uint256 reserveB) {
-        (address token0, ) = sortTokens(tokenA, tokenB);
-        (uint256 reserve0, uint256 reserve1, ) = IUniswapV2Pair(pairFor(factory, tokenA, tokenB)).getReserves();
-        (reserveA, reserveB) = tokenA == token0 ? (reserve0, reserve1) : (reserve1, reserve0);
+        address amm
+    ) internal view returns (uint256 reserve0, uint256 reserve1, uint32 blockTimestampLast) {
+
+        ( reserve0,  reserve1, blockTimestampLast) = IAmm(amm).getReserves();
     }
 
     // given some amount of an asset and pair reserves, returns an equivalent amount of the other asset
