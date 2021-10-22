@@ -5,7 +5,6 @@ pragma solidity ^0.8.0;
 import "./interfaces/IERC20.sol";
 import "./interfaces/IConfig.sol";
 import "./utils/Ownable.sol";
-import "hardhat/console.sol";
 
 contract Config is IConfig, Ownable {
     address public override priceOracle;

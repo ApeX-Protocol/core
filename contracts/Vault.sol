@@ -6,7 +6,6 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IVault.sol";
 import "./utils/Reentrant.sol";
 import "./utils/Ownable.sol";
-import "hardhat/console.sol";
 
 contract Vault is IVault, Reentrant, Ownable {
     address public override baseToken;
@@ -18,7 +17,11 @@ contract Vault is IVault, Reentrant, Ownable {
         factory = msg.sender;
     }
 
-    function initialize(address _baseToken, address _amm, address _margin) external override onlyFactory {
+    function initialize(
+        address _baseToken,
+        address _amm,
+        address _margin
+    ) external override onlyFactory {
         baseToken = _baseToken;
         amm = _amm;
         margin = _margin;
