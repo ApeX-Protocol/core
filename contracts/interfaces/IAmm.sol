@@ -60,7 +60,7 @@ interface IAmm {
         uint256 outputAmount
     ) external;
 
-    function rebase() external returns (int256 amount);
+    function rebase() external returns (uint256 amount);
 
     function swapQuery(
         address inputToken,
