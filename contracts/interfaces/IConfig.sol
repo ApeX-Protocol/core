@@ -15,7 +15,7 @@ interface IConfig {
 
     function priceOracle() external view returns (address);
 
-    function beta() external view returns(uint8);
+    function beta() external view returns (uint8);
 
     function liquidateIncentive() external view returns (uint256);
 
@@ -35,7 +35,7 @@ interface IConfig {
 
     function setPriceOracle(address newOracle) external;
 
-    function setBeta(uint8 beta) external;
+    function setBeta(uint8 _beta) external;
 
     function setLiquidateIncentive(uint256 newIncentive) external;
 
