@@ -9,6 +9,7 @@ import "./libraries/AMMLibrary.sol";
 import "./interfaces/IERC20.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IPriceOracle.sol";
+import "./libraries/FullMath.sol";
 import {IConfig} from "./interfaces/IConfig.sol";
 
 contract Amm is IAmm, LiquidityERC20 {
@@ -145,6 +146,7 @@ contract Amm is IAmm, LiquidityERC20 {
         quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
     }
 
+    //todo
     function getSpotPrice() public returns (uint256) {
         if (quoteReserve == 0) {
             return 0;
@@ -329,6 +331,42 @@ contract Amm is IAmm, LiquidityERC20 {
         } else {
             amountIn = AMMLibrary.getAmountIn(outputAmount, _baseReserve, _quoteReserve);
         }
+    }
+
+    function swapQueryWithAcctSpecMarkPrice(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external view returns (uint256[2] memory amounts) {
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+
+        uint256 quoteAmount;
+        uint256 baseAmount;
+        if(inputAmount != 0 ) {
+            quoteAmount = inputAmount;
+        } else {
+            quoteAmount = outputAmount;
+        }
+
+        uint256 inputSquare = quoteAmount * quoteAmount;
+        // L/vusd > 10000
+        if (FullMath.mulDiv(_baseReserve, _quoteReserve, inputSquare) >= 10000) {
+            baseAmount = AMMLibrary.quote(quoteAmount, _quoteReserve, _baseReserve);
+        } else {
+            // (sqrt(y/x)+ betal * deltay/L)
+            uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
+            uint8 beta = IConfig(config).beta();
+            require(beta >= 50 && beta <= 100, "beta error");
+            //112
+            uint256 denominator = _quoteReserve + beta * quoteAmount;
+            //224
+            denominator = denominator * denominator;
+
+            baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
+        }
+       
+        return inputAmount == 0 ? [baseAmount, quoteAmount]:[quoteAmount, baseAmount];
     }
 
     //fallback
