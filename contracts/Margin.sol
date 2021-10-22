@@ -12,8 +12,6 @@ import "./libraries/Decimal.sol";
 import "./libraries/SignedDecimal.sol";
 import "./utils/Reentrant.sol";
 
-import "hardhat/console.sol";
-
 contract Margin is IMargin {
     bool private entered = false;
     using Decimal for uint256;
@@ -222,7 +220,7 @@ contract Margin is IMargin {
         return debtRatio >= IConfig(config).liquidateThreshold();
     }
 
-    function queryMaxOpenPosition(uint8 _side, uint256 _baseAmount) external override view returns (uint256) {
+    function queryMaxOpenPosition(uint8 _side, uint256 _baseAmount) external view override returns (uint256) {
         bool isLong = _side == 0;
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             isLong,

@@ -212,7 +212,7 @@ contract Router is IRouter {
         address quoteToken,
         uint8 side,
         uint256 baseAmount
-    ) external override view returns (uint256 quoteAmount) {
+    ) external view override returns (uint256 quoteAmount) {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         return IMargin(margin).queryMaxOpenPosition(side, baseAmount);
     }
