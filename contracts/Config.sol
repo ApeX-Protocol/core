@@ -16,7 +16,7 @@ contract Config is IConfig, Ownable {
 
     uint256 public override liquidateIncentive;
     bool public override onlyPCV;
-    uint8 public  beta; // 50-100
+    uint8 public override beta; // 50-100
 
     constructor() {}
 
@@ -63,5 +63,9 @@ contract Config is IConfig, Ownable {
     function setLiquidateFeeRatio(uint256 _liquidateFeeRatio) external onlyAdmin {
         require(_liquidateFeeRatio > 0 && _liquidateFeeRatio <= 2000, "0 < liquidateFeeRatio <= 2000");
         liquidateFeeRatio = _liquidateFeeRatio;
+    }
+
+    function setBeta(uint8 _beta) external override onlyAdmin {
+        beta = _beta;
     }
 }

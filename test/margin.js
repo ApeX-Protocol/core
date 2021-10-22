@@ -46,8 +46,7 @@ describe("Margin contract", function () {
             vault.address
         )
         await mockRouter.setMarginContract(margin.address);
-        await vault.initialize(mockBaseToken.address, mockVAmm.address);
-        await vault.setMargin(margin.address);
+        await vault.initialize(mockBaseToken.address, mockVAmm.address, margin.address);
 
         await mockBaseToken.mint(owner.address, ownerInitBaseAmount);
         await mockBaseToken.mint(addr1.address, addr1InitBaseAmount);

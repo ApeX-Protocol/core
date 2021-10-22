@@ -26,8 +26,8 @@ interface IAmm {
         external
         view
         returns (
-            uint256 reserveBase,
-            uint256 reserveQuote,
+            uint112 reserveBase,
+            uint112 reserveQuote,
             uint32 blockTimestamp
         );
 
