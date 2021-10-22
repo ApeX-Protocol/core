@@ -33,6 +33,9 @@ const main = async () => {
   const l2QuoteToken = await MockToken.deploy("quote token", "qt")
   await l2QuoteToken.deployed()
   console.log(`deployed l2QuoteToken to ${l2QuoteToken.address}`)
+  const l2Weth = await MockToken.deploy("weth token", "wt")
+  await l2Weth.deployed()
+  console.log(`deployed l2Weth to ${l2Weth.address}`)
 
   //factory
   const L2Factory = await (
@@ -41,6 +44,14 @@ const main = async () => {
   const l2Factory = await L2Factory.deploy(l2Config.address)
   await l2Factory.deployed()
   console.log(`deployed l2Factory to ${l2Factory.address}`)
+
+  //router
+  const L2Router = await (
+    await hre.ethers.getContractFactory('Router')
+  ).connect(l2Signer)
+  const l2Router = await L2Router.deploy(l2Factory.address, l2Weth.address)
+  await l2Router.deployed()
+  console.log(`deployed l2Router to ${l2Router.address}`)
 
   //create pair
   const tx = await l2Factory.createPair(l2BaseToken.address,
