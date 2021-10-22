@@ -343,7 +343,7 @@ contract Amm is IAmm, LiquidityERC20 {
 
         uint256 quoteAmount;
         uint256 baseAmount;
-        if(inputAmount != 0 ) {
+        if (inputAmount != 0) {
             quoteAmount = inputAmount;
         } else {
             quoteAmount = outputAmount;
@@ -365,8 +365,8 @@ contract Amm is IAmm, LiquidityERC20 {
 
             baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
         }
-       
-        return inputAmount == 0 ? [baseAmount, quoteAmount]:[quoteAmount, baseAmount];
+
+        return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
     }
 
     //fallback
