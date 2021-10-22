@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 
 interface IRouter {
     function factory() external view returns (address);
+
     function WETH() external view returns (address);
 
     function addLiquidity(
@@ -93,4 +94,11 @@ interface IRouter {
             int256 quoteSize,
             uint256 tradeSize
         );
+
+    function queryMaxOpenPosition(
+        address baseToken,
+        address quoteToken,
+        uint8 side,
+        uint256 baseAmount
+    ) external view returns (uint256 quoteAmount);
 }

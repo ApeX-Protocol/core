@@ -11,7 +11,7 @@ import "./libraries/SafeMath.sol";
 
 contract Router is IRouter {
     using SafeMath for uint256;
-    
+
     address public immutable override factory;
     address public immutable override WETH;
 
@@ -162,7 +162,7 @@ contract Router is IRouter {
         returns (uint256 reserveBase, uint256 reserveQuote)
     {
         address amm = IFactory(factory).getAmm(baseToken, quoteToken);
-        (reserveBase, reserveQuote,) = IAmm(amm).getReserves();
+        (reserveBase, reserveQuote, ) = IAmm(amm).getReserves();
     }
 
     function getQuoteAmount(
@@ -172,7 +172,7 @@ contract Router is IRouter {
         uint256 baseAmount
     ) external view override returns (uint256 quoteAmount) {
         address amm = IFactory(factory).getAmm(baseToken, quoteToken);
-        (uint256 reserveBase, uint256 reserveQuote,) = IAmm(amm).getReserves();
+        (uint256 reserveBase, uint256 reserveQuote, ) = IAmm(amm).getReserves();
         if (side == 0) {
             quoteAmount = getAmountIn(baseAmount, reserveQuote, reserveBase);
         } else {
@@ -205,6 +205,16 @@ contract Router is IRouter {
     {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         (baseSize, quoteSize, tradeSize) = IMargin(margin).getPosition(holder);
+    }
+
+    function queryMaxOpenPosition(
+        address baseToken,
+        address quoteToken,
+        uint8 side,
+        uint256 baseAmount
+    ) external view returns (uint256 quoteAmount) {
+        address margin = IFactory(factory).getMargin(baseToken, quoteToken);
+        return IMargin(margin).queryMaxOpenPosition(side, baseAmount);
     }
 
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
