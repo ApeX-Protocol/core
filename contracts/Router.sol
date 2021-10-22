@@ -7,8 +7,11 @@ import "./interfaces/IMargin.sol";
 import "./interfaces/ILiquidityERC20.sol";
 import "./interfaces/IStaking.sol";
 import "./libraries/TransferHelper.sol";
+import "./libraries/SafeMath.sol";
 
 contract Router is IRouter {
+    using SafeMath for uint256;
+    
     address public immutable override factory;
     address public immutable override WETH;
 
@@ -33,7 +36,7 @@ contract Router is IRouter {
         uint256 quoteAmountMin,
         uint256 deadline,
         bool autoStake
-    ) external ensure(deadline) returns (uint256 quoteAmount, uint256 liquidity) {
+    ) external override ensure(deadline) returns (uint256 quoteAmount, uint256 liquidity) {
         if (IFactory(factory).getAmm(baseToken, quoteToken) == address(0)) {
             IFactory(factory).createPair(baseToken, quoteToken);
             IFactory(factory).createStaking(baseToken, quoteToken);
@@ -57,7 +60,7 @@ contract Router is IRouter {
         uint256 liquidity,
         uint256 baseAmountMin,
         uint256 deadline
-    ) external ensure(deadline) returns (uint256 baseAmount, uint256 quoteAmount) {
+    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 quoteAmount) {
         address amm = IFactory(factory).getAmm(baseToken, quoteToken);
         ILiquidityERC20(amm).transferFrom(msg.sender, amm, liquidity);
         (baseAmount, quoteAmount) = IAmm(amm).burn(msg.sender);
@@ -69,7 +72,7 @@ contract Router is IRouter {
         address quoteToken,
         address holder,
         uint256 amount
-    ) external {
+    ) external override {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, amount);
@@ -80,7 +83,7 @@ contract Router is IRouter {
         address baseToken,
         address quoteToken,
         uint256 amount
-    ) external {
+    ) external override {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         delegateTo(margin, abi.encodeWithSignature("removeMargin(uint256)", amount));
@@ -94,7 +97,7 @@ contract Router is IRouter {
         uint256 baseAmount,
         uint256 quoteAmountLimit,
         uint256 deadline
-    ) external ensure(deadline) returns (uint256 quoteAmount) {
+    ) external override ensure(deadline) returns (uint256 quoteAmount) {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, marginAmount);
@@ -145,7 +148,7 @@ contract Router is IRouter {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         bytes memory data = delegateTo(margin, abi.encodeWithSignature("closePosition(uint256)", quoteAmount));
-        baseAmount = abi.encode(data, (uint256));
+        baseAmount = abi.decode(data, (uint256));
         if (autoWithdraw) {
             withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
             IMargin(margin).removeMargin(withdrawAmount);
@@ -155,10 +158,11 @@ contract Router is IRouter {
     function getReserves(address baseToken, address quoteToken)
         external
         view
+        override
         returns (uint256 reserveBase, uint256 reserveQuote)
     {
         address amm = IFactory(factory).getAmm(baseToken, quoteToken);
-        (reserveBase, reserveQuote) = IAmm(amm).getReserves(baseToken, quoteToken);
+        (reserveBase, reserveQuote,) = IAmm(amm).getReserves();
     }
 
     function getQuoteAmount(
@@ -166,9 +170,9 @@ contract Router is IRouter {
         address quoteToken,
         uint8 side,
         uint256 baseAmount
-    ) external view returns (uint256 quoteAmount) {
+    ) external view override returns (uint256 quoteAmount) {
         address amm = IFactory(factory).getAmm(baseToken, quoteToken);
-        (uint256 reserveBase, uint256 reserveQuote) = IAmm(amm).getReserves(baseToken, quoteToken);
+        (uint256 reserveBase, uint256 reserveQuote,) = IAmm(amm).getReserves();
         if (side == 0) {
             quoteAmount = getAmountIn(baseAmount, reserveQuote, reserveBase);
         } else {
@@ -180,7 +184,7 @@ contract Router is IRouter {
         address baseToken,
         address quoteToken,
         address holder
-    ) external view returns (uint256 amount) {
+    ) external view override returns (uint256 amount) {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         amount = IMargin(margin).getWithdrawable(holder);
     }
@@ -192,10 +196,11 @@ contract Router is IRouter {
     )
         external
         view
+        override
         returns (
             int256 baseSize,
             int256 quoteSize,
-            int256 tradeSize
+            uint256 tradeSize
         )
     {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);

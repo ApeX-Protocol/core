@@ -7,6 +7,8 @@ interface IStaking {
     event Withdrawn(address indexed user, uint256 amount);
 
     function factory() external view returns (address);
+    
+    function config() external view returns (address);
 
     function stakingToken() external view returns (address);
 

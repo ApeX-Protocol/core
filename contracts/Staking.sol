@@ -5,11 +5,11 @@ import "./interfaces/ILiquidityERC20.sol";
 import "./utils/Reentrant.sol";
 
 contract Staking is IStaking, Reentrant {
-    address public factory;
-    address public config;
-    address public stakingToken;
-    uint256 public totalSupply;
-    mapping(address => uint256) public balanceOf;
+    address public override factory;
+    address public override config;
+    address public override stakingToken;
+    uint256 public override totalSupply;
+    mapping(address => uint256) public override balanceOf;
 
     constructor(address _config, address _stakingToken) {
         factory = msg.sender;
@@ -17,7 +17,7 @@ contract Staking is IStaking, Reentrant {
         stakingToken = _stakingToken;
     }
 
-    function stake(uint256 amount) external nonReentrant {
+    function stake(uint256 amount) external override nonReentrant {
         require(amount > 0, "Staking: Cannot stake 0");
         totalSupply += amount;
         balanceOf[msg.sender] += amount;
@@ -25,5 +25,5 @@ contract Staking is IStaking, Reentrant {
         emit Staked(msg.sender, amount);
     }
 
-    function withdraw(uint256 amount) external nonReentrant {}
+    function withdraw(uint256 amount) external override nonReentrant {}
 }

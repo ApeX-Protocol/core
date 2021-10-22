@@ -14,7 +14,7 @@ interface IVault {
     function margin() external view returns (address);
 
     // only factory can call this function
-    function initialize(address _baseToken, address _amm) external;
+    function initialize(address _baseToken, address _amm, address _margin) external;
 
     function setMargin(address _margin) external;
 

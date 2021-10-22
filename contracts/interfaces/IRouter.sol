@@ -3,8 +3,8 @@
 pragma solidity ^0.8.0;
 
 interface IRouter {
-    function factory() external pure returns (address);
-    function WETH() external pure returns (address);
+    function factory() external view returns (address);
+    function WETH() external view returns (address);
 
     function addLiquidity(
         address baseToken,
@@ -39,7 +39,7 @@ interface IRouter {
     function openPositionWithWallet(
         address baseToken,
         address quoteToken,
-        uint256 side,
+        uint8 side,
         uint256 marginAmount,
         uint256 baseAmount,
         uint256 quoteAmountLimit,
@@ -49,7 +49,7 @@ interface IRouter {
     function openPositionWithMargin(
         address baseToken,
         address quoteToken,
-        uint256 side,
+        uint8 side,
         uint256 baseAmount,
         uint256 quoteAmountLimit,
         uint256 deadline
@@ -71,7 +71,7 @@ interface IRouter {
     function getQuoteAmount(
         address baseToken,
         address quoteToken,
-        uint256 side,
+        uint8 side,
         uint256 baseAmount
     ) external view returns (uint256 quoteAmount);
 
@@ -91,6 +91,6 @@ interface IRouter {
         returns (
             int256 baseSize,
             int256 quoteSize,
-            int256 tradeSize
+            uint256 tradeSize
         );
 }

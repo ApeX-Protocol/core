@@ -14,7 +14,7 @@ contract PriceOracle is IPriceOracle {
         address baseToken,
         address quoteToken,
         uint256 baseAmount
-    ) external view returns (uint256 quoteAmount) {
+    ) external view override returns (uint256 quoteAmount) {
         (uint256 reserveBase, uint256 reserveQuote) = UniswapV2Library.getReserves(
             uniswapV2Factory,
             baseToken,
