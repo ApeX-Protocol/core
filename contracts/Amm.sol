@@ -248,15 +248,17 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit ForceSwap(inputToken, outputToken, inputAmount, outputAmount);
     }
 
-    function rebase() public override nonReentrant returns (int256 amount) {
+    function rebase() public override nonReentrant returns (uint256 amount) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         uint256 quoteReserveDesired = getQuoteAmountByPriceOracle(_baseReserve);
         //todo config
         if (
             quoteReserveDesired.mul(100) >= uint256(_quoteReserve).mul(105) ||
             quoteReserveDesired.mul(100) <= uint256(_quoteReserve).mul(95)
-        ) {
+        ) { 
             _update(_baseReserve, quoteReserveDesired, _baseReserve, _quoteReserve);
+            
+            amount = (quoteReserveDesired > _quoteReserve) ? (quoteReserveDesired -_quoteReserve) : (_quoteReserve - quoteReserveDesired ) ;
 
             emit Rebase(_quoteReserve, quoteReserveDesired, _baseReserve);
         }
@@ -337,7 +339,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         uint256 quoteAmount;
         uint256 baseAmount;
-        if(inputAmount != 0 ) {
+        if (inputAmount != 0) {
             quoteAmount = inputAmount;
         } else {
             quoteAmount = outputAmount;
@@ -359,8 +361,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
             baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
         }
-       
-        return inputAmount == 0 ? [baseAmount, quoteAmount]:[quoteAmount, baseAmount];
+
+        return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
     }
 
     //fallback
