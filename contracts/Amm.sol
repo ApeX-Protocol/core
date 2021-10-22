@@ -10,21 +10,22 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IFactory.sol";
 import "./interfaces/IPriceOracle.sol";
 import "./libraries/FullMath.sol";
-import {IConfig} from "./interfaces/IConfig.sol";
+import "./interfaces/IConfig.sol";
+import "./utils/Reentrant.sol";
 
-contract Amm is IAmm, LiquidityERC20 {
+contract Amm is IAmm, LiquidityERC20, Reentrant {
     using SafeMath for uint256;
     using UQ112x112 for uint224;
 
     uint256 public constant MINIMUM_LIQUIDITY = 10**3;
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transfer(address,uint256)")));
 
-    address public factory;
-    address public baseToken;
-    address public quoteToken;
-    address public config;
-    address public margin;
-    address public vault;
+    address public override factory;
+    address public override baseToken;
+    address public override quoteToken;
+    address public override config;
+    address public override margin;
+    address public override vault;
 
     uint112 private baseReserve; // uses single storage slot, accessible via getReserves
     uint112 private quoteReserve; // uses single storage slot, accessible via getReserves
@@ -35,16 +36,9 @@ contract Amm is IAmm, LiquidityERC20 {
     uint256 public price1CumulativeLast;
     // uint256 public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
-    uint256 private unlocked = 1;
-    modifier lock() {
-        require(unlocked == 1, "AMM: LOCKED");
-        unlocked = 0;
-        _;
-        unlocked = 1;
-    }
-
     function getReserves()
         public
+        override
         view
         returns (
             uint112 _baseReserve,
@@ -66,7 +60,7 @@ contract Amm is IAmm, LiquidityERC20 {
         require(success && (data.length == 0 || abi.decode(data, (bool))), "AMM: TRANSFER_FAILED");
     }
 
-    constructor() public {
+    constructor() {
         factory = msg.sender;
     }
 
@@ -77,7 +71,7 @@ contract Amm is IAmm, LiquidityERC20 {
         address _config,
         address _margin,
         address _vault
-    ) external {
+    ) external override {
         require(msg.sender == factory, "Amm: FORBIDDEN"); // sufficient check
         baseToken = _baseToken;
         quoteToken = _quoteToken;
@@ -109,7 +103,7 @@ contract Amm is IAmm, LiquidityERC20 {
 
     // this low-level function should be called from a contract which performs important safety checks
     //todo
-    function mint(address to) external lock returns (uint256 quoteAmount, uint256 liquidity) {
+    function mint(address to) external override nonReentrant returns (uint256 quoteAmount, uint256 liquidity) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         uint256 baseAmount = IERC20(baseToken).balanceOf(address(this));
 
@@ -155,7 +149,7 @@ contract Amm is IAmm, LiquidityERC20 {
     }
 
     // this low-level function should be called from a contract which performs important safety checks
-    function burn(address to) external lock returns (uint256 amount0, uint256 amount1) {
+    function burn(address to) external override nonReentrant returns (uint256 amount0, uint256 amount1) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         address _baseToken = baseToken; // gas savings
 
@@ -186,7 +180,7 @@ contract Amm is IAmm, LiquidityERC20 {
         address outputAddress,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external onlyMargin lock returns (uint256[2] memory amounts) {
+    ) external onlyMargin override nonReentrant returns (uint256[2] memory amounts) {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -212,7 +206,7 @@ contract Amm is IAmm, LiquidityERC20 {
         address outputAddress,
         uint256 inputAmount,
         uint256 outputAmount
-    ) public view returns (uint256[2] memory amounts) {
+    ) public view override returns (uint256[2] memory amounts) {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -237,7 +231,7 @@ contract Amm is IAmm, LiquidityERC20 {
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external onlyMargin {
+    ) external override nonReentrant onlyMargin {
         require((inputToken == baseToken || inputToken == quoteToken), " wrong input address");
         require((outputToken == baseToken || outputToken == quoteToken), " wrong output address");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -254,7 +248,7 @@ contract Amm is IAmm, LiquidityERC20 {
         emit ForceSwap(inputToken, outputToken, inputAmount, outputAmount);
     }
 
-    function rebase() public {
+    function rebase() public override nonReentrant returns (int256 amount) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         uint256 quoteReserveDesired = getQuoteAmountByPriceOracle(_baseReserve);
         //todo config
@@ -308,7 +302,7 @@ contract Amm is IAmm, LiquidityERC20 {
         _update(balance0, balance1, _baseReserve, _quoteReserve);
     }
 
-    function swapInputQuery(address inputAddress, uint256 inputAmount) internal returns (uint256 amountOut) {
+    function swapInputQuery(address inputAddress, uint256 inputAmount) internal view returns (uint256 amountOut) {
         require((inputAddress == baseToken || inputAddress == quoteToken), "AMM: wrong input address");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
@@ -320,7 +314,7 @@ contract Amm is IAmm, LiquidityERC20 {
         }
     }
 
-    function swapOutputQuery(address outputAddress, uint256 outputAmount) internal returns (uint256 amountIn) {
+    function swapOutputQuery(address outputAddress, uint256 outputAmount) internal view returns (uint256 amountIn) {
         require((outputAddress == baseToken || outputAddress == quoteToken), "AMM: wrong output address");
 
         uint256 amountIn;
@@ -338,7 +332,7 @@ contract Amm is IAmm, LiquidityERC20 {
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external view returns (uint256[2] memory amounts) {
+    ) external view override returns (uint256[2] memory amounts) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
 
         uint256 quoteAmount;

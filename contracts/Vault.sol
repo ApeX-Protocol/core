@@ -18,9 +18,10 @@ contract Vault is IVault, Reentrant, Ownable {
         factory = msg.sender;
     }
 
-    function initialize(address _baseToken, address _amm) external override onlyFactory {
+    function initialize(address _baseToken, address _amm, address _margin) external override onlyFactory {
         baseToken = _baseToken;
         amm = _amm;
+        margin = _margin;
     }
 
     function withdraw(address _receiver, uint256 _amount) external override nonReentrant vAmmOrMargin {

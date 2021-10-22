@@ -10,30 +10,30 @@ import './Vault.sol';
 import './Staking.sol';
 
 contract Factory is IFactory {
-    address public pendingAdmin;
-    address public admin;
+    address public override pendingAdmin;
+    address public override admin;
 
-    address public config;
+    address public override config;
 
-    mapping(address => mapping(address => address)) public getAmm;
-    mapping(address => mapping(address => address)) public getMargin;
-    mapping(address => mapping(address => address)) public getVault;
+    mapping(address => mapping(address => address)) public override getAmm;
+    mapping(address => mapping(address => address)) public override getMargin;
+    mapping(address => mapping(address => address)) public override getVault;
 
-    mapping(address => address) public getStaking;
+    mapping(address => address) public override getStaking;
     
-    constructor(address _config) public {
+    constructor(address _config) {
         admin = msg.sender;
         config = _config;
     }
 
-    function setPendingAdmin(address newPendingAdmin) external {
+    function setPendingAdmin(address newPendingAdmin) external override {
         require(msg.sender == admin, 'Factory: REQUIRE_ADMIN');
         require(pendingAdmin != newPendingAdmin, 'Factory: ALREADY_SET');
         emit NewPendingAdmin(pendingAdmin, newPendingAdmin);
         pendingAdmin = newPendingAdmin;
     }
 
-    function acceptAdmin() external {
+    function acceptAdmin() external override {
         require(msg.sender == pendingAdmin, 'Factory: REQUIRE_PENDING_ADMIN');
         address oldAdmin = admin;
         address oldPendingAdmin = pendingAdmin;
@@ -70,7 +70,7 @@ contract Factory is IFactory {
         address amm = getAmm[baseToken][quoteToken];
         require(amm != address(0), 'Factory: PAIR_NOT_EXIST');
         require(getStaking[amm] == address(0), 'Factory: STAKING_EXIST');
-        staking = new Staking(config, amm);
+        staking = address(new Staking(config, amm));
         getStaking[amm] = staking;
         emit NewStaking(baseToken, quoteToken, staking);
     }
