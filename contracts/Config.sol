@@ -15,7 +15,7 @@ contract Config is IConfig, Ownable {
 
     uint256 public override liquidateIncentive;
     bool public override onlyPCV;
-    uint8 public override beta; // 50-100
+    uint8 public override beta = 100; // 50-100
 
     constructor() {}
 
