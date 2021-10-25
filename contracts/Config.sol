@@ -49,22 +49,26 @@ contract Config is IConfig, Ownable {
         rebasePriceGap = newGap;
     }
 
-    function setInitMarginRatio(uint256 _initMarginRatio) external onlyAdmin {
+    function setInitMarginRatio(uint256 _initMarginRatio) external {
+        _checkAdmin();
         require(_initMarginRatio >= 500, "ratio >= 500");
         initMarginRatio = _initMarginRatio;
     }
 
-    function setLiquidateThreshold(uint256 _liquidateThreshold) external onlyAdmin {
+    function setLiquidateThreshold(uint256 _liquidateThreshold) external {
+        _checkAdmin();
         require(_liquidateThreshold > 9000 && _liquidateThreshold <= 10000, "9000 < liquidateThreshold <= 10000");
         liquidateThreshold = _liquidateThreshold;
     }
 
-    function setLiquidateFeeRatio(uint256 _liquidateFeeRatio) external onlyAdmin {
+    function setLiquidateFeeRatio(uint256 _liquidateFeeRatio) external {
+        _checkAdmin();
         require(_liquidateFeeRatio > 0 && _liquidateFeeRatio <= 2000, "0 < liquidateFeeRatio <= 2000");
         liquidateFeeRatio = _liquidateFeeRatio;
     }
 
-    function setBeta(uint8 _beta) external override onlyAdmin {
+    function setBeta(uint8 _beta) external override {
+        _checkAdmin();
         beta = _beta;
     }
 }

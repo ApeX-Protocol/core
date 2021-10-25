@@ -13,7 +13,8 @@ abstract contract Ownable {
         _admin = msg.sender;
     }
 
-    function _setPendingAdmin(address newAdmin) public onlyAdmin {
+    function _setPendingAdmin(address newAdmin) public {
+        _checkAdmin();
         require(newAdmin != address(0), "Ownable: new admin is the zero address");
         require(newAdmin != _pendingAdmin, "Ownable: already set");
         _pendingAdmin = newAdmin;
@@ -27,8 +28,7 @@ abstract contract Ownable {
         emit OwnershipAccept(_pendingAdmin);
     }
 
-    modifier onlyAdmin() {
+    function _checkAdmin() internal view {
         require(_admin == msg.sender, "Ownable: caller is not the admin");
-        _;
     }
 }

@@ -65,6 +65,12 @@ const main = async () => {
   console.log("l2Margin: ", l2Margin)
   console.log("l2Vault: ", l2Vault)
   console.log('✌️')
+  console.log("npx hardhat verify --network l2 " + l2Config.address)
+  console.log("npx hardhat verify --network l2 " + l2Factory.address + " " + l2Config.address)
+  console.log("npx hardhat verify --network l2 " + l2Router.address + " " + l2Factory.address + " " + l2Weth.address)
+  console.log("npx hardhat verify --network l2 " + l2BaseToken.address + " 'base token' 'bt'")
+  console.log("npx hardhat verify --network l2 " + l2QuoteToken.address + " 'quote token' 'qt'")
+  console.log("npx hardhat verify --network l2 " + l2Weth.address + " 'weth token' 'wt'")
 }
 
 main()

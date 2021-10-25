@@ -43,8 +43,9 @@ contract Margin is IMargin {
         address _config,
         address _amm,
         address _vault
-    ) external override onlyFactory {
+    ) external override {
         //todo check if has initialized and address != 0
+        _checkFactory();
         amm = _amm;
         vault = _vault;
         config = _config;
@@ -428,9 +429,8 @@ contract Margin is IMargin {
         }
     }
 
-    modifier onlyFactory() {
+    function _checkFactory() private view {
         require(factory == msg.sender, "factory");
-        _;
     }
 
     modifier nonReentrant() {
