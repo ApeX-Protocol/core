@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "test": "npx hardhat watch test",
-    "compile": "npx hardhat watch compilation"
+    "compile": "npx hardhat watch compilation",
+    "verify": "npx hardhat verify --network mainnet <DEPLOYED_CONTRACT_ADDRESS> 'Constructor argument 1'",
+    "deploy_rinkeby": "hardhat run deploy/deploy_rinkeby.js",
+    "deploy_arb": "hardhat run deploy/deploy_arb.js"
   },
   "repository": {
     "type": "git",
@@ -20,15 +23,19 @@
   "homepage": "https://github.com/davionlabs/dex-protocol#readme",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
+    "@nomiclabs/hardhat-etherscan": "^2.1.7",
     "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@uniswap/v2-core": "1.0.1",
+    "arb-ts": "^1.0.0-beta.4",
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.7",
     "hardhat": "^2.6.6",
-    "@uniswap/v2-core": "1.0.1"
+    "hardhat-deploy": "^0.9.4"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.3.2",
+    "dotenv": "^10.0.0",
     "hardhat-watcher": "^2.1.1"
   }
 }

@@ -12,8 +12,6 @@ import "./libraries/Decimal.sol";
 import "./libraries/SignedDecimal.sol";
 import "./utils/Reentrant.sol";
 
-import "hardhat/console.sol";
-
 contract Margin is IMargin {
     bool private entered = false;
     using Decimal for uint256;
@@ -45,8 +43,9 @@ contract Margin is IMargin {
         address _config,
         address _amm,
         address _vault
-    ) external override onlyFactory {
+    ) external override {
         //todo check if has initialized and address != 0
+        _checkFactory();
         amm = _amm;
         vault = _vault;
         config = _config;
@@ -222,7 +221,7 @@ contract Margin is IMargin {
         return debtRatio >= IConfig(config).liquidateThreshold();
     }
 
-    function queryMaxOpenPosition(uint8 _side, uint256 _baseAmount) external view returns (uint256) {
+    function queryMaxOpenPosition(uint8 _side, uint256 _baseAmount) external view override returns (uint256) {
         bool isLong = _side == 0;
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             isLong,
@@ -430,9 +429,8 @@ contract Margin is IMargin {
         }
     }
 
-    modifier onlyFactory() {
+    function _checkFactory() private view {
         require(factory == msg.sender, "factory");
-        _;
     }
 
     modifier nonReentrant() {
