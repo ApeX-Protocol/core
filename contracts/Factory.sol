@@ -1,13 +1,13 @@
 pragma solidity ^0.8.0;
 
-import './interfaces/IFactory.sol';
-import './interfaces/IAmm.sol';
-import './interfaces/IMargin.sol';
-import './interfaces/IVault.sol';
-import './Amm.sol';
-import './Margin.sol';
-import './Vault.sol';
-import './Staking.sol';
+import "./interfaces/IFactory.sol";
+import "./interfaces/IAmm.sol";
+import "./interfaces/IMargin.sol";
+import "./interfaces/IVault.sol";
+import "./Amm.sol";
+import "./Margin.sol";
+import "./Vault.sol";
+import "./Staking.sol";
 
 contract Factory is IFactory {
     address public override pendingAdmin;
@@ -20,21 +20,21 @@ contract Factory is IFactory {
     mapping(address => mapping(address => address)) public override getVault;
 
     mapping(address => address) public override getStaking;
-    
+
     constructor(address _config) {
         admin = msg.sender;
         config = _config;
     }
 
     function setPendingAdmin(address newPendingAdmin) external override {
-        require(msg.sender == admin, 'Factory: REQUIRE_ADMIN');
-        require(pendingAdmin != newPendingAdmin, 'Factory: ALREADY_SET');
+        require(msg.sender == admin, "Factory: REQUIRE_ADMIN");
+        require(pendingAdmin != newPendingAdmin, "Factory: ALREADY_SET");
         emit NewPendingAdmin(pendingAdmin, newPendingAdmin);
         pendingAdmin = newPendingAdmin;
     }
 
     function acceptAdmin() external override {
-        require(msg.sender == pendingAdmin, 'Factory: REQUIRE_PENDING_ADMIN');
+        require(msg.sender == pendingAdmin, "Factory: REQUIRE_PENDING_ADMIN");
         address oldAdmin = admin;
         address oldPendingAdmin = pendingAdmin;
         admin = pendingAdmin;
@@ -43,10 +43,18 @@ contract Factory is IFactory {
         emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
     }
 
-    function createPair(address baseToken, address quoteToken) external override returns (address amm, address margin, address vault) {
-        require(baseToken != quoteToken, 'Factory: IDENTICAL_ADDRESSES');
-        require(baseToken != address(0) && quoteToken != address(0), 'Factory: ZERO_ADDRESS');
-        require(getAmm[baseToken][quoteToken] == address(0), 'Factory: PAIR_EXIST');
+    function createPair(address baseToken, address quoteToken)
+        external
+        override
+        returns (
+            address amm,
+            address margin,
+            address vault
+        )
+    {
+        require(baseToken != quoteToken, "Factory: IDENTICAL_ADDRESSES");
+        require(baseToken != address(0) && quoteToken != address(0), "Factory: ZERO_ADDRESS");
+        require(getAmm[baseToken][quoteToken] == address(0), "Factory: PAIR_EXIST");
         bytes32 salt = keccak256(abi.encodePacked(baseToken, quoteToken));
         bytes memory ammBytecode = type(Amm).creationCode;
         bytes memory marginBytecode = type(Margin).creationCode;
@@ -68,8 +76,8 @@ contract Factory is IFactory {
     // TODO: 改用创建Staking代理合约
     function createStaking(address baseToken, address quoteToken) external override returns (address staking) {
         address amm = getAmm[baseToken][quoteToken];
-        require(amm != address(0), 'Factory: PAIR_NOT_EXIST');
-        require(getStaking[amm] == address(0), 'Factory: STAKING_EXIST');
+        require(amm != address(0), "Factory: PAIR_NOT_EXIST");
+        require(getStaking[amm] == address(0), "Factory: STAKING_EXIST");
         staking = address(new Staking(config, amm));
         getStaking[amm] = staking;
         emit NewStaking(baseToken, quoteToken, staking);
