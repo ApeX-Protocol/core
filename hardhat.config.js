@@ -10,25 +10,25 @@ require("@nomiclabs/hardhat-etherscan");
 module.exports = {
   solidity: "0.8.0",
   networks: {
-    // kovan: {
-    //   url: `https://kovan.infura.io/v3/` + process.env['INFURA_KEY'],
-    //   chainId: 42,
-    //   accounts: [process.env['DEVNET_PRIVKEY']],
-    // },
-    // rinkeby: {
-    //   url: `https://rinkeby.infura.io/v3/` + process.env['INFURA_KEY'],
-    //   chainId: 4,
-    //   accounts: [process.env['DEVNET_PRIVKEY']],
-    // },
-    // l1: {
-    //   url: process.env['L1RPC'] || '',
-    //   accounts: [process.env['DEVNET_PRIVKEY']],
-    // },
-    // l2: {
-    //   gasPrice: 0,
-    //   url: process.env['L2RPC'] || '',
-    //   accounts: [process.env['DEVNET_PRIVKEY']],
-    // },
+    kovan: {
+      url: `https://kovan.infura.io/v3/` + process.env['INFURA_KEY'],
+      chainId: 42,
+      accounts: [process.env['DEVNET_PRIVKEY']],
+    },
+    rinkeby: {
+      url: `https://rinkeby.infura.io/v3/` + process.env['INFURA_KEY'],
+      chainId: 4,
+      accounts: [process.env['DEVNET_PRIVKEY']],
+    },
+    l1: {
+      url: process.env['L1RPC'] || '',
+      accounts: [process.env['DEVNET_PRIVKEY']],
+    },
+    l2: {
+      gasPrice: 0,
+      url: process.env['L2RPC'] || '',
+      accounts: [process.env['DEVNET_PRIVKEY']],
+    },
     localhost: {
       url: 'http://localhost:8545',
     },
