@@ -29,6 +29,9 @@ module.exports = {
       url: process.env['L2RPC'] || '',
       accounts: [process.env['DEVNET_PRIVKEY']],
     },
+    localhost: {
+      url: 'http://localhost:8545',
+    },
   },
   etherscan: {
     apiKey: process.env['ETHERSCAN_APIKEY']
