@@ -34,12 +34,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     //todo
     uint256 public price0CumulativeLast;
     uint256 public price1CumulativeLast;
+
     // uint256 public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
     function getReserves()
         public
-        override
         view
+        override
         returns (
             uint112 _baseReserve,
             uint112 _quoteReserve,
@@ -140,7 +141,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
     }
 
-    
     function getSpotPrice() public returns (uint256) {
         if (quoteReserve == 0) {
             return 0;
@@ -180,7 +180,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         address outputAddress,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external onlyMargin override nonReentrant returns (uint256[2] memory amounts) {
+    ) external override onlyMargin nonReentrant returns (uint256[2] memory amounts) {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -255,10 +255,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         if (
             quoteReserveDesired.mul(100) >= uint256(_quoteReserve).mul(105) ||
             quoteReserveDesired.mul(100) <= uint256(_quoteReserve).mul(95)
-        ) { 
+        ) {
             _update(_baseReserve, quoteReserveDesired, _baseReserve, _quoteReserve);
-            
-            amount = (quoteReserveDesired > _quoteReserve) ? (quoteReserveDesired -_quoteReserve) : (_quoteReserve - quoteReserveDesired ) ;
+
+            amount = (quoteReserveDesired > _quoteReserve)
+                ? (quoteReserveDesired - _quoteReserve)
+                : (_quoteReserve - quoteReserveDesired);
 
             emit Rebase(_quoteReserve, quoteReserveDesired, _baseReserve);
         }
@@ -346,21 +348,16 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         }
 
         uint256 inputSquare = quoteAmount * quoteAmount;
-        // L/vusd > 10000
-        if (FullMath.mulDiv(_baseReserve, _quoteReserve, inputSquare) >= 10000) {
-            baseAmount = AMMLibrary.quote(quoteAmount, _quoteReserve, _baseReserve);
-        } else {
-            // (sqrt(y/x)+ betal * deltay/L)
-            uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
-            uint8 beta = IConfig(config).beta();
-            require(beta >= 50 && beta <= 100, "beta error");
-            //112
-            uint256 denominator = _quoteReserve + beta * quoteAmount;
-            //224
-            denominator = denominator * denominator;
+        // (sqrt(y/x)+ betal * deltay/L)
+        uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
+        uint8 beta = IConfig(config).beta();
+        require(beta >= 50 && beta <= 100, "beta error");
+        //112
+        uint256 denominator = _quoteReserve + beta * quoteAmount;
+        //224
+        denominator = denominator * denominator;
 
-            baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
-        }
+        baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
 
         return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
     }
