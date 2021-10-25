@@ -20,7 +20,7 @@ interface IFactory {
 
     function getVault(address baseToken, address quoteToken) external view returns (address vault);
 
-    // function getStaking(address amm) external view returns (address staking);
+    function getStaking(address amm) external view returns (address staking);
 
     function setPendingAdmin(address newPendingAdmin) external;
 
@@ -34,5 +34,5 @@ interface IFactory {
             address vault
         );
 
-    // function createStaking(address baseToken, address quoteToken) external returns (address staking);
+    function createStaking(address baseToken, address quoteToken) external returns (address staking);
 }
