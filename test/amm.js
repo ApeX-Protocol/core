@@ -75,12 +75,14 @@ describe("Amm", function () {
     const ownerBalance = await amm.balanceOf(owner.address);
     console.log("owner balance after adding liquidity:", ownerBalance.toString());
     expect(await amm.totalSupply()).to.equal(ownerBalance.add("1000"));
-
+    //let minteventabi = ["event Mint(address indexed sender,address indexed to,uint256 baseAmount,uint256 quoteAmount,uint256 liquidity);"];
+  
     let args = events[4]["args"];
     // var abi = [ "Mint(address,address,uint256,uint256,uint256)" ];
     // var iface = new ethers.utils.Interface(abi);
     // var parsedEvents = events.map(function(log) {iface.parseLog(log)});
     console.log(args);
+
     console.log("mint event baseAmount  : ", args.baseAmount.toString());
     console.log("mint event quoteAmount: ", args.quoteAmount.toString());
     console.log("mint event liquidity: ", args.liquidity.toString());
@@ -91,9 +93,11 @@ describe("Amm", function () {
    // alice swap 100AAA to usdt
    let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("100").mul(exp1), 0 );
    const swapRes = await tx1.wait();
-   const events1 = swapRes["events"];
-  // console.log(events1);
-   let args1 = events1[1]["args"];
+   let eventabi = ["event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);"];
+   let iface1 = new ethers.utils.Interface(eventabi);
+   let log1 = iface1.parseLog(swapRes.logs[1]);
+   console.log("log1 ",log1);
+   let args1 = log1["args"];
   // console.log(args1);
    console.log("swap input AAA for vusd event input  : ", args1.inputAmount.toString());
    console.log("swap input AAA for vusd event output: ", args1.outputAmount.toString());
