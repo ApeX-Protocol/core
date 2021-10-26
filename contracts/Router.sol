@@ -7,11 +7,8 @@ import "./interfaces/IMargin.sol";
 import "./interfaces/ILiquidityERC20.sol";
 import "./interfaces/IStaking.sol";
 import "./libraries/TransferHelper.sol";
-import "./libraries/SafeMath.sol";
 
 contract Router is IRouter {
-    using SafeMath for uint256;
-
     address public immutable override factory;
     address public immutable override WETH;
 
@@ -212,7 +209,7 @@ contract Router is IRouter {
         address quoteToken,
         uint8 side,
         uint256 baseAmount
-    ) external view override returns (uint256 quoteAmount) {
+    ) external view returns (uint256 quoteAmount) {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         return IMargin(margin).queryMaxOpenPosition(side, baseAmount);
     }
@@ -225,9 +222,9 @@ contract Router is IRouter {
     ) internal pure returns (uint256 amountOut) {
         require(amountIn > 0, "UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
-        uint256 amountInWithFee = amountIn.mul(999);
-        uint256 numerator = amountInWithFee.mul(reserveOut);
-        uint256 denominator = reserveIn.mul(1000).add(amountInWithFee);
+        uint256 amountInWithFee = amountIn * 999;
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = reserveIn * 1000 + amountInWithFee;
         amountOut = numerator / denominator;
     }
 
@@ -239,9 +236,9 @@ contract Router is IRouter {
     ) internal pure returns (uint256 amountIn) {
         require(amountOut > 0, "UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
-        uint256 numerator = reserveIn.mul(amountOut).mul(1000);
-        uint256 denominator = reserveOut.sub(amountOut).mul(999);
-        amountIn = (numerator / denominator).add(1);
+        uint256 numerator = reserveIn * amountOut * 1000;
+        uint256 denominator = (reserveOut - amountOut) * 999;
+        amountIn = numerator / denominator + 1;
     }
 
     function delegateTo(address callee, bytes memory data) internal returns (bytes memory) {

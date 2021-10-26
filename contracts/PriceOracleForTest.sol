@@ -15,7 +15,9 @@ contract PriceOracleForTest is IPriceOracle {
         uint256 baseAmount
     ) external view override returns (uint256 quoteAmount) {
         Reserves memory reserves = getReserves[baseToken][quoteToken];
-        quoteAmount = quote(baseAmount, reserves.base, reserves.quote);
+        require(baseAmount > 0, "INSUFFICIENT_AMOUNT");
+        require(reserves.base > 0 && reserves.quote > 0, "INSUFFICIENT_LIQUIDITY");
+        quoteAmount = (baseAmount * reserves.quote) / reserves.base;
     }
 
     function setReserve(
@@ -25,16 +27,5 @@ contract PriceOracleForTest is IPriceOracle {
         uint256 reserveQuote
     ) external {
         getReserves[baseToken][quoteToken] = Reserves(reserveBase, reserveQuote);
-    }
-
-    // given some amount of an asset and pair reserves, returns an equivalent amount of the other asset
-    function quote(
-        uint256 amountA,
-        uint256 reserveA,
-        uint256 reserveB
-    ) internal pure returns (uint256 amountB) {
-        require(amountA > 0, "INSUFFICIENT_AMOUNT");
-        require(reserveA > 0 && reserveB > 0, "INSUFFICIENT_LIQUIDITY");
-        amountB = (amountA * reserveB) / reserveA;
     }
 }
