@@ -348,7 +348,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         }
 
         uint256 inputSquare = quoteAmount * quoteAmount;
-        // (sqrt(y/x)+ betal * deltay/L)
+        // price = (sqrt(y/x)+ betal * deltaY/L).**2;
+        // deltaX = deltaY/price
+        // deltaX = (deltaY * L)/(y + betal * deltaY)**2
         uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
         uint8 beta = IConfig(config).beta();
         require(beta >= 50 && beta <= 100, "beta error");

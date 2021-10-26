@@ -20,10 +20,6 @@ interface IVault {
         address _margin
     ) external;
 
-    function setMargin(address _margin) external;
-
-    function setAmm(address _amm) external;
-
     // only amm or margin can call this function
     function withdraw(address to, uint256 amount) external;
 }
