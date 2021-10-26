@@ -36,13 +36,15 @@ contract Router is IRouter {
     ) external override ensure(deadline) returns (uint256 quoteAmount, uint256 liquidity) {
         if (IFactory(factory).getAmm(baseToken, quoteToken) == address(0)) {
             IFactory(factory).createPair(baseToken, quoteToken);
-            IFactory(factory).createStaking(baseToken, quoteToken);
         }
         address amm = IFactory(factory).getAmm(baseToken, quoteToken);
         TransferHelper.safeTransferFrom(baseToken, msg.sender, amm, baseAmount);
         if (autoStake) {
             (quoteAmount, liquidity) = IAmm(amm).mint(address(this));
             address staking = IFactory(factory).getStaking(amm);
+            if (staking == address(0)) {
+                staking = IFactory(factory).createStaking(baseToken, quoteToken);
+            }
             ILiquidityERC20(amm).approve(staking, liquidity);
             IStaking(staking).stake(liquidity);
         } else {
