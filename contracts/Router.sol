@@ -83,7 +83,7 @@ contract Router is IRouter {
     ) external override {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
-        delegateTo(margin, abi.encodeWithSignature("removeMargin(uint256)", amount));
+        IMargin(margin).removeMargin(amount);
     }
 
     function openPositionWithWallet(
@@ -100,11 +100,7 @@ contract Router is IRouter {
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, marginAmount);
         IMargin(margin).addMargin(msg.sender, marginAmount);
         require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
-        bytes memory data = delegateTo(
-            margin,
-            abi.encodeWithSignature("openPosition(uint8,uint256)", side, baseAmount)
-        );
-        quoteAmount = abi.decode(data, (uint256));
+        quoteAmount = IMargin(margin).openPosition(side, baseAmount);
         if (side == 0) {
             require(quoteAmount <= quoteAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
         } else {
@@ -123,11 +119,7 @@ contract Router is IRouter {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
-        bytes memory data = delegateTo(
-            margin,
-            abi.encodeWithSignature("openPosition(uint8,uint256)", side, baseAmount)
-        );
-        quoteAmount = abi.decode(data, (uint256));
+        quoteAmount = IMargin(margin).openPosition(side, baseAmount);
         if (side == 0) {
             require(quoteAmount <= quoteAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
         } else {
@@ -144,8 +136,7 @@ contract Router is IRouter {
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
-        bytes memory data = delegateTo(margin, abi.encodeWithSignature("closePosition(uint256)", quoteAmount));
-        baseAmount = abi.decode(data, (uint256));
+        baseAmount = IMargin(margin).closePosition(quoteAmount);
         if (autoWithdraw) {
             withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
             IMargin(margin).removeMargin(withdrawAmount);
@@ -209,7 +200,7 @@ contract Router is IRouter {
         address quoteToken,
         uint8 side,
         uint256 baseAmount
-    ) external view returns (uint256 quoteAmount) {
+    ) external view override returns (uint256 quoteAmount) {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         return IMargin(margin).queryMaxOpenPosition(side, baseAmount);
     }
@@ -239,15 +230,5 @@ contract Router is IRouter {
         uint256 numerator = reserveIn * amountOut * 1000;
         uint256 denominator = (reserveOut - amountOut) * 999;
         amountIn = numerator / denominator + 1;
-    }
-
-    function delegateTo(address callee, bytes memory data) internal returns (bytes memory) {
-        (bool success, bytes memory returnData) = callee.delegatecall(data);
-        assembly {
-            if eq(success, 0) {
-                revert(add(returnData, 0x20), returndatasize())
-            }
-        }
-        return returnData;
     }
 }

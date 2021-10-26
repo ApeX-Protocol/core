@@ -17,6 +17,9 @@ const baseAddress = "0xD4c652999084ef502Cbe6b0a2bD7277b7dab092E"
 const quoteAddress = "0xAd4215344396F4B53AaF7B494Cc3580E8CF14104"
 const routerAddress = "0x3604B592886b137aab1e1Af29566a29874907265"
 const priceOracleTestAddress = "0x2458e6BD0CC06E42cC9F9205eb0a8b40C6dd9C39"
+const l2Amm = "0x1b26081379502fFC39f64c88B6196be588017268"
+const l2Margin = "0x2949236bd977DD3Db262a3957E0692acbD473d33"
+const l2Vault = "0x605c5B08Cb4819550CBa58D7cB697CDE1fBd670F"
 const deadline = 1953397680
 
 const main = async () => {
@@ -80,16 +83,15 @@ async function firstCreate() {
   await tx.wait()
   tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 100, 200000)
   await tx.wait()
-  tx = await l2BaseToken.mint(l2Signer.address, "1000000000000000000")
+  tx = await l2BaseToken.mint(l2Signer.address, "100000000000000000000000000")
   await tx.wait()
-  tx = await l2QuoteToken.mint(l2Signer.address, "2000000000000000000")
+  tx = await l2QuoteToken.mint(l2Signer.address, "200000000000000000000000000")
   await tx.wait()
   tx = await l2BaseToken.approve(l2Router.address, "10000000000000000000000000000")
   await tx.wait()
-  tx = await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, 100000000, 0, deadline, false)
+  tx = await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, "10000000000000000000000", 0, deadline, false)
   await tx.wait()
-  await l2BaseToken.mint(l2Signer.address, "1000000000000000000")
-  await l2QuoteToken.mint(l2Signer.address, "2000000000000000000")
+
 
   const l2Amm = await l2Factory.getAmm(l2BaseToken.address, l2QuoteToken.address)
   const l2Margin = await l2Factory.getMargin(l2BaseToken.address, l2QuoteToken.address)
