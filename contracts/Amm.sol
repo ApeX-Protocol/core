@@ -34,12 +34,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     //todo
     uint256 public price0CumulativeLast;
     uint256 public price1CumulativeLast;
+
     // uint256 public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
 
     function getReserves()
         public
-        override
         view
+        override
         returns (
             uint112 _baseReserve,
             uint112 _quoteReserve,
@@ -140,7 +141,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
     }
 
-    
     function getSpotPrice() public returns (uint256) {
         if (quoteReserve == 0) {
             return 0;
@@ -176,11 +176,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
     // this low-level function should be called from a contract which performs important safety checks
     function swap(
-        address inputAddress,
-        address outputAddress,
+        address inputToken,
+        address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external onlyMargin override nonReentrant returns (uint256[2] memory amounts) {
+    ) external override onlyMargin nonReentrant returns (uint256[2] memory amounts) {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -190,20 +190,20 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 _inputAmount;
         uint256 _outputAmount;
 
-        if (inputAddress != address(0x0) && inputAmount != 0) {
-            _outputAmount = swapInput(inputAddress, inputAmount);
+        if (inputToken != address(0x0) && inputAmount != 0) {
+            _outputAmount = swapInput(inputToken, inputAmount);
             _inputAmount = inputAmount;
         } else {
-            _inputAmount = swapOutput(outputAddress, outputAmount);
+            _inputAmount = swapOutput(outputToken, outputAmount);
             _outputAmount = outputAmount;
         }
-        emit Swap(inputAddress, outputAddress, _inputAmount, _outputAmount);
+        emit Swap(inputToken, outputToken, _inputAmount, _outputAmount);
         return [_inputAmount, _outputAmount];
     }
 
     function swapQuery(
-        address inputAddress,
-        address outputAddress,
+        address inputToken,
+        address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
     ) public view override returns (uint256[2] memory amounts) {
@@ -215,11 +215,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 _inputAmount;
         uint256 _outputAmount;
 
-        if (inputAddress != address(0x0) && inputAmount != 0) {
-            _outputAmount = swapInputQuery(inputAddress, inputAmount);
+        if (inputToken != address(0x0) && inputAmount != 0) {
+            _outputAmount = swapInputQuery(inputToken, inputAmount);
             _inputAmount = inputAmount;
         } else {
-            _inputAmount = swapOutputQuery(outputAddress, outputAmount);
+            _inputAmount = swapOutputQuery(outputToken, outputAmount);
             _outputAmount = outputAmount;
         }
 
@@ -255,23 +255,25 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         if (
             quoteReserveDesired.mul(100) >= uint256(_quoteReserve).mul(105) ||
             quoteReserveDesired.mul(100) <= uint256(_quoteReserve).mul(95)
-        ) { 
+        ) {
             _update(_baseReserve, quoteReserveDesired, _baseReserve, _quoteReserve);
-            
-            amount = (quoteReserveDesired > _quoteReserve) ? (quoteReserveDesired -_quoteReserve) : (_quoteReserve - quoteReserveDesired ) ;
+
+            amount = (quoteReserveDesired > _quoteReserve)
+                ? (quoteReserveDesired - _quoteReserve)
+                : (_quoteReserve - quoteReserveDesired);
 
             emit Rebase(_quoteReserve, quoteReserveDesired, _baseReserve);
         }
     }
 
-    function swapInput(address inputAddress, uint256 inputAmount) internal returns (uint256 amountOut) {
-        require((inputAddress == baseToken || inputAddress == quoteToken), "AMM: wrong input address");
+    function swapInput(address inputToken, uint256 inputAmount) internal returns (uint256 amountOut) {
+        require((inputToken == baseToken || inputToken == quoteToken), "AMM: wrong input address");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         uint256 balance0;
         uint256 balance1;
 
-        if (inputAddress == baseToken) {
+        if (inputToken == baseToken) {
             amountOut = AMMLibrary.getAmountOut(inputAmount, _baseReserve, _quoteReserve);
             balance0 = _baseReserve + inputAmount;
             balance1 = _quoteReserve - amountOut;
@@ -287,12 +289,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         _update(balance0, balance1, _baseReserve, _quoteReserve);
     }
 
-    function swapOutput(address outputAddress, uint256 outputAmount) internal returns (uint256 amountIn) {
-        require((outputAddress == baseToken || outputAddress == quoteToken), "AMM: wrong output address");
+    function swapOutput(address outputToken, uint256 outputAmount) internal returns (uint256 amountIn) {
+        require((outputToken == baseToken || outputToken == quoteToken), "AMM: wrong output address");
         uint256 balance0;
         uint256 balance1;
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
-        if (outputAddress == baseToken) {
+        if (outputToken == baseToken) {
             amountIn = AMMLibrary.getAmountIn(outputAmount, _quoteReserve, _baseReserve);
             balance0 = _baseReserve - outputAmount;
             balance1 = _quoteReserve + amountIn;
@@ -304,25 +306,25 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         _update(balance0, balance1, _baseReserve, _quoteReserve);
     }
 
-    function swapInputQuery(address inputAddress, uint256 inputAmount) internal view returns (uint256 amountOut) {
-        require((inputAddress == baseToken || inputAddress == quoteToken), "AMM: wrong input address");
+    function swapInputQuery(address inputToken, uint256 inputAmount) internal view returns (uint256 amountOut) {
+        require((inputToken == baseToken || inputToken == quoteToken), "AMM: wrong input address");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
-        if (inputAddress == baseToken) {
+        if (inputToken == baseToken) {
             amountOut = AMMLibrary.getAmountOut(inputAmount, _baseReserve, _quoteReserve);
         } else {
             amountOut = AMMLibrary.getAmountOut(inputAmount, _quoteReserve, _baseReserve);
         }
     }
 
-    function swapOutputQuery(address outputAddress, uint256 outputAmount) internal view returns (uint256 amountIn) {
-        require((outputAddress == baseToken || outputAddress == quoteToken), "AMM: wrong output address");
+    function swapOutputQuery(address outputToken, uint256 outputAmount) internal view returns (uint256 amountIn) {
+        require((outputToken == baseToken || outputToken == quoteToken), "AMM: wrong output address");
 
         uint256 amountIn;
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
-        if (outputAddress == baseToken) {
+        if (outputToken == baseToken) {
             amountIn = AMMLibrary.getAmountIn(outputAmount, _quoteReserve, _baseReserve);
         } else {
             amountIn = AMMLibrary.getAmountIn(outputAmount, _baseReserve, _quoteReserve);
@@ -346,21 +348,16 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         }
 
         uint256 inputSquare = quoteAmount * quoteAmount;
-        // L/vusd > 10000
-        if (FullMath.mulDiv(_baseReserve, _quoteReserve, inputSquare) >= 10000) {
-            baseAmount = AMMLibrary.quote(quoteAmount, _quoteReserve, _baseReserve);
-        } else {
-            // (sqrt(y/x)+ betal * deltay/L)
-            uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
-            uint8 beta = IConfig(config).beta();
-            require(beta >= 50 && beta <= 100, "beta error");
-            //112
-            uint256 denominator = _quoteReserve + beta * quoteAmount;
-            //224
-            denominator = denominator * denominator;
+        // (sqrt(y/x)+ betal * deltay/L)
+        uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
+        uint8 beta = IConfig(config).beta();
+        require(beta >= 50 && beta <= 100, "beta error");
+        //112
+        uint256 denominator = _quoteReserve + beta * quoteAmount;
+        //224
+        denominator = denominator * denominator;
 
-            baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
-        }
+        baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
 
         return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
     }
