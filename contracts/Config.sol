@@ -13,7 +13,6 @@ contract Config is IConfig, Ownable {
     uint256 public override liquidateThreshold; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio; //if 100, means liquidator bot get 1% as fee
 
-    uint256 public override liquidateIncentive;
     bool public override onlyPCV;
     uint8 public override beta = 100; // 50-100
 
@@ -34,8 +33,6 @@ contract Config is IConfig, Ownable {
     function setPendingAdmin(address newPendingAdmin) external override {
         _setPendingAdmin(newPendingAdmin);
     }
-
-    function setLiquidateIncentive(uint256 newIncentive) external override {}
 
     function setPriceOracle(address newOracle) external override {
         require(newOracle != address(0), "Config: ZERO_ADDRESS");

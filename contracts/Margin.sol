@@ -12,8 +12,7 @@ import "./libraries/Decimal.sol";
 import "./libraries/SignedDecimal.sol";
 import "./utils/Reentrant.sol";
 
-contract Margin is IMargin {
-    bool private entered = false;
+contract Margin is IMargin, Reentrant {
     using Decimal for uint256;
     using SignedDecimal for int256;
 
@@ -44,8 +43,7 @@ contract Margin is IMargin {
         address _amm,
         address _vault
     ) external override {
-        //todo check if has initialized and address != 0
-        _checkFactory();
+        require(factory == msg.sender, "factory");
         amm = _amm;
         vault = _vault;
         config = _config;
@@ -186,26 +184,21 @@ contract Margin is IMargin {
         uint256 liquidateFeeRatio = IConfig(config).liquidateFeeRatio();
         bonus = baseAmount.mul(liquidateFeeRatio).div(MAXRATIO);
         int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(bonus));
-        if (remainBaseAmount > 0) {
-            _minusPositionWithVAmm(isLong, traderPosition.quoteSize.abs());
-            IVault(vault).withdraw(_trader, remainBaseAmount.abs());
+        //update directly
+        if (isLong) {
+            IAmm(amm).forceSwap(
+                address(baseToken),
+                address(quoteToken),
+                remainBaseAmount.abs(),
+                traderPosition.quoteSize.abs()
+            );
         } else {
-            //with bad debt, update directly
-            if (isLong) {
-                IAmm(amm).forceSwap(
-                    address(baseToken),
-                    address(quoteToken),
-                    remainBaseAmount.abs(),
-                    traderPosition.quoteSize.abs()
-                );
-            } else {
-                IAmm(amm).forceSwap(
-                    address(quoteToken),
-                    address(baseToken),
-                    traderPosition.quoteSize.abs(),
-                    remainBaseAmount.abs()
-                );
-            }
+            IAmm(amm).forceSwap(
+                address(quoteToken),
+                address(baseToken),
+                traderPosition.quoteSize.abs(),
+                remainBaseAmount.abs()
+            );
         }
         IVault(vault).withdraw(msg.sender, bonus);
         traderPosition.baseSize = 0;
@@ -267,9 +260,7 @@ contract Margin is IMargin {
                 quoteSize.abs(),
                 0
             );
-            //todo need to delete 10, this 10 is for simulating price fluctuation, bad for long
-            uint256 baseAmount = result[1] * 10;
-            //fixme max debt ratio is MAXRATIO, ok?
+            uint256 baseAmount = result[1];
             if (baseAmount == 0) {
                 return MAXRATIO;
             }
@@ -282,8 +273,7 @@ contract Margin is IMargin {
                 0,
                 quoteSize.abs()
             );
-            //todo need to delete 10, this 10 is for simulating price fluctuation, bad for long
-            uint256 baseAmount = result[0] * 10;
+            uint256 baseAmount = result[0];
             uint256 ratio = baseAmount.mul(MAXRATIO).div(baseSize.abs());
             if (MAXRATIO < ratio) {
                 return MAXRATIO;
@@ -427,16 +417,5 @@ contract Margin is IMargin {
             }
             return MAXRATIO.sub(ratio);
         }
-    }
-
-    function _checkFactory() private view {
-        require(factory == msg.sender, "factory");
-    }
-
-    modifier nonReentrant() {
-        require(entered == false, "Reentrant: reentrant call");
-        entered = true;
-        _;
-        entered = false;
     }
 }

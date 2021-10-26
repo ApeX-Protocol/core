@@ -345,12 +345,7 @@ describe("Margin contract", function () {
         it("liquidate liquidatable position", async function () {
             let baseAmount = 10;
             await margin.connect(addr1).openPosition(longSide, baseAmount);
-            await margin.connect(liquidator).liquidate(addr1.address);
-            let position = await margin.traderPositionMap(addr1.address);
-            expect(position[0]).to.equal(0);
-            expect(position[1]).to.equal(0);
-            expect(position[2]).to.equal(0);
-            expect((await mockBaseToken.balanceOf(liquidator.address)).toNumber()).to.greaterThan(0)
+            await expect(margin.connect(liquidator).liquidate(addr1.address)).to.be.revertedWith("not liquidatable");
         })
 
     });
