@@ -66,7 +66,7 @@ describe("Amm", function () {
     // price AAA/usdt = 1/10
     console.log("---------test begin---------");
     await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
-   
+
     // let tx = await amm.mint(owner.address);
     // const minRes = await tx.wait();
     // const events = minRes["events"];
@@ -76,34 +76,38 @@ describe("Amm", function () {
     // console.log("mint event liquidity: ", args.liquidity.toString());
 
     await expect(amm.mint(owner.address))
-    .to.emit(amm, 'Mint')
-    .withArgs(owner.address, owner.address, ethers.BigNumber.from("1000000").mul(exp1), 100000000000 , ethers.BigNumber.from("316227766016836933"));
-
+      .to.emit(amm, "Mint")
+      .withArgs(
+        owner.address,
+        owner.address,
+        ethers.BigNumber.from("1000000").mul(exp1),
+        100000000000,
+        ethers.BigNumber.from("316227766016836933")
+      );
 
     //alice swap in
-   const ammAlice = amm.connect(alice);
-   // alice swap 100AAA to usdt
-   let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("100").mul(exp1), 0 );
-   const swapRes = await tx1.wait();
-   let eventabi = ["event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);"];
-   let iface1 = new ethers.utils.Interface(eventabi);
-   let log1 = iface1.parseLog(swapRes.logs[1]);
-   let args1 = log1["args"];
-  //  console.log("swap input AAA for vusd event input  : ", args1.inputAmount.toString());
-  //  console.log("swap input AAA for vusd event output: ", args1.outputAmount.toString());
-   expect(args1.outputAmount).to.equal(9989002);
+    const ammAlice = amm.connect(alice);
+    // alice swap 100AAA to usdt
+    let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("100").mul(exp1), 0);
+    const swapRes = await tx1.wait();
+    let eventabi = [
+      "event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
+    ];
+    let iface1 = new ethers.utils.Interface(eventabi);
+    let log1 = iface1.parseLog(swapRes.logs[1]);
+    let args1 = log1["args"];
+    //  console.log("swap input AAA for vusd event input  : ", args1.inputAmount.toString());
+    //  console.log("swap input AAA for vusd event output: ", args1.outputAmount.toString());
+    expect(args1.outputAmount).to.equal(9989002);
 
-   //alice swap out
-   let tx2 = await ammAlice.swap(AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100").mul(exp2));
-   // alice swap to 100 usdt
-   const swapRes2 = await tx2.wait();
-   let log2 = iface1.parseLog(swapRes2.logs[1]);
-   let args2 = log2["args"];
-  //  console.log("swap output vusd  for AAA event input  : ", args2.inputAmount.toString());
-  //  console.log("swap output vusd  for AAA event output: ", args2.outputAmount.toString());
-  expect(args2.inputAmount).to.equal(ethers.BigNumber.from("1002203414634867914265"));
+    //alice swap out
+    let tx2 = await ammAlice.swap(AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100").mul(exp2));
+    // alice swap to 100 usdt
+    const swapRes2 = await tx2.wait();
+    let log2 = iface1.parseLog(swapRes2.logs[1]);
+    let args2 = log2["args"];
+    //  console.log("swap output vusd  for AAA event input  : ", args2.inputAmount.toString());
+    //  console.log("swap output vusd  for AAA event output: ", args2.outputAmount.toString());
+    expect(args2.inputAmount).to.equal(ethers.BigNumber.from("1002203414634867914265"));
   });
-
-
-
 });
