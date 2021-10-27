@@ -141,6 +141,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
     }
 
+    //todo
     function getSpotPrice() public returns (uint256) {
         if (quoteReserve == 0) {
             return 0;
