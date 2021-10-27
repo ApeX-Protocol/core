@@ -4,10 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npx hardhat watch test",
-    "compile": "npx hardhat watch compilation",
+    "compile": "npx hardhat compile",
+    "compile_watch": "npx hardhat watch compilation",
+    "test": "npx hardhat test",
+    "test_watch": "npx hardhat watch test",
     "verify": "npx hardhat verify --network mainnet <DEPLOYED_CONTRACT_ADDRESS> 'Constructor argument 1'",
-    "deploy_rinkeby": "hardhat run deploy/deploy_rinkeby.js",
     "deploy_arb": "hardhat run deploy/deploy_arb.js"
   },
   "repository": {
