@@ -198,9 +198,9 @@ describe("Margin contract", function () {
         });
 
         it("query max OpenQuote", async function () {
-            let margin = 10;
-            expect(await margin.queryMaxOpenPosition(longSide, margin)).to.equal(100)
-            expect(await margin.queryMaxOpenPosition(shortSide, margin)).to.equal(110)
+            let _margin = 10;
+            expect(await margin.queryMaxOpenPosition(longSide, _margin)).to.equal(100)
+            expect(await margin.queryMaxOpenPosition(shortSide, _margin)).to.equal(110)
         });
 
         it("open correct long position", async function () {
@@ -408,13 +408,13 @@ describe("Margin contract", function () {
         });
 
         it("quote 0, base 0; withdrawable is 0", async function () {
-            await margin.openPosition(shortSide, baseAmount);
+            await margin.openPosition(shortSide, quoteAmount);
             await margin.removeMargin(1)
             expect(await margin.getWithdrawable(owner.address)).to.equal(0)
         });
 
         it("quote 0, base 1; withdrawable is 1", async function () {
-            await margin.openPosition(shortSide, baseAmount);
+            await margin.openPosition(shortSide, quoteAmount);
             expect(await margin.getWithdrawable(owner.address)).to.equal(1)
         });
 

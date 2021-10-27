@@ -23,4 +23,10 @@ interface IConfig {
     function setBeta(uint8 _beta) external;
 
     function setRebasePriceGap(uint256 newGap) external;
+
+    function setInitMarginRatio(uint256 _initMarginRatio) external;
+
+    function setLiquidateThreshold(uint256 _liquidateThreshold) external;
+
+    function setLiquidateFeeRatio(uint256 _liquidateFeeRatio) external;
 }

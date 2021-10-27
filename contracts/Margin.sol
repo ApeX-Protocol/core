@@ -105,6 +105,7 @@ contract Margin is IMargin, Reentrant {
 
         //swap exact quote to base
         baseAmount = _addPositionWithVAmm(isLong, _quoteAmount);
+        require(baseAmount > 0, "tiny quoteAmount");
 
         //old: quote -10, base 11; add long 5X position 1: quote -5, base +5; new: quote -15, base 16
         //old: quote 10, base -9; add long 5X position: quote -5, base +5; new: quote 5, base -4
