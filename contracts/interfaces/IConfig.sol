@@ -3,14 +3,8 @@
 pragma solidity ^0.8.0;
 
 interface IConfig {
-    event NewPendingAdmin(address oldPendingAdmin, address newPendingAdmin);
-    event NewAdmin(address oldAdmin, address newAdmin);
     event PriceOracleChanged(address indexed oldOracle, address indexed newOracle);
     event RebasePriceGapChanged(uint256 oldGap, uint256 newGap);
-
-    function pendingAdmin() external view returns (address);
-
-    function admin() external view returns (address);
 
     function priceOracle() external view returns (address);
 
@@ -23,12 +17,6 @@ interface IConfig {
     function liquidateFeeRatio() external view returns (uint256);
 
     function rebasePriceGap() external view returns (uint256);
-
-    function onlyPCV() external view returns (bool);
-
-    function setPendingAdmin(address newPendingAdmin) external;
-
-    function acceptAdmin() external;
 
     function setPriceOracle(address newOracle) external;
 
