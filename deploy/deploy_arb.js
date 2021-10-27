@@ -12,20 +12,29 @@ const signer = new ethers.Wallet(walletPrivateKey)
 
 const l1Signer = signer.connect(l1Provider)
 const l2Signer = signer.connect(l2Provider)
-const configAddress = "0x05CC7aE7809a7135215955E173AedAE7C5b9a7f2"
-const factoryAddress = "0x64e35087A5B1488168d7ab0b023FfFEb351A5a60"
-const baseAddress = "0x211613ADD5EF48d4ff80Ef260568d6BD7a911a20"
-const quoteAddress = "0x3C4e0872e48eC90BC4EC432c6110a5Df8a8b55F1"
-const routerAddress = "0xab7f42ebcBb3E55039f85b15d935f0A0114A989c"
-const priceOracleTestAddress = "0x60E462B4eec05595d07196341Cd475307008AD38"
+const configAddress = "0x7E20158e02C783894E402e15646D30E74ef9D6ed"
+const factoryAddress = "0xcc030127843c477519c2211c4c820Ccc3b751DfF"
+const baseAddress = "0x5819961755F120C71A02a020937a1bf0539ae53A"
+const quoteAddress = "0x8b795AFfdaF2a18bd03B623Da74Cfc5ad9393443"
+const routerAddress = "0x0A99dCEbA3FBD0C6A3c6607F6F1d8ec0e626a8De"
+const priceOracleTestAddress = "0x5Fba840DFC744E60Af6fb8d749F911EBA80c26F5"
 const l2Amm = "0xc16f9CC80e5bbb4E80F1F6AEdF7B33756Bd69c90"
 const l2Margin = "0xeBe1E4F51113b560b647B5a0f8710095b7c4e1C7"
 const l2Vault = "0x1fC4E7Fbc054312a0D576c8c3BfceC15536bd6c2"
 const deadline = 1953397680
 
+let l2Config
+let l2BaseToken
+let l2QuoteToken
+let l2Weth
+let l2Factory
+let l2Router
+let priceOracleForTest
+
+
 const main = async () => {
   // await createContracts()
-  await flowVerify()
+  await flowVerify(true)
 }
 
 async function createContracts() {
@@ -50,29 +59,29 @@ async function createContracts() {
   ).connect(l2Signer)
 
   //new config
-  const l2Config = await L2Config.deploy()
+  l2Config = await L2Config.deploy()
   await l2Config.deployed()
   console.log(`l2Config: ${l2Config.address}`)
   //new mockToken base and quote
-  const l2BaseToken = await MockToken.deploy("base token", "bt")
+  l2BaseToken = await MockToken.deploy("base token", "bt")
   await l2BaseToken.deployed()
   console.log(`l2BaseToken: ${l2BaseToken.address}`)
-  const l2QuoteToken = await MockToken.deploy("quote token", "qt")
+  l2QuoteToken = await MockToken.deploy("quote token", "qt")
   await l2QuoteToken.deployed()
   console.log(`l2QuoteToken: ${l2QuoteToken.address}`)
-  const l2Weth = await MockToken.deploy("weth token", "wt")
+  l2Weth = await MockToken.deploy("weth token", "wt")
   await l2Weth.deployed()
   console.log(`l2Weth: ${l2Weth.address}`)
   //new factory
-  const l2Factory = await L2Factory.deploy(l2Config.address)
+  l2Factory = await L2Factory.deploy(l2Config.address)
   await l2Factory.deployed()
   console.log(`l2Factory: ${l2Factory.address}`)
   //new router
-  const l2Router = await L2Router.deploy(l2Factory.address, l2Weth.address)
+  l2Router = await L2Router.deploy(l2Factory.address, l2Weth.address)
   await l2Router.deployed()
   console.log(`l2Router: ${l2Router.address}`)
   //new PriceOracleForTest
-  const priceOracleForTest = await PriceOracleForTest.deploy()
+  priceOracleForTest = await PriceOracleForTest.deploy()
   await priceOracleForTest.deployed()
   console.log(`priceOracleForTest: ${priceOracleForTest.address}`)
 
@@ -105,36 +114,40 @@ async function createContracts() {
   console.log("npx hardhat verify --network l2 " + l2QuoteToken.address + " 'quote token' 'qt'")
   console.log("npx hardhat verify --network l2 " + l2Weth.address + " 'weth token' 'wt'")
   console.log("npx hardhat verify --network l2 " + priceOracleForTest.address)
+
+  await flowVerify(false)
 }
 
-async function flowVerify() {
-  const L2Config = await (
-    await hre.ethers.getContractFactory('Config')
-  ).connect(l2Signer)
-  const MockToken = await (
-    await hre.ethers.getContractFactory('MockToken')
-  ).connect(l2Signer)
-  const L2Factory = await (
-    await hre.ethers.getContractFactory('Factory')
-  ).connect(l2Signer)
-  const L2Router = await (
-    await hre.ethers.getContractFactory('Router')
-  ).connect(l2Signer)
-  const L2PriceOracle = await (
-    await hre.ethers.getContractFactory('PriceOracle')
-  ).connect(l2Signer)
-  const PriceOracleForTest = await (
-    await hre.ethers.getContractFactory('PriceOracleForTest')
-  ).connect(l2Signer)
-
-
+async function flowVerify(needAttach) {
   //attach
-  const l2Config = await L2Config.attach(configAddress)//exist config address
-  const l2Factory = await L2Factory.attach(factoryAddress)//exist factory address
-  const l2Router = await L2Router.attach(routerAddress)//exist router address
-  const l2BaseToken = await MockToken.attach(baseAddress)//exist base address
-  const l2QuoteToken = await MockToken.attach(quoteAddress)//exist quote address
-  const priceOracleForTest = await PriceOracleForTest.attach(priceOracleTestAddress)//exist priceOracleTest address
+  if (needAttach) {
+    const L2Config = await (
+      await hre.ethers.getContractFactory('Config')
+    ).connect(l2Signer)
+    const MockToken = await (
+      await hre.ethers.getContractFactory('MockToken')
+    ).connect(l2Signer)
+    const L2Factory = await (
+      await hre.ethers.getContractFactory('Factory')
+    ).connect(l2Signer)
+    const L2Router = await (
+      await hre.ethers.getContractFactory('Router')
+    ).connect(l2Signer)
+    const L2PriceOracle = await (
+      await hre.ethers.getContractFactory('PriceOracle')
+    ).connect(l2Signer)
+    const PriceOracleForTest = await (
+      await hre.ethers.getContractFactory('PriceOracleForTest')
+    ).connect(l2Signer)
+
+    l2Config = await L2Config.attach(configAddress)//exist config address
+    l2Factory = await L2Factory.attach(factoryAddress)//exist factory address
+    l2Router = await L2Router.attach(routerAddress)//exist router address
+    l2BaseToken = await MockToken.attach(baseAddress)//exist base address
+    l2QuoteToken = await MockToken.attach(quoteAddress)//exist quote address
+    priceOracleForTest = await PriceOracleForTest.attach(priceOracleTestAddress)//exist priceOracleTest address
+  }
+
   let tx;
   let positionItem;
 
@@ -148,7 +161,7 @@ async function flowVerify() {
   tx = await l2Router.deposit(l2BaseToken.address, l2QuoteToken.address, l2Signer.address, ethers.utils.parseEther('1100.0'))
   await tx.wait()
   console.log("open position with margin")
-  tx = await l2Router.openPositionWithMargin(l2BaseToken.address, l2QuoteToken.address, 0, ethers.utils.parseEther('100.0'), ethers.constants.MaxUint256, deadline)
+  tx = await l2Router.openPositionWithMargin(l2BaseToken.address, l2QuoteToken.address, 0, ethers.utils.parseEther('100.0'), 0, deadline)
   await tx.wait()
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
   console.log("after open, current quoteSize abs: ", BigNumber.from(positionItem[1]).abs().toString())
@@ -168,7 +181,7 @@ async function flowVerify() {
   tx = await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, ethers.utils.parseEther('1000.0'), 0, deadline, true)
   await tx.wait()
   console.log("open position with wallet")
-  tx = await l2Router.openPositionWithWallet(l2BaseToken.address, l2QuoteToken.address, 0, ethers.utils.parseEther('200.0'), ethers.utils.parseEther('100.0'), ethers.constants.MaxUint256, deadline)
+  tx = await l2Router.openPositionWithWallet(l2BaseToken.address, l2QuoteToken.address, 0, ethers.utils.parseEther('200.0'), ethers.utils.parseEther('200.0'), 0, deadline)
   await tx.wait()
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
   console.log("after open, current quoteSize abs: ", BigNumber.from(positionItem[1]).abs().toString())

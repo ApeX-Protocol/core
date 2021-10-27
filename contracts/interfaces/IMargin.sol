@@ -40,7 +40,7 @@ interface IMargin {
 
     function canLiquidate(address trader) external view returns (bool);
 
-    function queryMaxOpenPosition(uint8 side, uint256 baseAmount) external view returns (uint256 quoteAmount);
+    function queryMaxOpenPosition(uint8 side, uint256 _margin) external view returns (uint256 quoteAmount);
 
     // only factory can call this function
     function initialize(
