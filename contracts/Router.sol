@@ -93,20 +93,20 @@ contract Router is IRouter {
         address quoteToken,
         uint8 side,
         uint256 marginAmount,
-        uint256 baseAmount,
-        uint256 quoteAmountLimit,
+        uint256 quoteAmount,
+        uint256 baseAmountLimit,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 quoteAmount) {
+    ) external override ensure(deadline) returns (uint256 baseAmount) {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, marginAmount);
         IMargin(margin).addMargin(msg.sender, marginAmount);
-        quoteAmount = IMargin(margin).openPosition(side, baseAmount);
+        baseAmount = IMargin(margin).openPosition(side, quoteAmount);
         if (side == 0) {
-            require(quoteAmount <= quoteAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
+            require(baseAmount >= baseAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
         } else {
-            require(quoteAmount >= quoteAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
+            require(baseAmount <= baseAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
         }
     }
 
@@ -114,18 +114,18 @@ contract Router is IRouter {
         address baseToken,
         address quoteToken,
         uint8 side,
-        uint256 baseAmount,
-        uint256 quoteAmountLimit,
+        uint256 quoteAmount,
+        uint256 baseAmountLimit,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 quoteAmount) {
+    ) external override ensure(deadline) returns (uint256 baseAmount) {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
-        quoteAmount = IMargin(margin).openPosition(side, baseAmount);
+        baseAmount = IMargin(margin).openPosition(side, quoteAmount);
         if (side == 0) {
-            require(quoteAmount <= quoteAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
+            require(baseAmount >= baseAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
         } else {
-            require(quoteAmount >= quoteAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
+            require(baseAmount <= baseAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
         }
     }
 
