@@ -381,13 +381,24 @@ describe("Margin contract", function () {
 
 
     describe("get withdrawable margin", async function () {
+        let baseAmount = 10;
         beforeEach(async function () {
             await mockRouter.addMargin(owner.address, 1);
-            let baseAmount = 10;
             await margin.openPosition(longSide, baseAmount);
 
             await mockRouter.addMargin(addr1.address, 1);
             await margin.connect(addr1).openPosition(shortSide, baseAmount);
+        });
+
+        it("quote 0, base 0; withdrawable is 0", async function () {
+            await margin.openPosition(shortSide, baseAmount);
+            await margin.removeMargin(1)
+            expect(await margin.getWithdrawable(owner.address)).to.equal(0)
+        });
+
+        it("quote 0, base 1; withdrawable is 1", async function () {
+            await margin.openPosition(shortSide, baseAmount);
+            expect(await margin.getWithdrawable(owner.address)).to.equal(1)
         });
 
         it("quote -10, base 11; withdrawable is 0", async function () {
