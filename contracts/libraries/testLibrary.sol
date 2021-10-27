@@ -3,7 +3,6 @@
 pragma solidity ^0.8.0;
 
 import {Math} from "./Math.sol";
-import {Decimal} from "./Decimal.sol";
 import {SignedDecimal} from "./SignedDecimal.sol";
 
 contract TestLibrary {
@@ -15,26 +14,6 @@ contract TestLibrary {
 
     function mathMinU(uint256 a, uint256 b) external pure returns (uint256) {
         return Math.minU(a, b);
-    }
-
-    function decimalAdd(uint256 a, uint256 b) external pure returns (uint256) {
-        return Decimal.add(a, b);
-    }
-
-    function decimalSub(uint256 a, uint256 b) external pure returns (uint256) {
-        return Decimal.sub(a, b);
-    }
-
-    function decimalDiv(uint256 a, uint256 b) external pure returns (uint256) {
-        return Decimal.div(a, b);
-    }
-
-    function decimalMul(uint256 a, uint256 b) external pure returns (uint256) {
-        return Decimal.mul(a, b);
-    }
-
-    function decimalOppo(uint256 a) external pure returns (int256) {
-        return Decimal.oppo(a);
     }
 
     function signedDecimalAbs(int256 x) external pure returns (uint256) {

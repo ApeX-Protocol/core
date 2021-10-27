@@ -8,12 +8,10 @@ import "./interfaces/IAmm.sol";
 import "./interfaces/IConfig.sol";
 import "./interfaces/IMargin.sol";
 import "./libraries/Math.sol";
-import "./libraries/Decimal.sol";
 import "./libraries/SignedDecimal.sol";
 import "./utils/Reentrant.sol";
 
 contract Margin is IMargin, Reentrant {
-    using Decimal for uint256;
     using SignedDecimal for int256;
 
     struct Position {
@@ -117,11 +115,11 @@ contract Margin is IMargin, Reentrant {
         }
 
         if (sameDir) {
-            traderPosition.tradeSize = traderPosition.tradeSize.add(_baseAmount);
+            traderPosition.tradeSize = traderPosition.tradeSize + _baseAmount;
         } else {
             traderPosition.tradeSize = traderPosition.tradeSize > _baseAmount
-                ? traderPosition.tradeSize.sub(_baseAmount)
-                : _baseAmount.sub(traderPosition.tradeSize);
+                ? traderPosition.tradeSize - _baseAmount
+                : _baseAmount - traderPosition.tradeSize;
         }
 
         _checkInitMarginRatio(traderPosition);
@@ -190,7 +188,7 @@ contract Margin is IMargin, Reentrant {
 
             if (traderPosition.quoteSize != 0) {
                 require(traderPosition.tradeSize >= baseAmount, "not closable");
-                traderPosition.tradeSize = traderPosition.tradeSize.sub(baseAmount);
+                traderPosition.tradeSize = traderPosition.tradeSize - baseAmount;
                 _checkInitMarginRatio(traderPosition);
             } else {
                 traderPosition.tradeSize = 0;
@@ -224,10 +222,10 @@ contract Margin is IMargin, Reentrant {
 
         //calc liquidate fee
         uint256 liquidateFeeRatio = IConfig(config).liquidateFeeRatio();
-        bonus = baseAmount.mul(liquidateFeeRatio).div(MAXRATIO);
+        bonus = (baseAmount * liquidateFeeRatio) / MAXRATIO;
         //update directly
         if (isLong) {
-            int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(bonus));
+            int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount - bonus);
             IAmm(amm).forceSwap(
                 address(baseToken),
                 address(quoteToken),
@@ -235,7 +233,7 @@ contract Margin is IMargin, Reentrant {
                 traderPosition.quoteSize.abs()
             );
         } else {
-            int256 remainBaseAmount = traderPosition.baseSize.addU(baseAmount.sub(bonus));
+            int256 remainBaseAmount = traderPosition.baseSize.addU(baseAmount - bonus);
             IAmm(amm).forceSwap(
                 address(quoteToken),
                 address(baseToken),
@@ -318,7 +316,7 @@ contract Margin is IMargin, Reentrant {
                 quoteSize.abs()
             );
             uint256 baseAmount = result[0];
-            uint256 ratio = baseAmount.mul(MAXRATIO).div(baseSize.abs());
+            uint256 ratio = (baseAmount * MAXRATIO) / baseSize.abs();
             if (MAXRATIO < ratio) {
                 return MAXRATIO;
             }
@@ -358,15 +356,15 @@ contract Margin is IMargin, Reentrant {
             );
 
             uint256 baseAmount = result[0];
-            uint256 baseNeeded = baseAmount.mul(MAXRATIO).div(MAXRATIO - IConfig(config).initMarginRatio());
-            if (baseAmount.mul(MAXRATIO) % (MAXRATIO - IConfig(config).initMarginRatio()) != 0) {
+            uint256 baseNeeded = (baseAmount * MAXRATIO) / (MAXRATIO - IConfig(config).initMarginRatio());
+            if ((baseAmount * MAXRATIO) % (MAXRATIO - IConfig(config).initMarginRatio()) != 0) {
                 baseNeeded += 1;
             }
 
             if (traderPosition.baseSize.abs() < baseNeeded) {
                 withdrawableMargin = 0;
             } else {
-                withdrawableMargin = traderPosition.baseSize.abs().sub(baseNeeded);
+                withdrawableMargin = traderPosition.baseSize.abs() - baseNeeded;
             }
         } else {
             uint256[2] memory result = IAmm(amm).swapQuery(
@@ -377,7 +375,7 @@ contract Margin is IMargin, Reentrant {
             );
 
             uint256 baseAmount = result[1];
-            uint256 baseNeeded = baseAmount.mul(MAXRATIO - IConfig(config).initMarginRatio()).div(MAXRATIO);
+            uint256 baseNeeded = (baseAmount * (MAXRATIO - IConfig(config).initMarginRatio())) / (MAXRATIO);
             if (traderPosition.baseSize < int256(-1).mulU(baseNeeded)) {
                 withdrawableMargin = 0;
             } else {
@@ -461,11 +459,11 @@ contract Margin is IMargin, Reentrant {
             uint256[2] memory result = IAmm(amm).swapQuery(address(baseToken), address(quoteToken), 0, quoteSize.abs());
 
             uint256 baseAmount = result[0];
-            uint256 ratio = baseAmount.mul(MAXRATIO).div(baseSize.abs());
+            uint256 ratio = (baseAmount * (MAXRATIO)) / (baseSize.abs());
             if (MAXRATIO < ratio) {
                 return 0;
             }
-            return MAXRATIO.sub(ratio);
+            return MAXRATIO - ratio;
         }
     }
 }
