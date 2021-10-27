@@ -55,7 +55,7 @@ interface IMargin {
 
     function removeMargin(uint256 withdrawAmount) external;
 
-    function openPosition(uint8 side, uint256 baseAmount) external returns (uint256 quoteAmount);
+    function openPosition(uint8 side, uint256 quoteAmount) external returns (uint256 baseAmount);
 
     function closePosition(uint256 quoteAmount) external returns (uint256 baseAmount);
 

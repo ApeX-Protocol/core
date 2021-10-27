@@ -42,19 +42,19 @@ interface IRouter {
         address quoteToken,
         uint8 side,
         uint256 marginAmount,
-        uint256 baseAmount,
-        uint256 quoteAmountLimit,
+        uint256 quoteAmount,
+        uint256 baseAmountLimit,
         uint256 deadline
-    ) external returns (uint256 quoteAmount);
+    ) external returns (uint256 baseAmount);
 
     function openPositionWithMargin(
         address baseToken,
         address quoteToken,
         uint8 side,
-        uint256 baseAmount,
-        uint256 quoteAmountLimit,
+        uint256 quoteAmount,
+        uint256 baseAmountLimit,
         uint256 deadline
-    ) external returns (uint256 quoteAmount);
+    ) external returns (uint256 baseAmount);
 
     function closePosition(
         address baseToken,
