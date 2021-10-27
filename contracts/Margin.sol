@@ -90,6 +90,7 @@ contract Margin is IMargin, Reentrant {
     }
 
     function openPosition(uint8 _side, uint256 _baseAmount) external override nonReentrant returns (uint256) {
+        require(_side == 0 || _side == 1, "Margin: INVALID_SIDE");
         require(_baseAmount > 0, ">0");
         //fixme
         // address trader = msg.sender;
@@ -130,7 +131,7 @@ contract Margin is IMargin, Reentrant {
         return quoteAmount;
     }
 
-    function closePosition(uint256 _quoteAmount) external override nonReentrant returns (uint256) {
+    function closePosition(uint256 _quoteAmount) external override nonReentrant returns (uint256 baseAmount) {
         //fixme
         // address trader = msg.sender;
         address trader = tx.origin;
@@ -140,23 +141,64 @@ contract Margin is IMargin, Reentrant {
         require(_quoteAmount <= traderPosition.quoteSize.abs(), "above position");
         //swap exact quote to base
         bool isLong = traderPosition.quoteSize < 0;
-        uint256 baseAmount = _minusPositionWithVAmm(isLong, _quoteAmount);
-
-        //old: quote -10, base 11; close position: quote 5, base -5; new: quote -5, base 6
-        //old: quote 10, base -9; close position: quote -5, base +5; new: quote 5, base -4
-        if (isLong) {
-            traderPosition.quoteSize = traderPosition.quoteSize.addU(_quoteAmount);
-            traderPosition.baseSize = traderPosition.baseSize.subU(baseAmount);
+        uint256 debtRatio = calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize);
+        // todo test carefully
+        //liquidatable
+        if (debtRatio >= IConfig(config).liquidateThreshold()) {
+            uint256 quoteSize = traderPosition.quoteSize.abs();
+            baseAmount = querySwapBaseWithVAmm(isLong, quoteSize);
+            if (isLong) {
+                int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount);
+                if (remainBaseAmount >= 0) {
+                    _minusPositionWithVAmm(isLong, quoteSize);
+                    traderPosition.quoteSize = 0;
+                    traderPosition.baseSize = remainBaseAmount;
+                } else {
+                    IAmm(amm).forceSwap(
+                        address(baseToken),
+                        address(quoteToken),
+                        traderPosition.baseSize.abs(),
+                        traderPosition.quoteSize.abs()
+                    );
+                }
+            } else {
+                int256 remainBaseAmount = traderPosition.baseSize.addU(baseAmount);
+                if (remainBaseAmount >= 0) {
+                    _minusPositionWithVAmm(isLong, quoteSize);
+                    traderPosition.quoteSize = 0;
+                    traderPosition.baseSize = remainBaseAmount;
+                } else {
+                    IAmm(amm).forceSwap(
+                        address(quoteToken),
+                        address(baseToken),
+                        traderPosition.quoteSize.abs(),
+                        traderPosition.baseSize.abs()
+                    );
+                }
+            }
         } else {
-            traderPosition.quoteSize = traderPosition.quoteSize.subU(_quoteAmount);
-            traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount);
-        }
-        traderPosition.tradeSize = traderPosition.tradeSize.sub(baseAmount);
+            baseAmount = _minusPositionWithVAmm(isLong, _quoteAmount);
+            //old: quote -10, base 11; close position: quote 5, base -5; new: quote -5, base 6
+            //old: quote 10, base -9; close position: quote -5, base +5; new: quote 5, base -4
+            if (isLong) {
+                traderPosition.quoteSize = traderPosition.quoteSize.addU(_quoteAmount);
+                traderPosition.baseSize = traderPosition.baseSize.subU(baseAmount);
+            } else {
+                traderPosition.quoteSize = traderPosition.quoteSize.subU(_quoteAmount);
+                traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount);
+            }
 
-        _checkInitMarginRatio(traderPosition);
+            if (traderPosition.quoteSize != 0) {
+                require(traderPosition.tradeSize >= baseAmount, "not closable");
+                traderPosition.tradeSize = traderPosition.tradeSize.sub(baseAmount);
+                _checkInitMarginRatio(traderPosition);
+            } else {
+                traderPosition.tradeSize = 0;
+            }
+        }
+
         _setPosition(trader, traderPosition);
         emit ClosePosition(trader, _quoteAmount, baseAmount);
-        return baseAmount;
     }
 
     function liquidate(address _trader)
@@ -183,9 +225,9 @@ contract Margin is IMargin, Reentrant {
         //calc liquidate fee
         uint256 liquidateFeeRatio = IConfig(config).liquidateFeeRatio();
         bonus = baseAmount.mul(liquidateFeeRatio).div(MAXRATIO);
-        int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(bonus));
         //update directly
         if (isLong) {
+            int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount.sub(bonus));
             IAmm(amm).forceSwap(
                 address(baseToken),
                 address(quoteToken),
@@ -193,6 +235,7 @@ contract Margin is IMargin, Reentrant {
                 traderPosition.quoteSize.abs()
             );
         } else {
+            int256 remainBaseAmount = traderPosition.baseSize.addU(baseAmount.sub(bonus));
             IAmm(amm).forceSwap(
                 address(quoteToken),
                 address(baseToken),
@@ -215,6 +258,7 @@ contract Margin is IMargin, Reentrant {
     }
 
     function queryMaxOpenPosition(uint8 _side, uint256 _baseAmount) external view override returns (uint256) {
+        require(_side == 0 || _side == 1, "Margin: INVALID_SIDE");
         bool isLong = _side == 0;
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             isLong,
@@ -299,7 +343,13 @@ contract Margin is IMargin, Reentrant {
     function getWithdrawable(address _trader) public view override returns (uint256) {
         Position memory traderPosition = traderPositionMap[_trader];
         uint256 withdrawableMargin;
-        if (traderPosition.quoteSize < 0) {
+        if (traderPosition.quoteSize == 0) {
+            if (traderPosition.baseSize <= 0) {
+                withdrawableMargin = 0;
+            } else {
+                withdrawableMargin = traderPosition.baseSize.abs();
+            }
+        } else if (traderPosition.quoteSize < 0) {
             uint256[2] memory result = IAmm(amm).swapQuery(
                 address(baseToken),
                 address(quoteToken),

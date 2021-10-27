@@ -2,6 +2,7 @@ const hre = require('hardhat')
 const ethers = require('ethers')
 const { Bridge } = require('arb-ts')
 const { hexDataLength } = require('@ethersproject/bytes')
+const { BigNumber } = require("@ethersproject/bignumber");
 
 const walletPrivateKey = process.env.DEVNET_PRIVKEY
 
@@ -11,23 +12,23 @@ const signer = new ethers.Wallet(walletPrivateKey)
 
 const l1Signer = signer.connect(l1Provider)
 const l2Signer = signer.connect(l2Provider)
-const configAddress = "0x5567d1247b79d918068e17d9c9fAd48369806D2d"
-const factoryAddress = "0x3529d2280D0D8068d7B6D10E75607Cd89B211880"
-const baseAddress = "0xD4c652999084ef502Cbe6b0a2bD7277b7dab092E"
-const quoteAddress = "0xAd4215344396F4B53AaF7B494Cc3580E8CF14104"
-const routerAddress = "0x3604B592886b137aab1e1Af29566a29874907265"
-const priceOracleTestAddress = "0x2458e6BD0CC06E42cC9F9205eb0a8b40C6dd9C39"
-const l2Amm = "0x1b26081379502fFC39f64c88B6196be588017268"
-const l2Margin = "0x2949236bd977DD3Db262a3957E0692acbD473d33"
-const l2Vault = "0x605c5B08Cb4819550CBa58D7cB697CDE1fBd670F"
+const configAddress = "0xf22EFdd7823C080e3Efbfd7d72A0CCD20cD8078b"
+const factoryAddress = "0x35f84CF2c3b8aB83B9DC4de1E3c5ba6F6fC8939C"
+const baseAddress = "0xE35511C4bBAED952e2A39C0fcE14f9c2e375Bd6b"
+const quoteAddress = "0x6Af370010285411d4Cab0EA8FF8B8B3B84577c31"
+const routerAddress = "0xD480b8970937E40a14C079074289B0E5Ec2e9b9d"
+const priceOracleTestAddress = "0xCd97fF0fd00ea93448b50b5B5293Af90F97E1107"
+const l2Amm = "0xc16f9CC80e5bbb4E80F1F6AEdF7B33756Bd69c90"
+const l2Margin = "0xeBe1E4F51113b560b647B5a0f8710095b7c4e1C7"
+const l2Vault = "0x1fC4E7Fbc054312a0D576c8c3BfceC15536bd6c2"
 const deadline = 1953397680
 
 const main = async () => {
-  await firstCreate()
-  // await secondSet()
+  // await createContracts()
+  await flowVerify()
 }
 
-async function firstCreate() {
+async function createContracts() {
   console.log('Deploying L2 Contract 👋👋')
   const L2Config = await (
     await hre.ethers.getContractFactory('Config')
@@ -75,21 +76,18 @@ async function firstCreate() {
   await priceOracleForTest.deployed()
   console.log(`priceOracleForTest: ${priceOracleForTest.address}`)
 
-  // let tx = await l2Router.createPair(l2BaseToken.address, l2QuoteToken.address)
-  // await tx.wait()
-
   //init set
   let tx = await l2Config.setPriceOracle(priceOracleForTest.address)
   await tx.wait()
   tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 100, 200000)
   await tx.wait()
-  tx = await l2BaseToken.mint(l2Signer.address, "100000000000000000000000000")
+  tx = await l2BaseToken.mint(l2Signer.address, ethers.utils.parseEther('100000000.0'))
   await tx.wait()
-  tx = await l2QuoteToken.mint(l2Signer.address, "200000000000000000000000000")
+  tx = await l2QuoteToken.mint(l2Signer.address, ethers.utils.parseEther('200000000.0'))
   await tx.wait()
-  tx = await l2BaseToken.approve(l2Router.address, "10000000000000000000000000000")
+  tx = await l2BaseToken.approve(l2Router.address, ethers.constants.MaxUint256)
   await tx.wait()
-  tx = await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, "10000000000000000000000", 0, deadline, false)
+  tx = await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, ethers.utils.parseEther('10000.0'), 0, deadline, false)
   await tx.wait()
 
 
@@ -109,8 +107,7 @@ async function firstCreate() {
   console.log("npx hardhat verify --network l2 " + priceOracleForTest.address)
 }
 
-
-async function secondSet() {
+async function flowVerify() {
   const L2Config = await (
     await hre.ethers.getContractFactory('Config')
   ).connect(l2Signer)
@@ -138,16 +135,50 @@ async function secondSet() {
   const l2BaseToken = await MockToken.attach(baseAddress)//exist base address
   const l2QuoteToken = await MockToken.attach(quoteAddress)//exist quote address
   const priceOracleForTest = await PriceOracleForTest.attach(priceOracleTestAddress)//exist priceOracleTest address
+  let tx;
+  let positionItem;
 
-  //read
-  const amm = await l2Factory.getAmm(l2BaseToken.address, l2QuoteToken.address)
-  console.log("amm: ", amm)
-  const stake = await l2Factory.getStaking(amm)
-  console.log("stake: ", stake)
+  //flow 1
+  console.log("add liquidity")
+  tx = await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, ethers.utils.parseEther('1000.0'), 0, deadline, false)
+  await tx.wait()
+  tx = await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, ethers.utils.parseEther('1000.0'), 0, deadline, true)
+  await tx.wait()
+  console.log("deposit")
+  tx = await l2Router.deposit(l2BaseToken.address, l2QuoteToken.address, l2Signer.address, ethers.utils.parseEther('1100.0'))
+  await tx.wait()
+  console.log("open position with margin")
+  tx = await l2Router.openPositionWithMargin(l2BaseToken.address, l2QuoteToken.address, 0, ethers.utils.parseEther('100.0'), ethers.constants.MaxUint256, deadline)
+  await tx.wait()
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
+  console.log("after open, current quoteSize abs: ", BigNumber.from(positionItem[1]).abs().toString())
+  tx = await l2Router.closePosition(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(positionItem[1]).abs(), deadline, false)
+  await tx.wait()
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
+  console.log("after close, remain baseSize abs: ", BigNumber.from(positionItem[0]).abs().toString())
+  console.log("withdraw")
+  tx = await l2Router.withdraw(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(positionItem[0]).abs())
+  await tx.wait()
 
-  //set
-  await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, 100000000, 0, deadline, false)
-  await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, 100000000, 0, deadline, true)
+  //flow 2
+  console.log("add liquidity")
+  tx = await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, ethers.utils.parseEther('1000.0'), 0, deadline, false)
+  await tx.wait()
+
+  tx = await l2Router.addLiquidity(l2BaseToken.address, l2QuoteToken.address, ethers.utils.parseEther('1000.0'), 0, deadline, true)
+  await tx.wait()
+  console.log("open position with wallet")
+  tx = await l2Router.openPositionWithWallet(l2BaseToken.address, l2QuoteToken.address, 0, ethers.utils.parseEther('200.0'), ethers.utils.parseEther('100.0'), ethers.constants.MaxUint256, deadline)
+  await tx.wait()
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
+  console.log("after open, current quoteSize abs: ", BigNumber.from(positionItem[1]).abs().toString())
+  tx = await l2Router.closePosition(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(positionItem[1]).abs(), deadline, false)
+  await tx.wait()
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
+  console.log("after close, remain baseSize abs: ", BigNumber.from(positionItem[0]).abs().toString())
+  console.log("withdraw")
+  tx = await l2Router.withdraw(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(positionItem[0]).abs())
+  await tx.wait()
 }
 
 main()
