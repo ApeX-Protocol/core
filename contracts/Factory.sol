@@ -8,11 +8,9 @@ import "./Amm.sol";
 import "./Margin.sol";
 import "./Vault.sol";
 import "./Staking.sol";
+import "./utils/Ownable.sol";
 
-contract Factory is IFactory {
-    address public override pendingAdmin;
-    address public override admin;
-
+contract Factory is IFactory, Ownable {
     address public override config;
 
     mapping(address => mapping(address => address)) public override getAmm;
@@ -22,25 +20,7 @@ contract Factory is IFactory {
     mapping(address => address) public override getStaking;
 
     constructor(address _config) {
-        admin = msg.sender;
         config = _config;
-    }
-
-    function setPendingAdmin(address newPendingAdmin) external override {
-        require(msg.sender == admin, "Factory: REQUIRE_ADMIN");
-        require(pendingAdmin != newPendingAdmin, "Factory: ALREADY_SET");
-        emit NewPendingAdmin(pendingAdmin, newPendingAdmin);
-        pendingAdmin = newPendingAdmin;
-    }
-
-    function acceptAdmin() external override {
-        require(msg.sender == pendingAdmin, "Factory: REQUIRE_PENDING_ADMIN");
-        address oldAdmin = admin;
-        address oldPendingAdmin = pendingAdmin;
-        admin = pendingAdmin;
-        pendingAdmin = address(0);
-        emit NewAdmin(oldAdmin, admin);
-        emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
     }
 
     function createPair(address baseToken, address quoteToken)

@@ -99,9 +99,9 @@ contract Router is IRouter {
     ) external override ensure(deadline) returns (uint256 quoteAmount) {
         address margin = IFactory(factory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
+        require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, marginAmount);
         IMargin(margin).addMargin(msg.sender, marginAmount);
-        require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
         quoteAmount = IMargin(margin).openPosition(side, baseAmount);
         if (side == 0) {
             require(quoteAmount <= quoteAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
@@ -213,8 +213,8 @@ contract Router is IRouter {
         uint256 reserveIn,
         uint256 reserveOut
     ) internal pure returns (uint256 amountOut) {
-        require(amountIn > 0, "UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
-        require(reserveIn > 0 && reserveOut > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
+        require(amountIn > 0, "Router: INSUFFICIENT_INPUT_AMOUNT");
+        require(reserveIn > 0 && reserveOut > 0, "Router: INSUFFICIENT_LIQUIDITY");
         uint256 amountInWithFee = amountIn * 999;
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = reserveIn * 1000 + amountInWithFee;
@@ -227,8 +227,8 @@ contract Router is IRouter {
         uint256 reserveIn,
         uint256 reserveOut
     ) internal pure returns (uint256 amountIn) {
-        require(amountOut > 0, "UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT");
-        require(reserveIn > 0 && reserveOut > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
+        require(amountOut > 0, "Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(reserveIn > 0 && reserveOut > 0, "Router: INSUFFICIENT_LIQUIDITY");
         uint256 numerator = reserveIn * amountOut * 1000;
         uint256 denominator = (reserveOut - amountOut) * 999;
         amountIn = numerator / denominator + 1;

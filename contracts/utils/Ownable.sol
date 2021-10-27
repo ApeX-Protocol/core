@@ -3,32 +3,34 @@
 pragma solidity ^0.8.0;
 
 abstract contract Ownable {
-    address public _admin;
-    address public _pendingAdmin;
+    address public admin;
+    address public pendingAdmin;
 
-    event OwnershipTransfer(address indexed previousAdmin, address indexed pendingAdmin);
-    event OwnershipAccept(address indexed currentAdmin);
+    event NewAdmin(address indexed oldAdmin, address indexed newAdmin);
+    event NewPendingAdmin(address indexed oldPendingAdmin, address indexed newPendingAdmin);
 
     constructor() {
-        _admin = msg.sender;
+        admin = msg.sender;
     }
 
-    function _setPendingAdmin(address newAdmin) public {
-        _checkAdmin();
-        require(newAdmin != address(0), "Ownable: new admin is the zero address");
-        require(newAdmin != _pendingAdmin, "Ownable: already set");
-        _pendingAdmin = newAdmin;
-        emit OwnershipTransfer(_admin, newAdmin);
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Ownable: REQUIRE_ADMIN");
+        _;
     }
 
-    function _acceptAdmin() public {
-        require(msg.sender == _pendingAdmin, "Ownable: not pendingAdmin");
-        _admin = _pendingAdmin;
-        _pendingAdmin = address(0);
-        emit OwnershipAccept(_pendingAdmin);
+    function setPendingAdmin(address newPendingAdmin) external onlyAdmin {
+        require(pendingAdmin != newPendingAdmin, "Ownable: ALREADY_SET");
+        emit NewPendingAdmin(pendingAdmin, newPendingAdmin);
+        pendingAdmin = newPendingAdmin;
     }
 
-    function _checkAdmin() internal view {
-        require(_admin == msg.sender, "Ownable: caller is not the admin");
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "Ownable: REQUIRE_PENDING_ADMIN");
+        address oldAdmin = admin;
+        address oldPendingAdmin = pendingAdmin;
+        admin = pendingAdmin;
+        pendingAdmin = address(0);
+        emit NewAdmin(oldAdmin, admin);
+        emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
     }
 }
