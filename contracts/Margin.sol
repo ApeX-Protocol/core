@@ -164,7 +164,7 @@ contract Margin is IMargin, Reentrant {
                     );
                     traderPosition.quoteSize = 0;
                     traderPosition.baseSize = 0;
-                    traderPosition.quoteSize = 0;
+                    traderPosition.tradeSize = 0;
                 }
             } else {
                 int256 remainBaseAmount = traderPosition.baseSize.addU(baseAmount);
@@ -181,7 +181,7 @@ contract Margin is IMargin, Reentrant {
                     );
                     traderPosition.quoteSize = 0;
                     traderPosition.baseSize = 0;
-                    traderPosition.quoteSize = 0;
+                    traderPosition.tradeSize = 0;
                 }
             }
         } else {
