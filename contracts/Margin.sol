@@ -85,14 +85,14 @@ contract Margin is IMargin, Reentrant {
         emit RemoveMargin(trader, _withdrawAmount);
     }
 
-    function openPosition(uint8 _side, uint256 _baseAmount)
+    function openPosition(uint8 _side, uint256 _quoteAmount)
         external
         override
         nonReentrant
-        returns (uint256 quoteAmount)
+        returns (uint256 baseAmount)
     {
         require(_side == 0 || _side == 1, "Margin: INVALID_SIDE");
-        require(_baseAmount > 0, ">0");
+        require(_quoteAmount > 0, ">0");
         //fixme
         // address trader = msg.sender;
         address trader = tx.origin;
@@ -103,31 +103,32 @@ contract Margin is IMargin, Reentrant {
             (traderPosition.quoteSize < 0 == isLong) ||
             (traderPosition.quoteSize > 0 == !isLong);
 
-        //swap exact base to quote
-        quoteAmount = _addPositionWithVAmm(isLong, _baseAmount);
+        //swap exact quote to base
+        baseAmount = _addPositionWithVAmm(isLong, _quoteAmount);
+        require(baseAmount > 0, "tiny quoteAmount");
 
         //old: quote -10, base 11; add long 5X position 1: quote -5, base +5; new: quote -15, base 16
         //old: quote 10, base -9; add long 5X position: quote -5, base +5; new: quote 5, base -4
         //old: quote 10, base -9; add long 15X position: quote -15, base +15; new: quote -5, base 6
         if (isLong) {
-            traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
-            traderPosition.baseSize = traderPosition.baseSize.addU(_baseAmount);
+            traderPosition.quoteSize = traderPosition.quoteSize.subU(_quoteAmount);
+            traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount);
         } else {
-            traderPosition.quoteSize = traderPosition.quoteSize.addU(quoteAmount);
-            traderPosition.baseSize = traderPosition.baseSize.subU(_baseAmount);
+            traderPosition.quoteSize = traderPosition.quoteSize.addU(_quoteAmount);
+            traderPosition.baseSize = traderPosition.baseSize.subU(baseAmount);
         }
 
         if (sameDir) {
-            traderPosition.tradeSize = traderPosition.tradeSize + _baseAmount;
+            traderPosition.tradeSize = traderPosition.tradeSize + baseAmount;
         } else {
-            traderPosition.tradeSize = traderPosition.tradeSize > _baseAmount
-                ? traderPosition.tradeSize - _baseAmount
-                : _baseAmount - traderPosition.tradeSize;
+            traderPosition.tradeSize = traderPosition.tradeSize > baseAmount
+                ? traderPosition.tradeSize - baseAmount
+                : baseAmount - traderPosition.tradeSize;
         }
 
         _checkInitMarginRatio(traderPosition);
         _setPosition(trader, traderPosition);
-        emit OpenPosition(trader, _side, _baseAmount, quoteAmount);
+        emit OpenPosition(trader, _side, baseAmount, _quoteAmount);
     }
 
     function closePosition(uint256 _quoteAmount) external override nonReentrant returns (uint256 baseAmount) {
@@ -256,22 +257,24 @@ contract Margin is IMargin, Reentrant {
         return debtRatio >= IConfig(config).liquidateThreshold();
     }
 
-    function queryMaxOpenPosition(uint8 _side, uint256 _baseAmount) external view override returns (uint256) {
+    function queryMaxOpenPosition(uint8 _side, uint256 _margin) external view override returns (uint256 quoteAmount) {
         require(_side == 0 || _side == 1, "Margin: INVALID_SIDE");
         bool isLong = _side == 0;
+        uint256 maxBase;
+        if (isLong) {
+            maxBase = _margin * (MAXRATIO / IConfig(config).initMarginRatio() - 1);
+        } else {
+            maxBase = (_margin * MAXRATIO) / IConfig(config).initMarginRatio();
+        }
+
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             isLong,
-            _baseAmount,
+            maxBase,
             address(baseToken)
         );
 
-        uint256[2] memory result = IAmm(amm).swapQueryWithAcctSpecMarkPrice(
-            inputToken,
-            outputToken,
-            inputAmount,
-            outputAmount
-        );
-        return isLong ? result[0] : result[1];
+        uint256[2] memory result = IAmm(amm).swapQuery(inputToken, outputToken, inputAmount, outputAmount);
+        quoteAmount = isLong ? result[0] : result[1];
     }
 
     function getMarginRatio(address _trader) external view returns (uint256) {
@@ -376,15 +379,21 @@ contract Margin is IMargin, Reentrant {
         traderPositionMap[_trader] = _position;
     }
 
-    function _addPositionWithVAmm(bool isLong, uint256 _baseAmount) internal returns (uint256) {
-        (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
-            isLong,
-            _baseAmount,
-            address(baseToken)
-        );
+    function _addPositionWithVAmm(bool isLong, uint256 _quoteAmount) internal returns (uint256) {
+        address inputToken;
+        address outputToken;
+        uint256 inputAmount;
+        uint256 outputAmount;
+        if (isLong) {
+            inputToken = quoteToken;
+            inputAmount = _quoteAmount;
+        } else {
+            outputToken = quoteToken;
+            outputAmount = _quoteAmount;
+        }
 
         uint256[2] memory result = IAmm(amm).swap(inputToken, outputToken, inputAmount, outputAmount);
-        return isLong ? result[0] : result[1];
+        return isLong ? result[1] : result[0];
     }
 
     function _minusPositionWithVAmm(bool isLong, uint256 _quoteAmount) internal returns (uint256) {
@@ -400,8 +409,8 @@ contract Margin is IMargin, Reentrant {
 
     function _getSwapParam(
         bool isLong,
-        uint256 _quoteAmount,
-        address _quoteToken
+        uint256 _Amount,
+        address _Token
     )
         internal
         pure
@@ -413,11 +422,11 @@ contract Margin is IMargin, Reentrant {
         )
     {
         if (isLong) {
-            outputToken = _quoteToken;
-            outputAmount = _quoteAmount;
+            outputToken = _Token;
+            outputAmount = _Amount;
         } else {
-            inputToken = _quoteToken;
-            inputAmount = _quoteAmount;
+            inputToken = _Token;
+            inputAmount = _Amount;
         }
     }
 
