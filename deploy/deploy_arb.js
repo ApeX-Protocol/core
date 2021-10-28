@@ -22,6 +22,8 @@ let ammAddress = "0xc16f9CC80e5bbb4E80F1F6AEdF7B33756Bd69c90"
 let marginAddress = "0xeBe1E4F51113b560b647B5a0f8710095b7c4e1C7"
 let vaultAddress = "0x1fC4E7Fbc054312a0D576c8c3BfceC15536bd6c2"
 const deadline = 1953397680
+const long = 0
+const short = 1
 
 let l2Config
 let l2BaseToken
@@ -106,7 +108,7 @@ async function createContracts() {
   await tx.wait()
   tx = await l2Config.setRebasePriceGap(1)
   await tx.wait()
-  tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 100, 200000)
+  tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 1, 2000)
   await tx.wait()
   tx = await l2BaseToken.mint(l2Signer.address, ethers.utils.parseEther('10000000000000.0'))
   await tx.wait()
@@ -191,7 +193,10 @@ async function flowVerify(needAttach) {
   await tx.wait()
 
   console.log("open position with margin...")
-  tx = await l2Router.openPositionWithMargin(l2BaseToken.address, l2QuoteToken.address, 0, ethers.utils.parseEther('100.0'), 0, deadline)
+  tx = await l2Router.openPositionWithMargin(
+    l2BaseToken.address, l2QuoteToken.address,
+    long,
+    ethers.utils.parseEther('100.0'), 0, deadline)
   await tx.wait()
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
   printPosition(positionItem)
@@ -207,7 +212,11 @@ async function flowVerify(needAttach) {
 
   //flow 2: open position with wallet
   console.log("open position with wallet...")
-  tx = await l2Router.openPositionWithWallet(l2BaseToken.address, l2QuoteToken.address, 0, ethers.utils.parseEther('500.0'), ethers.utils.parseEther('100.0'), 0, deadline)
+  tx = await l2Router.openPositionWithWallet(
+    l2BaseToken.address, l2QuoteToken.address,
+    long,
+    ethers.utils.parseEther('500.0'),
+    ethers.utils.parseEther('100.0'), 0, deadline)
   await tx.wait()
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
   printPosition(positionItem)
@@ -224,7 +233,11 @@ async function flowVerify(needAttach) {
 
   //flow 3: liquidate
   console.log("open position with wallet...")
-  tx = await l2Router.openPositionWithWallet(l2BaseToken.address, l2QuoteToken.address, 0, ethers.utils.parseEther('500.0'), ethers.utils.parseEther('100.0'), 0, deadline)
+  tx = await l2Router.openPositionWithWallet(
+    l2BaseToken.address, l2QuoteToken.address,
+    long,
+    ethers.utils.parseEther('500.0'),
+    ethers.utils.parseEther('100.0'), 0, deadline)
   await tx.wait()
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
   printPosition(positionItem)
@@ -234,7 +247,7 @@ async function flowVerify(needAttach) {
   await tx.wait()
 
   console.log("set price...")
-  tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 500, 200000)
+  tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 1, 400)
   await tx.wait()
   console.log("rebase...")
   tx = await l2Amm.rebase()
@@ -246,12 +259,44 @@ async function flowVerify(needAttach) {
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
   printPosition(positionItem)
 
+
+  //flow 4: close liquidatable position
   console.log("set price...")
-  tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 100, 200000)
+  tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 1, 400)
   await tx.wait()
   console.log("rebase...")
   tx = await l2Amm.rebase()
   await tx.wait()
+
+  console.log("open short position with wallet...")
+  tx = await l2Router.openPositionWithWallet(
+    l2BaseToken.address, l2QuoteToken.address,
+    short,
+    ethers.utils.parseEther('500.0'),
+    ethers.utils.parseEther('100.0'),
+    "999999999999999999999999999999", deadline)
+  await tx.wait()
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
+  printPosition(positionItem)
+
+  withdrawable = await l2Margin.getWithdrawable(l2Signer.address)
+  tx = await l2Router.withdraw(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(withdrawable).abs())
+  await tx.wait()
+
+  console.log("set price...")
+  tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 1, 2000)
+  await tx.wait()
+  console.log("rebase...")
+  tx = await l2Amm.rebase()
+  await tx.wait()
+
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
+  printPosition(positionItem)
+  console.log("close liquidatable position...")
+  tx = await l2Router.closePosition(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(positionItem[1]).abs(), deadline, false)
+  await tx.wait()
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
+  printPosition(positionItem)
 }
 
 function printPosition(positionItem) {
