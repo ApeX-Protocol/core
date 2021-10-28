@@ -41,6 +41,7 @@ let positionItem
 const main = async () => {
   await createContracts()
   // await flowVerify(true)
+  // await simulatePriceFluctuation()
 }
 
 async function createContracts() {
@@ -297,6 +298,33 @@ async function flowVerify(needAttach) {
   await tx.wait()
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address)
   printPosition(positionItem)
+}
+
+async function simulatePriceFluctuation() {
+  const PriceOracleForTest = await (
+    await hre.ethers.getContractFactory('PriceOracleForTest')
+  ).connect(l2Signer)
+  const L2Amm = await (
+    await hre.ethers.getContractFactory('Amm')
+  ).connect(l2Signer)
+
+  priceOracleForTest = await PriceOracleForTest.attach(priceOracleTestAddress)//exist priceOracleTest address
+  l2Amm = await L2Amm.attach(ammAddress)//exist amm address
+
+  let minute
+  while (true) {
+    currentMinute = (new Date()).getMinutes();
+    if (currentMinute != minute) {
+      minute = currentMinute
+      console.log("set price...")
+      tx = await priceOracleForTest.setReserve(baseAddress, quoteAddress, 1, minute * 100 + 100)
+      await tx.wait()
+      console.log("rebase...")
+      tx = await l2Amm.rebase()
+      await tx.wait()
+    }
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
 }
 
 function printPosition(positionItem) {
