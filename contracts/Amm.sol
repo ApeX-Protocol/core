@@ -322,7 +322,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     function swapOutputQuery(address outputToken, uint256 outputAmount) internal view returns (uint256 amountIn) {
         require((outputToken == baseToken || outputToken == quoteToken), "AMM: wrong output address");
 
-        uint256 amountIn;
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
         if (outputToken == baseToken) {
