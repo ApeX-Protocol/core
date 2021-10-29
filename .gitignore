@@ -5,3 +5,4 @@ cache
 package-lock.json
 .deps
 .env
+bin
