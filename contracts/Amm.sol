@@ -370,7 +370,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         //224
         denominator = denominator * denominator;
         baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
-
         return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
     }
 
