@@ -186,7 +186,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
 
-        require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
+       // require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
 
         uint256 _inputAmount;
         uint256 _outputAmount;
@@ -211,7 +211,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-        require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
+        //todo
+     //   require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
 
         uint256 _inputAmount;
         uint256 _outputAmount;
