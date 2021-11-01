@@ -10,6 +10,9 @@ require("@nomiclabs/hardhat-etherscan");
 module.exports = {
   solidity: "0.8.0",
   networks: {
+    hardhat: {
+      allowUnlimitedContractSize: true
+    },
     kovan: {
       url: `https://kovan.infura.io/v3/` + process.env['INFURA_KEY'],
       chainId: 42,
