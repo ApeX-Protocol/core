@@ -154,6 +154,7 @@ contract Margin is IMargin, Reentrant {
                 if (remainBaseAmount >= 0) {
                     _minusPositionWithVAmm(isLong, quoteSize);
                     traderPosition.quoteSize = 0;
+                    traderPosition.tradeSize = 0;
                     traderPosition.baseSize = remainBaseAmount;
                 } else {
                     IAmm(amm).forceSwap(
@@ -171,6 +172,7 @@ contract Margin is IMargin, Reentrant {
                 if (remainBaseAmount >= 0) {
                     _minusPositionWithVAmm(isLong, quoteSize);
                     traderPosition.quoteSize = 0;
+                    traderPosition.tradeSize = 0;
                     traderPosition.baseSize = remainBaseAmount;
                 } else {
                     IAmm(amm).forceSwap(
@@ -438,14 +440,14 @@ contract Margin is IMargin, Reentrant {
         }
     }
 
-    function _checkInitMarginRatio(Position memory traderPosition) internal view {
+    function _checkInitMarginRatio(Position memory traderPosition) public view {
         require(
             _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= IConfig(config).initMarginRatio(),
             "initMarginRatio"
         );
     }
 
-    function _calMarginRatio(int256 quoteSize, int256 baseSize) internal view returns (uint256 marginRatio) {
+    function _calMarginRatio(int256 quoteSize, int256 baseSize) public view returns (uint256 marginRatio) {
         if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
             marginRatio = MAXRATIO;
         } else if (quoteSize < 0 && baseSize <= 0) {
