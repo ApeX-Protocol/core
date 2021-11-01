@@ -334,8 +334,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
         if (outputToken == baseToken) {
+            require(outputAmount < _baseReserve, "AMM: INSUFFICIENT_LIQUIDITY");
             amountIn = AMMLibrary.getAmountIn(outputAmount, _quoteReserve, _baseReserve);
         } else {
+            require(outputAmount < _quoteReserve , "AMM: INSUFFICIENT_LIQUIDITY");
             amountIn = AMMLibrary.getAmountIn(outputAmount, _baseReserve, _quoteReserve);
         }
     }
