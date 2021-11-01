@@ -62,7 +62,7 @@ describe("Amm", function () {
   });
 
   it("owner add liquidity", async function () {
-    //owner 转100W AAA作为流动性, 对应会生成10W usdt
+    //owner mint 100W AAA, correspinding to generate 10W usdt
     // price AAA/usdt = 1/10
     console.log("---------test begin---------");
     await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
@@ -109,5 +109,64 @@ describe("Amm", function () {
     //  console.log("swap output vusd  for AAA event input  : ", args2.inputAmount.toString());
     //  console.log("swap output vusd  for AAA event output: ", args2.outputAmount.toString());
     expect(args2.inputAmount).to.equal(ethers.BigNumber.from("1002203414634867914265"));
+  });
+
+  it("check swap input in large size ", async function () {
+    //owner mint 100W AAA, correspinding to generate 10W usdt
+    // price AAA/usdt = 1/10
+    console.log("---------test begin---------");
+    await AAAToken.transfer(alice.address, ethers.BigNumber.from("10000000").mul(exp1));
+    await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
+
+    await expect(amm.mint(owner.address))
+      .to.emit(amm, "Mint")
+      .withArgs(
+        owner.address,
+        owner.address,
+        ethers.BigNumber.from("1000000").mul(exp1),
+        100000000000,
+        ethers.BigNumber.from("316227766016836933")
+      );
+
+    const ammAlice = amm.connect(alice);
+    // alice swap 1000000AAA to usdt
+    //alice swap out
+    let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0);
+
+    const swapRes = await tx1.wait();
+    let eventabi = [
+      "event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
+    ];
+    let iface1 = new ethers.utils.Interface(eventabi);
+    let log1 = iface1.parseLog(swapRes.logs[1]);
+    let args1 = log1["args"];
+  
+    expect(args1.outputAmount).to.equal(90900818926);
+   
+  });
+
+  it("check swap output oversize  ", async function () {
+    //owner mint 100W AAA, correspinding to generate 10W usdt
+    // price AAA/usdt = 1/10
+    console.log("---------test begin---------");
+    await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
+
+    await expect(amm.mint(owner.address))
+      .to.emit(amm, "Mint")
+      .withArgs(
+        owner.address,
+        owner.address,
+        ethers.BigNumber.from("1000000").mul(exp1),
+        100000000000,
+        ethers.BigNumber.from("316227766016836933")
+      );
+
+    const ammAlice = amm.connect(alice);
+    // alice swap 100000AAA to usdt
+    //alice swap out
+    await expect(ammAlice.swap(AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100000").mul(exp2))).to.be.revertedWith(
+      'AMM: INSUFFICIENT_LIQUIDITY'
+    )
+   
   });
 });
