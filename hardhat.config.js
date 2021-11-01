@@ -8,7 +8,15 @@ require("hardhat-watcher");
 require('@nomiclabs/hardhat-ethers')
 require("@nomiclabs/hardhat-etherscan");
 module.exports = {
-  solidity: "0.8.0",
+  solidity: {
+   compilers: [
+    {
+      version: "0.8.0",
+      settings: {}
+    }
+  ]
+},
+
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true
