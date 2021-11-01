@@ -32,8 +32,6 @@ contract MathTest {
        // baseAmount = quoteAmount*L/denominator;
         baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
 
-
-        // return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
         return baseAmount;
     }
 }

@@ -367,10 +367,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(beta >= 50 && beta <= 100, "beta error");
         //112
         uint256 denominator = (_quoteReserve + (beta * quoteAmount) / 100);
-        // //224
-        // denominator = denominator * denominator;
-        //minor bias
-        baseAmount = ((L / denominator) * quoteAmount) / denominator;
+        //224
+        denominator = denominator * denominator;
+        baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
 
         return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
     }
