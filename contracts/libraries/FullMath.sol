@@ -23,6 +23,10 @@ library FullMath {
         // variables such that product = prod1 * 2**256 + prod0
         uint256 prod0; // Least significant 256 bits of the product
         uint256 prod1; // Most significant 256 bits of the product
+        
+        // todo unchecked
+        unchecked {
+
         assembly {
             let mm := mulmod(a, b, not(0))
             prod0 := mul(a, b)
@@ -77,8 +81,11 @@ library FullMath {
         assembly {
             twos := add(div(sub(0, twos), twos), 1)
         }
-        prod0 |= prod1 * twos;
+       
+            prod0 |= prod1 * twos;
 
+        
+        
         // Invert denominator mod 2**256
         // Now that denominator is an odd number, it has an inverse
         // modulo 2**256 such that denominator * inv = 1 mod 2**256.
@@ -88,12 +95,18 @@ library FullMath {
         // Now use Newton-Raphson iteration to improve the precision.
         // Thanks to Hensel's lifting lemma, this also works in modular
         // arithmetic, doubling the correct bits in each step.
+    
+           
+       
         inv *= 2 - denominator * inv; // inverse mod 2**8
         inv *= 2 - denominator * inv; // inverse mod 2**16
         inv *= 2 - denominator * inv; // inverse mod 2**32
         inv *= 2 - denominator * inv; // inverse mod 2**64
         inv *= 2 - denominator * inv; // inverse mod 2**128
         inv *= 2 - denominator * inv; // inverse mod 2**256
+            
+       
+       
 
         // Because the division is now exact we can divide by multiplying
         // with the modular inverse of denominator. This will give us the
@@ -103,6 +116,7 @@ library FullMath {
         // is no longer required.
         result = prod0 * inv;
         return result;
+        }
     }
 
     /// @notice Calculates ceil(a×b÷denominator) with full precision. Throws if result overflows a uint256 or denominator == 0

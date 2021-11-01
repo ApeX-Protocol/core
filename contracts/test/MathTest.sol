@@ -1,4 +1,4 @@
-pragma solidity ^0.8.0;
+pragma solidity  0.8.0;
 import "../libraries/FullMath.sol";
 contract MathTest {
 
@@ -34,6 +34,7 @@ contract MathTest {
 
 
         // return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
-        return denominator;
+        return baseAmount;
     }
 }
+
