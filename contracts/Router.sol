@@ -141,7 +141,9 @@ contract Router is IRouter {
         baseAmount = IMargin(margin).closePosition(quoteAmount);
         if (autoWithdraw) {
             withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
-            IMargin(margin).removeMargin(withdrawAmount);
+            if (withdrawAmount > 0) {
+                IMargin(margin).removeMargin(withdrawAmount);
+            }
         }
     }
 
