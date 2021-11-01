@@ -186,7 +186,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
 
-        require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
+        // require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
 
         uint256 _inputAmount;
         uint256 _outputAmount;
@@ -211,7 +211,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-        require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
+        //todo
+        //   require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
 
         uint256 _inputAmount;
         uint256 _outputAmount;
@@ -274,6 +275,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 balance0;
         uint256 balance1;
 
+        // require( outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
+
         if (inputToken == baseToken) {
             amountOut = AMMLibrary.getAmountOut(inputAmount, _baseReserve, _quoteReserve);
             balance0 = _baseReserve + inputAmount;
@@ -284,6 +287,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             // require(balance0Adjusted.mul(balance1Adjusted) >= uint(_baseReserve).mul(_quoteReserve).mul(1000**2), 'AMM: K');
         } else {
             amountOut = AMMLibrary.getAmountOut(inputAmount, _quoteReserve, _baseReserve);
+            //
             balance0 = _baseReserve - amountOut;
             balance1 = _quoteReserve + inputAmount;
         }
@@ -294,12 +298,17 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require((outputToken == baseToken || outputToken == quoteToken), "AMM: wrong output address");
         uint256 balance0;
         uint256 balance1;
+
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         if (outputToken == baseToken) {
+            require(outputAmount < _baseReserve, "AMM: INSUFFICIENT_LIQUIDITY");
+
             amountIn = AMMLibrary.getAmountIn(outputAmount, _quoteReserve, _baseReserve);
             balance0 = _baseReserve - outputAmount;
             balance1 = _quoteReserve + amountIn;
         } else {
+            require(outputAmount < _quoteReserve , "AMM: INSUFFICIENT_LIQUIDITY");
+            
             amountIn = AMMLibrary.getAmountIn(outputAmount, _baseReserve, _quoteReserve);
             balance0 = _baseReserve + amountIn;
             balance1 = _quoteReserve - outputAmount;
@@ -325,8 +334,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
         if (outputToken == baseToken) {
+            require(outputAmount < _baseReserve, "AMM: INSUFFICIENT_LIQUIDITY");
             amountIn = AMMLibrary.getAmountIn(outputAmount, _quoteReserve, _baseReserve);
         } else {
+            require(outputAmount < _quoteReserve , "AMM: INSUFFICIENT_LIQUIDITY");
             amountIn = AMMLibrary.getAmountIn(outputAmount, _baseReserve, _quoteReserve);
         }
     }
