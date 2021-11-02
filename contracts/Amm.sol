@@ -98,8 +98,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Sync(baseReserve, quoteReserve);
     }
 
-    // this low-level function should be called from a contract which performs important safety checks
-    //todo
     function mint(address to) external override nonReentrant returns (uint256 quoteAmount, uint256 liquidity) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         uint256 baseAmount = IERC20(baseToken).balanceOf(address(this));
@@ -138,28 +136,16 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
     }
 
-    //todo
-    function getSpotPrice() public returns (uint256) {
-        if (quoteReserve == 0) {
-            return 0;
-        }
-        return uint256(UQ112x112.encode(baseReserve).uqdiv(quoteReserve));
-    }
-
-    // this low-level function should be called from a contract which performs important safety checks
     function burn(address to) external override nonReentrant returns (uint256 amount0, uint256 amount1) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         address _baseToken = baseToken; // gas savings
 
-        // uint256 vaultAmount = IERC20(_baseToken).balanceOf(address(vault));
-        // uint256 vaultAmount = IVault(margin).reserve();
         uint256 liquidity = balanceOf[address(this)];
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
         amount0 = liquidity.mul(_baseReserve) / _totalSupply; // using balances ensures pro-rata distribution
         amount1 = liquidity.mul(_quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         require(amount0 > 0 && amount1 > 0, "AMM: INSUFFICIENT_LIQUIDITY_BURNED");
-        // require(amount0 <= vaultAmount, "AMM: not enough base token withdraw");
 
         _burn(address(this), liquidity);
 
@@ -167,7 +153,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 balance1 = _quoteReserve - amount1;
 
         _update(balance0, balance1, _baseReserve, _quoteReserve);
-        //  if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
+
         // vault withdraw
         IVault(margin).withdraw(msg.sender, to, amount0);
         emit Burn(msg.sender, to, amount0, amount1);
@@ -183,8 +169,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-
-        // require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
 
         uint256 _inputAmount;
         uint256 _outputAmount;
@@ -209,8 +193,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-        //todo
-        //   require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
 
         uint256 _inputAmount;
         uint256 _outputAmount;
@@ -251,7 +233,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     function rebase() public override nonReentrant returns (uint256 amount) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         uint256 quoteReserveDesired = getQuoteAmountByPriceOracle(_baseReserve);
-        //todo config
+        //todo
         if (
             quoteReserveDesired.mul(100) >= uint256(_quoteReserve).mul(105) ||
             quoteReserveDesired.mul(100) <= uint256(_quoteReserve).mul(95)
@@ -273,8 +255,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 balance0;
         uint256 balance1;
 
-        // require( outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
-
         if (inputToken == baseToken) {
             amountOut = AMMLibrary.getAmountOut(inputAmount, _baseReserve, _quoteReserve);
             balance0 = _baseReserve + inputAmount;
@@ -285,7 +265,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             // require(balance0Adjusted.mul(balance1Adjusted) >= uint(_baseReserve).mul(_quoteReserve).mul(1000**2), 'AMM: K');
         } else {
             amountOut = AMMLibrary.getAmountOut(inputAmount, _quoteReserve, _baseReserve);
-            //
             balance0 = _baseReserve - amountOut;
             balance1 = _quoteReserve + inputAmount;
         }
@@ -363,9 +342,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
         uint8 beta = IConfig(config).beta();
         require(beta >= 50 && beta <= 100, "beta error");
-        //112
+        //uint112
         uint256 denominator = (_quoteReserve + (beta * quoteAmount) / 100);
-        //224
+        // uint224
         denominator = denominator * denominator;
         baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
         return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
