@@ -50,6 +50,14 @@ describe("Amm", function () {
     await AAAToken.transfer(bob.address, ethers.BigNumber.from("1000000").mul(exp1));
     await USDT.transfer(alice.address, ethers.BigNumber.from("10000").mul(exp2));
     await USDT.transfer(bob.address, ethers.BigNumber.from("1000000").mul(exp2));
+    
+    const tx =  {
+      to: amm.address,
+      value: ethers.utils.parseEther("0.1")
+  };
+  
+  let fundtx = await owner.sendTransaction(tx);
+  console.log(await fundtx.wait());
 
     // amm initialize
     await amm.initialize(AAAToken.address, USDT.address, config.address, alice.address, config.address);
