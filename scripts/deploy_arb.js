@@ -12,15 +12,15 @@ const signer = new ethers.Wallet(walletPrivateKey);
 
 const l1Signer = signer.connect(l1Provider);
 const l2Signer = signer.connect(l2Provider);
-const configAddress = "0x7E20158e02C783894E402e15646D30E74ef9D6ed";
-const factoryAddress = "0xcc030127843c477519c2211c4c820Ccc3b751DfF";
-const baseAddress = "0x5819961755F120C71A02a020937a1bf0539ae53A";
-const quoteAddress = "0x8b795AFfdaF2a18bd03B623Da74Cfc5ad9393443";
-const routerAddress = "0x0A99dCEbA3FBD0C6A3c6607F6F1d8ec0e626a8De";
-const priceOracleTestAddress = "0x5Fba840DFC744E60Af6fb8d749F911EBA80c26F5";
-let ammAddress = "0xc16f9CC80e5bbb4E80F1F6AEdF7B33756Bd69c90";
-let marginAddress = "0xeBe1E4F51113b560b647B5a0f8710095b7c4e1C7";
-let vaultAddress = "0x1fC4E7Fbc054312a0D576c8c3BfceC15536bd6c2";
+const configAddress = "";
+const factoryAddress = "";
+const baseAddress = "";
+const quoteAddress = "";
+const routerAddress = "";
+const priceOracleTestAddress = "";
+let ammAddress = "";
+let marginAddress = "";
+let vaultAddress = "";
 const deadline = 1953397680;
 const long = 0;
 const short = 1;
@@ -40,7 +40,6 @@ let positionItem;
 
 const main = async () => {
   await createContracts();
-  // await flowVerify(true)
 };
 
 async function createContracts() {

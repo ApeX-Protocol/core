@@ -8,9 +8,8 @@
     "compile_watch": "npx hardhat watch compilation",
     "test": "npx hardhat test",
     "test_watch": "npx hardhat watch test",
-    "verify": "npx hardhat verify --network mainnet <DEPLOYED_CONTRACT_ADDRESS> 'Constructor argument 1'",
-    "deploy_arb": "hardhat run deploy/deploy_arb.js",
-    "simulate_price": "hardhat run deploy/simulate_price.js"
+    "deploy_arb": "hardhat run scripts/deploy_arb.js",
+    "simulate_price": "hardhat run scripts/simulate_price.js"
   },
   "repository": {
     "type": "git",
