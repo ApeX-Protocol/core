@@ -20,8 +20,6 @@ interface IAmm {
 
     function margin() external view returns (address);
 
-    function vault() external view returns (address);
-
     function getReserves()
         external
         view
@@ -36,8 +34,7 @@ interface IAmm {
         address _baseToken,
         address _quoteToken,
         address _config,
-        address _margin,
-        address _vault
+        address _margin
     ) external;
 
     function mint(address to) external returns (uint256 quoteAmount, uint256 liquidity);

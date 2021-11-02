@@ -3,15 +3,15 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IERC20.sol";
-import "./interfaces/IVault.sol";
 import "./interfaces/IAmm.sol";
 import "./interfaces/IConfig.sol";
 import "./interfaces/IMargin.sol";
+import "./interfaces/IVault.sol";
 import "./libraries/Math.sol";
 import "./libraries/SignedDecimal.sol";
 import "./utils/Reentrant.sol";
 
-contract Margin is IMargin, Reentrant {
+contract Margin is IMargin, IVault, Reentrant {
     using SignedDecimal for int256;
 
     struct Position {
@@ -22,11 +22,12 @@ contract Margin is IMargin, Reentrant {
 
     uint256 constant MAXRATIO = 10000;
 
+    uint256 public override reserve;
+
     address public override factory;
     address public override amm;
     address public override baseToken;
     address public override quoteToken;
-    address public override vault;
     address public override config;
     mapping(address => Position) public traderPositionMap;
 
@@ -38,12 +39,10 @@ contract Margin is IMargin, Reentrant {
         address _baseToken,
         address _quoteToken,
         address _config,
-        address _amm,
-        address _vault
+        address _amm
     ) external override {
         require(factory == msg.sender, "factory");
         amm = _amm;
-        vault = _vault;
         config = _config;
         baseToken = _baseToken;
         quoteToken = _quoteToken;
@@ -54,12 +53,12 @@ contract Margin is IMargin, Reentrant {
         Position memory traderPosition = traderPositionMap[_trader];
 
         uint256 balance = IERC20(baseToken).balanceOf(address(this));
-        require(_depositAmount <= balance, "wrong deposit amount");
+        require(_depositAmount <= balance - reserve, "wrong deposit amount");
 
         traderPosition.baseSize = traderPosition.baseSize.addU(_depositAmount);
-        IERC20(baseToken).transfer(address(vault), _depositAmount);
-
         _setPosition(_trader, traderPosition);
+        _deposit(_trader, _depositAmount);
+
         emit AddMargin(_trader, _depositAmount);
     }
 
@@ -79,8 +78,7 @@ contract Margin is IMargin, Reentrant {
             _checkInitMarginRatio(traderPosition);
         }
         _setPosition(trader, traderPosition);
-
-        IVault(vault).withdraw(trader, _withdrawAmount);
+        _withdraw(trader, trader, _withdrawAmount);
 
         emit RemoveMargin(trader, _withdrawAmount);
     }
@@ -253,7 +251,7 @@ contract Margin is IMargin, Reentrant {
                 remainBaseAmount.abs()
             );
         }
-        IVault(vault).withdraw(msg.sender, bonus);
+        _withdraw(_trader, msg.sender, bonus);
         traderPosition.baseSize = 0;
         traderPosition.quoteSize = 0;
         traderPosition.tradeSize = 0;
@@ -383,6 +381,40 @@ contract Margin is IMargin, Reentrant {
                 ? 0
                 : traderPosition.baseSize.sub(int256(-1).mulU(baseNeeded)).abs();
         }
+    }
+
+    function deposit(address user, uint256 amount) external override nonReentrant {
+        require(msg.sender == amm, "Margin: REQUIRE_AMM");
+        uint256 balance = IERC20(baseToken).balanceOf(address(this));
+        require(amount <= balance - reserve, "Margin: INSUFFICIENT_AMOUNT");
+        _deposit(user, amount);
+    }
+
+    function withdraw(
+        address user,
+        address receiver,
+        uint256 amount
+    ) external override nonReentrant {
+        require(msg.sender == amm, "Margin: REQUIRE_AMM");
+        _withdraw(user, receiver, amount);
+    }
+
+    function _deposit(address user, uint256 amount) internal {
+        require(amount > 0, "Margin: AMOUNT_IS_ZERO");
+        reserve += amount;
+        emit Deposit(user, amount);
+    }
+
+    function _withdraw(
+        address user,
+        address receiver,
+        uint256 amount
+    ) internal {
+        require(amount > 0, "Margin: AMOUNT_IS_ZERO");
+        require(amount <= reserve, "Margin: ONT_ENOUGH_RESERVE");
+        reserve -= amount;
+        IERC20(baseToken).transfer(receiver, amount);
+        emit Withdraw(user, receiver, amount);
     }
 
     function _setPosition(address _trader, Position memory _position) internal {

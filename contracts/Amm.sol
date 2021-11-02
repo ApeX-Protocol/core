@@ -7,7 +7,6 @@ import "./libraries/Math.sol";
 import "./libraries/UQ112x112.sol";
 import "./libraries/AMMLibrary.sol";
 import "./interfaces/IERC20.sol";
-import "./interfaces/IFactory.sol";
 import "./interfaces/IPriceOracle.sol";
 import "./libraries/FullMath.sol";
 import "./interfaces/IConfig.sol";
@@ -25,7 +24,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     address public override quoteToken;
     address public override config;
     address public override margin;
-    address public override vault;
 
     uint112 private baseReserve; // uses single storage slot, accessible via getReserves
     uint112 private quoteReserve; // uses single storage slot, accessible via getReserves
@@ -70,15 +68,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         address _baseToken,
         address _quoteToken,
         address _config,
-        address _margin,
-        address _vault
+        address _margin
     ) external override {
         require(msg.sender == factory, "Amm: FORBIDDEN"); // sufficient check
         baseToken = _baseToken;
         quoteToken = _quoteToken;
         config = _config;
         margin = _margin;
-        vault = _vault;
     }
 
     // update reserves and, on the first call per block, price accumulators
@@ -125,7 +121,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         _mint(to, liquidity);
 
         _update(_baseReserve + baseAmount, _quoteReserve + quoteAmountMinted, _baseReserve, _quoteReserve);
-        _safeTransfer(baseToken, vault, baseAmount);
+        _safeTransfer(baseToken, margin, baseAmount);
+        IVault(margin).deposit(msg.sender, baseAmount);
         quoteAmount = quoteAmountMinted;
         emit Mint(msg.sender, to, baseAmount, quoteAmountMinted, liquidity);
     }
@@ -154,14 +151,15 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         address _baseToken = baseToken; // gas savings
 
-        uint256 vaultAmount = IERC20(_baseToken).balanceOf(address(vault));
+        // uint256 vaultAmount = IERC20(_baseToken).balanceOf(address(vault));
+        // uint256 vaultAmount = IVault(margin).reserve();
         uint256 liquidity = balanceOf[address(this)];
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
         amount0 = liquidity.mul(_baseReserve) / _totalSupply; // using balances ensures pro-rata distribution
         amount1 = liquidity.mul(_quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         require(amount0 > 0 && amount1 > 0, "AMM: INSUFFICIENT_LIQUIDITY_BURNED");
-        require(amount0 <= vaultAmount, "AMM: not enough base token withdraw");
+        // require(amount0 <= vaultAmount, "AMM: not enough base token withdraw");
 
         _burn(address(this), liquidity);
 
@@ -171,7 +169,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         _update(balance0, balance1, _baseReserve, _quoteReserve);
         //  if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
         // vault withdraw
-        IVault(vault).withdraw(to, amount0);
+        IVault(margin).withdraw(msg.sender, to, amount0);
         emit Burn(msg.sender, to, amount0, amount1);
     }
 

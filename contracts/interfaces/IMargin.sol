@@ -25,8 +25,6 @@ interface IMargin {
 
     function amm() external view returns (address);
 
-    function vault() external view returns (address);
-
     function getPosition(address trader)
         external
         view
@@ -47,8 +45,7 @@ interface IMargin {
         address _baseToken,
         address _quoteToken,
         address _config,
-        address _amm,
-        address _vault
+        address _amm
     ) external;
 
     function addMargin(address trader, uint256 depositAmount) external;

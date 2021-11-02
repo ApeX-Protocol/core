@@ -1,25 +1,16 @@
-// SPDX-License-Identifier: Unlicense
-
 pragma solidity ^0.8.0;
 
 interface IVault {
-    event Withdraw(address indexed caller, address indexed to, uint256 amount);
+    event Deposit(address indexed user, uint256 amount);
+    event Withdraw(address indexed user, address indexed receiver, uint256 amount);
 
-    function baseToken() external view returns (address);
+    function reserve() external view returns (uint256);
 
-    function factory() external view returns (address);
+    function deposit(address user, uint256 amount) external;
 
-    function amm() external view returns (address);
-
-    function margin() external view returns (address);
-
-    // only factory can call this function
-    function initialize(
-        address _baseToken,
-        address _amm,
-        address _margin
+    function withdraw(
+        address user,
+        address receiver,
+        uint256 amount
     ) external;
-
-    // only amm or margin can call this function
-    function withdraw(address to, uint256 amount) external;
 }
