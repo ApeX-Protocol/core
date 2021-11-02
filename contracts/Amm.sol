@@ -172,7 +172,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         uint256 _inputAmount;
         uint256 _outputAmount;
-        //@audit
+        //todo
         if (inputToken != address(0x0) && inputAmount != 0) {
             _outputAmount = swapInput(inputToken, inputAmount);
             _inputAmount = inputAmount;
