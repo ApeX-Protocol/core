@@ -51,6 +51,14 @@ describe("Amm", function () {
     await USDT.transfer(alice.address, ethers.BigNumber.from("10000").mul(exp2));
     await USDT.transfer(bob.address, ethers.BigNumber.from("1000000").mul(exp2));
 
+    const tx = {
+      to: amm.address,
+      value: ethers.utils.parseEther("0.1"),
+    };
+
+    let fundtx = await owner.sendTransaction(tx);
+    console.log(await fundtx.wait());
+
     // amm initialize
     await amm.initialize(AAAToken.address, USDT.address, config.address, alice.address, config.address);
 
@@ -140,9 +148,8 @@ describe("Amm", function () {
     let iface1 = new ethers.utils.Interface(eventabi);
     let log1 = iface1.parseLog(swapRes.logs[1]);
     let args1 = log1["args"];
-  
+
     expect(args1.outputAmount).to.equal(90900818926);
-   
   });
 
   it("check swap output oversize  ", async function () {
@@ -164,9 +171,8 @@ describe("Amm", function () {
     const ammAlice = amm.connect(alice);
     // alice swap 100000AAA to usdt
     //alice swap out
-    await expect(ammAlice.swap(AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100000").mul(exp2))).to.be.revertedWith(
-      'AMM: INSUFFICIENT_LIQUIDITY'
-    )
-   
+    await expect(
+      ammAlice.swap(AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100000").mul(exp2))
+    ).to.be.revertedWith("AMM: INSUFFICIENT_LIQUIDITY");
   });
 });
