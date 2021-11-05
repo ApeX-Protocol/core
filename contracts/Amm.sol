@@ -15,7 +15,7 @@ import "./utils/Reentrant.sol";
 contract Amm is IAmm, LiquidityERC20, Reentrant {
     using UQ112x112 for uint224;
 
-    uint256 public constant MINIMUM_LIQUIDITY = 10**3;
+    uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
 
     address public override factory;
     address public override baseToken;
@@ -23,8 +23,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     address public override config;
     address public override margin;
 
-    uint256 public price0CumulativeLast;
-    uint256 public price1CumulativeLast;
+    uint256 public override price0CumulativeLast;
+    uint256 public override price1CumulativeLast;
 
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transfer(address,uint256)")));
     uint112 private baseReserve; // uses single storage slot, accessible via getReserves

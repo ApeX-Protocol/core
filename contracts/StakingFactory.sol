@@ -7,7 +7,7 @@ import "./Staking.sol";
 contract StakingFactory is IStakingFactory {
     address public override config;
     address public override pairFactory;
-    mapping(address => address) public getStaking;
+    mapping(address => address) public override getStaking;
 
     constructor(address config_, address pairFactory_) {
         config = config_;

@@ -7,7 +7,6 @@ import "./interfaces/IAmm.sol";
 import "./interfaces/IConfig.sol";
 import "./interfaces/IMargin.sol";
 import "./interfaces/IVault.sol";
-import "./libraries/Math.sol";
 import "./libraries/SignedDecimal.sol";
 import "./utils/Reentrant.sol";
 
@@ -315,7 +314,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 0
             );
             uint256 baseAmount = result[1];
-            debtRatio = baseAmount == 0 ? MAXRATIO : baseSize.mul(-1).mulU(MAXRATIO).divU(baseAmount).abs();
+            debtRatio = baseAmount == 0 ? MAXRATIO : (0 - baseSize).mulU(MAXRATIO).divU(baseAmount).abs();
         } else {
             //calculate debt
             uint256[2] memory result = IAmm(amm).estimateSwapWithMarkPrice(
@@ -379,7 +378,7 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 baseNeeded = (baseAmount * (MAXRATIO - IConfig(config).initMarginRatio())) / (MAXRATIO);
             withdrawableMargin = traderPosition.baseSize < int256(-1).mulU(baseNeeded)
                 ? 0
-                : traderPosition.baseSize.sub(int256(-1).mulU(baseNeeded)).abs();
+                : (traderPosition.baseSize - int256(-1).mulU(baseNeeded)).abs();
         }
     }
 
@@ -486,14 +485,24 @@ contract Margin is IMargin, IVault, Reentrant {
             marginRatio = 0;
         } else if (quoteSize > 0) {
             //calculate asset
-            uint256[2] memory result = IAmm(amm).estimateSwap(address(quoteToken), address(baseToken), quoteSize.abs(), 0);
+            uint256[2] memory result = IAmm(amm).estimateSwap(
+                address(quoteToken),
+                address(baseToken),
+                quoteSize.abs(),
+                0
+            );
             uint256 baseAmount = result[1];
             marginRatio = (baseSize.abs() >= baseAmount || baseAmount == 0)
                 ? 0
                 : baseSize.mulU(MAXRATIO).divU(baseAmount).addU(MAXRATIO).abs();
         } else {
             //calculate debt
-            uint256[2] memory result = IAmm(amm).estimateSwap(address(baseToken), address(quoteToken), 0, quoteSize.abs());
+            uint256[2] memory result = IAmm(amm).estimateSwap(
+                address(baseToken),
+                address(quoteToken),
+                0,
+                quoteSize.abs()
+            );
             uint256 baseAmount = result[0];
             uint256 ratio = (baseAmount * (MAXRATIO)) / (baseSize.abs());
             marginRatio = MAXRATIO < ratio ? 0 : MAXRATIO - ratio;
