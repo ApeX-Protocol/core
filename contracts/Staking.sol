@@ -11,10 +11,10 @@ contract Staking is IStaking, Reentrant {
     uint256 public override totalSupply;
     mapping(address => uint256) public override balanceOf;
 
-    constructor(address _config, address _stakingToken) {
+    constructor(address config_, address stakingToken_) {
         factory = msg.sender;
-        config = _config;
-        stakingToken = _stakingToken;
+        config = config_;
+        stakingToken = stakingToken_;
     }
 
     function stake(uint256 amount) external override nonReentrant {

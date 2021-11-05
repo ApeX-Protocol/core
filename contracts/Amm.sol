@@ -13,11 +13,9 @@ import "./interfaces/IConfig.sol";
 import "./utils/Reentrant.sol";
 
 contract Amm is IAmm, LiquidityERC20, Reentrant {
-    using SafeMath for uint256;
     using UQ112x112 for uint224;
 
     uint256 public constant MINIMUM_LIQUIDITY = 10**3;
-    bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transfer(address,uint256)")));
 
     address public override factory;
     address public override baseToken;
@@ -25,77 +23,106 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     address public override config;
     address public override margin;
 
+    uint256 public price0CumulativeLast;
+    uint256 public price1CumulativeLast;
+
+    bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transfer(address,uint256)")));
     uint112 private baseReserve; // uses single storage slot, accessible via getReserves
     uint112 private quoteReserve; // uses single storage slot, accessible via getReserves
     uint32 private blockTimestampLast; // uses single storage slot, accessible via getReserves
 
-    //todo
-    uint256 public price0CumulativeLast;
-    uint256 public price1CumulativeLast;
-
-    // uint256 public kLast; // reserve0 * reserve1, as of immediately after the most recent liquidity event
-
-    function getReserves()
-        public
-        view
-        override
-        returns (
-            uint112 _baseReserve,
-            uint112 _quoteReserve,
-            uint32 _blockTimestampLast
-        )
-    {
-        _baseReserve = baseReserve;
-        _quoteReserve = quoteReserve;
-        _blockTimestampLast = blockTimestampLast;
-    }
-
-    function _safeTransfer(
-        address token,
-        address to,
-        uint256 value
-    ) private {
-        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value));
-        require(success && (data.length == 0 || abi.decode(data, (bool))), "AMM: TRANSFER_FAILED");
+    modifier onlyMargin() {
+        require(margin == msg.sender, "AMM: ONLY_MARGIN");
+        _;
     }
 
     constructor() {
         factory = msg.sender;
     }
 
-    // called once by the factory at time of deployment
     function initialize(
-        address _baseToken,
-        address _quoteToken,
-        address _config,
-        address _margin
+        address baseToken_,
+        address quoteToken_,
+        address config_,
+        address margin_
     ) external override {
         require(msg.sender == factory, "Amm: FORBIDDEN"); // sufficient check
-        baseToken = _baseToken;
-        quoteToken = _quoteToken;
-        config = _config;
-        margin = _margin;
+        baseToken = baseToken_;
+        quoteToken = quoteToken_;
+        config = config_;
+        margin = margin_;
     }
 
-    // update reserves and, on the first call per block, price accumulators
-    function _update(
-        uint256 balance0,
-        uint256 balance1,
-        uint112 _reserve0,
-        uint112 _reserve1
-    ) private {
-        require(balance0 <= type(uint112).max && balance1 <= type(uint112).max, "AMM: OVERFLOW");
-        uint32 blockTimestamp = uint32(block.timestamp % 2**32);
-        uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
-        if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
-            // * never overflows, and + overflow is desired
-            price0CumulativeLast += uint256(UQ112x112.encode(_reserve1).uqdiv(_reserve0)) * timeElapsed;
-            price1CumulativeLast += uint256(UQ112x112.encode(_reserve0).uqdiv(_reserve1)) * timeElapsed;
+    function getReserves()
+        public
+        view
+        override
+        returns (
+            uint112 reserveBase,
+            uint112 reserveQuote,
+            uint32 blockTimestamp
+        )
+    {
+        reserveBase = baseReserve;
+        reserveQuote = quoteReserve;
+        blockTimestamp = blockTimestampLast;
+    }
+
+    function estimateSwap(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) public view override returns (uint256[2] memory amounts) {
+        require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
+
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+        //todo
+        //   require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
+
+        uint256 _inputAmount;
+        uint256 _outputAmount;
+
+        if (inputToken != address(0x0) && inputAmount != 0) {
+            _outputAmount = _swapInputQuery(inputToken, inputAmount);
+            _inputAmount = inputAmount;
+        } else {
+            _inputAmount = _swapOutputQuery(outputToken, outputAmount);
+            _outputAmount = outputAmount;
         }
-        baseReserve = uint112(balance0);
-        quoteReserve = uint112(balance1);
-        blockTimestampLast = blockTimestamp;
-        emit Sync(baseReserve, quoteReserve);
+
+        return [_inputAmount, _outputAmount];
+    }
+
+    function estimateSwapWithMarkPrice(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external view override returns (uint256[2] memory amounts) {
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+
+        uint256 quoteAmount;
+        uint256 baseAmount;
+        if (inputAmount != 0) {
+            quoteAmount = inputAmount;
+        } else {
+            quoteAmount = outputAmount;
+        }
+
+        uint256 inputSquare = quoteAmount * quoteAmount;
+        // price = (sqrt(y/x)+ betal * deltaY/L).**2;
+        // deltaX = deltaY/price
+        // deltaX = (deltaY * L)/(y + betal * deltaY)**2
+        uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
+        uint8 beta = IConfig(config).beta();
+        require(beta >= 50 && beta <= 100, "beta error");
+        //112
+        uint256 denominator = (_quoteReserve + (beta * quoteAmount) / 100);
+        //224
+        denominator = denominator * denominator;
+        baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
+        return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
     }
 
     function mint(address to) external override nonReentrant returns (uint256 quoteAmount, uint256 liquidity) {
@@ -106,13 +133,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 quoteAmountMinted;
         if (_totalSupply == 0) {
             quoteAmountMinted = getQuoteAmountByPriceOracle(baseAmount);
-            liquidity = Math.sqrt(baseAmount.mul(quoteAmountMinted)).sub(MINIMUM_LIQUIDITY);
+            liquidity = Math.sqrt(baseAmount * quoteAmountMinted) - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
         } else {
             quoteAmountMinted = getQuoteAmountByCurrentPrice(baseAmount);
             liquidity = Math.minU(
-                baseAmount.mul(_totalSupply) / _baseReserve,
-                quoteAmountMinted.mul(_totalSupply) / _quoteReserve
+                (baseAmount * _totalSupply) / _baseReserve,
+                (quoteAmountMinted * _totalSupply) / _quoteReserve
             );
         }
         require(liquidity > 0, "AMM: INSUFFICIENT_LIQUIDITY_MINTED");
@@ -125,27 +152,19 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Mint(msg.sender, to, baseAmount, quoteAmountMinted, liquidity);
     }
 
-    function getQuoteAmountByCurrentPrice(uint256 baseAmount) internal view returns (uint256 quoteAmount) {
-        return AMMLibrary.quote(baseAmount, uint256(baseReserve), uint256(quoteReserve));
-    }
-
-    function getQuoteAmountByPriceOracle(uint256 baseAmount) internal view returns (uint256 quoteAmount) {
-        // get price oracle
-        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-        address priceOracle = IConfig(config).priceOracle();
-        quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
-    }
-
     function burn(address to) external override nonReentrant returns (uint256 amount0, uint256 amount1) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         address _baseToken = baseToken; // gas savings
 
+        // uint256 vaultAmount = IERC20(_baseToken).balanceOf(address(vault));
+        // uint256 vaultAmount = IVault(margin).reserve();
         uint256 liquidity = balanceOf[address(this)];
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
-        amount0 = liquidity.mul(_baseReserve) / _totalSupply; // using balances ensures pro-rata distribution
-        amount1 = liquidity.mul(_quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
+        amount0 = (liquidity * _baseReserve) / _totalSupply; // using balances ensures pro-rata distribution
+        amount1 = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         require(amount0 > 0 && amount1 > 0, "AMM: INSUFFICIENT_LIQUIDITY_BURNED");
+        // require(amount0 <= vaultAmount, "AMM: not enough base token withdraw");
 
         _burn(address(this), liquidity);
 
@@ -153,13 +172,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 balance1 = _quoteReserve - amount1;
 
         _update(balance0, balance1, _baseReserve, _quoteReserve);
-
+        //  if (feeOn) kLast = uint(reserve0).mul(reserve1); // reserve0 and reserve1 are up-to-date
         // vault withdraw
         IVault(margin).withdraw(msg.sender, to, amount0);
         emit Burn(msg.sender, to, amount0, amount1);
     }
 
-    // this low-level function should be called from a contract which performs important safety checks
     function swap(
         address inputToken,
         address outputToken,
@@ -170,41 +188,19 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
 
+        // require(inputAmount < _baseReserve && outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
+
         uint256 _inputAmount;
         uint256 _outputAmount;
-        //todo
+        //@audit
         if (inputToken != address(0x0) && inputAmount != 0) {
-            _outputAmount = swapInput(inputToken, inputAmount);
+            _outputAmount = _swapInput(inputToken, inputAmount);
             _inputAmount = inputAmount;
         } else {
-            _inputAmount = swapOutput(outputToken, outputAmount);
+            _inputAmount = _swapOutput(outputToken, outputAmount);
             _outputAmount = outputAmount;
         }
         emit Swap(inputToken, outputToken, _inputAmount, _outputAmount);
-        return [_inputAmount, _outputAmount];
-    }
-
-    function swapQuery(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount
-    ) public view override returns (uint256[2] memory amounts) {
-        require(inputAmount > 0 || outputAmount > 0, "AMM: INSUFFICIENT_OUTPUT_AMOUNT");
-
-        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-
-        uint256 _inputAmount;
-        uint256 _outputAmount;
-
-        if (inputToken != address(0x0) && inputAmount != 0) {
-            _outputAmount = swapInputQuery(inputToken, inputAmount);
-            _inputAmount = inputAmount;
-        } else {
-            _inputAmount = swapOutputQuery(outputToken, outputAmount);
-            _outputAmount = outputAmount;
-        }
-
         return [_inputAmount, _outputAmount];
     }
 
@@ -233,10 +229,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     function rebase() public override nonReentrant returns (uint256 amount) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         uint256 quoteReserveDesired = getQuoteAmountByPriceOracle(_baseReserve);
-        //todo
+        //todo config
         if (
-            quoteReserveDesired.mul(100) >= uint256(_quoteReserve).mul(105) ||
-            quoteReserveDesired.mul(100) <= uint256(_quoteReserve).mul(95)
+            quoteReserveDesired * 100 >= uint256(_quoteReserve) * 105 ||
+            quoteReserveDesired * 100 <= uint256(_quoteReserve) * 95
         ) {
             _update(_baseReserve, quoteReserveDesired, _baseReserve, _quoteReserve);
 
@@ -248,12 +244,25 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         }
     }
 
-    function swapInput(address inputToken, uint256 inputAmount) internal returns (uint256 amountOut) {
+    function getQuoteAmountByCurrentPrice(uint256 baseAmount) internal view returns (uint256 quoteAmount) {
+        return AMMLibrary.quote(baseAmount, uint256(baseReserve), uint256(quoteReserve));
+    }
+
+    function getQuoteAmountByPriceOracle(uint256 baseAmount) internal view returns (uint256 quoteAmount) {
+        // get price oracle
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+        address priceOracle = IConfig(config).priceOracle();
+        quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
+    }
+
+    function _swapInput(address inputToken, uint256 inputAmount) internal returns (uint256 amountOut) {
         require((inputToken == baseToken || inputToken == quoteToken), "AMM: wrong input address");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         uint256 balance0;
         uint256 balance1;
+
+        // require( outputAmount < _quoteReserve, "AMM: INSUFFICIENT_LIQUIDITY");
 
         if (inputToken == baseToken) {
             amountOut = AMMLibrary.getAmountOut(inputAmount, _baseReserve, _quoteReserve);
@@ -265,13 +274,14 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             // require(balance0Adjusted.mul(balance1Adjusted) >= uint(_baseReserve).mul(_quoteReserve).mul(1000**2), 'AMM: K');
         } else {
             amountOut = AMMLibrary.getAmountOut(inputAmount, _quoteReserve, _baseReserve);
+            //
             balance0 = _baseReserve - amountOut;
             balance1 = _quoteReserve + inputAmount;
         }
         _update(balance0, balance1, _baseReserve, _quoteReserve);
     }
 
-    function swapOutput(address outputToken, uint256 outputAmount) internal returns (uint256 amountIn) {
+    function _swapOutput(address outputToken, uint256 outputAmount) internal returns (uint256 amountIn) {
         require((outputToken == baseToken || outputToken == quoteToken), "AMM: wrong output address");
         uint256 balance0;
         uint256 balance1;
@@ -293,7 +303,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         _update(balance0, balance1, _baseReserve, _quoteReserve);
     }
 
-    function swapInputQuery(address inputToken, uint256 inputAmount) internal view returns (uint256 amountOut) {
+    function _swapInputQuery(address inputToken, uint256 inputAmount) internal view returns (uint256 amountOut) {
         require((inputToken == baseToken || inputToken == quoteToken), "AMM: wrong input address");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
@@ -305,7 +315,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         }
     }
 
-    function swapOutputQuery(address outputToken, uint256 outputAmount) internal view returns (uint256 amountIn) {
+    function _swapOutputQuery(address outputToken, uint256 outputAmount) internal view returns (uint256 amountIn) {
         require((outputToken == baseToken || outputToken == quoteToken), "AMM: wrong output address");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
@@ -319,41 +329,32 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         }
     }
 
-    function swapQueryWithAcctSpecMarkPrice(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount
-    ) external view override returns (uint256[2] memory amounts) {
-        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-
-        uint256 quoteAmount;
-        uint256 baseAmount;
-        if (inputAmount != 0) {
-            quoteAmount = inputAmount;
-        } else {
-            quoteAmount = outputAmount;
+    function _update(
+        uint256 balance0,
+        uint256 balance1,
+        uint112 _reserve0,
+        uint112 _reserve1
+    ) private {
+        require(balance0 <= type(uint112).max && balance1 <= type(uint112).max, "AMM: OVERFLOW");
+        uint32 blockTimestamp = uint32(block.timestamp % 2**32);
+        uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
+        if (timeElapsed > 0 && _reserve0 != 0 && _reserve1 != 0) {
+            // * never overflows, and + overflow is desired
+            price0CumulativeLast += uint256(UQ112x112.encode(_reserve1).uqdiv(_reserve0)) * timeElapsed;
+            price1CumulativeLast += uint256(UQ112x112.encode(_reserve0).uqdiv(_reserve1)) * timeElapsed;
         }
-
-        uint256 inputSquare = quoteAmount * quoteAmount;
-        // price = (sqrt(y/x)+ betal * deltaY/L).**2;
-        // deltaX = deltaY/price
-        // deltaX = (deltaY * L)/(y + betal * deltaY)**2
-        uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
-        uint8 beta = IConfig(config).beta();
-        require(beta >= 50 && beta <= 100, "beta error");
-        //uint112
-        uint256 denominator = (_quoteReserve + (beta * quoteAmount) / 100);
-        // uint224
-        denominator = denominator * denominator;
-        baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
-        return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
+        baseReserve = uint112(balance0);
+        quoteReserve = uint112(balance1);
+        blockTimestampLast = blockTimestamp;
+        emit Sync(baseReserve, quoteReserve);
     }
 
-    //fallback
-
-    modifier onlyMargin() {
-        require(margin == msg.sender, "AMM:  margin ");
-        _;
+    function _safeTransfer(
+        address token,
+        address to,
+        uint256 value
+    ) private {
+        (bool success, bytes memory data) = token.call(abi.encodeWithSelector(SELECTOR, to, value));
+        require(success && (data.length == 0 || abi.decode(data, (bool))), "AMM: TRANSFER_FAILED");
     }
 }
