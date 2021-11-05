@@ -5,22 +5,36 @@ const { hexDataLength } = require("@ethersproject/bytes");
 const { BigNumber } = require("@ethersproject/bignumber");
 
 const walletPrivateKey = process.env.DEVNET_PRIVKEY;
-
-const l1Provider = new ethers.providers.JsonRpcProvider(process.env.L1RPC);
-const l2Provider = new ethers.providers.JsonRpcProvider(process.env.L2RPC);
 const signer = new ethers.Wallet(walletPrivateKey);
+const verifyStr = "npx hardhat verify --network ";
+let l1Provider;
+let l2Provider;
+let signer1;
+let signer2;
+switch (process.env.network) {
+  case "l1rinkeby":
+    l1Provider = new ethers.providers.JsonRpcProvider("https://rinkeby.infura.io/v3/" + process.env.INFURA_KEY);
+    signer2 = signer.connect(l1Provider);
+    console.log("Deploying L1 Contract 👋👋");
+    break;
+  case "l2rinkeby":
+    l1Provider = new ethers.providers.JsonRpcProvider(process.env.L1RPC);
+    l2Provider = new ethers.providers.JsonRpcProvider(process.env.L2RPC);
+    signer1 = signer.connect(l1Provider);
+    signer2 = signer.connect(l2Provider);
+    console.log("Deploying L2 Contract 👋👋");
+    break;
+}
 
-const l1Signer = signer.connect(l1Provider);
-const l2Signer = signer.connect(l2Provider);
 const configAddress = "";
 const factoryAddress = "";
+const stakingFactoryAddress = "";
 const baseAddress = "";
 const quoteAddress = "";
 const routerAddress = "";
 const priceOracleTestAddress = "";
 let ammAddress = "";
 let marginAddress = "";
-let vaultAddress = "";
 const deadline = 1953397680;
 const long = 0;
 const short = 1;
@@ -30,6 +44,7 @@ let l2BaseToken;
 let l2QuoteToken;
 let l2Weth;
 let l2Factory;
+let l2StakingFactory;
 let l2Router;
 let priceOracleForTest;
 let l2Amm;
@@ -43,15 +58,15 @@ const main = async () => {
 };
 
 async function createContracts() {
-  console.log("Deploying L2 Contract 👋👋");
-  const L2Config = await (await hre.ethers.getContractFactory("Config")).connect(l2Signer);
-  const MockToken = await (await hre.ethers.getContractFactory("MockToken")).connect(l2Signer);
-  const L2Factory = await (await hre.ethers.getContractFactory("Factory")).connect(l2Signer);
-  const L2Router = await (await hre.ethers.getContractFactory("Router")).connect(l2Signer);
-  const L2PriceOracle = await (await hre.ethers.getContractFactory("PriceOracle")).connect(l2Signer);
-  const PriceOracleForTest = await (await hre.ethers.getContractFactory("PriceOracleForTest")).connect(l2Signer);
-  const L2Amm = await (await hre.ethers.getContractFactory("Amm")).connect(l2Signer);
-  const L2Margin = await (await hre.ethers.getContractFactory("Margin")).connect(l2Signer);
+  const L2Config = await (await hre.ethers.getContractFactory("Config")).connect(signer2);
+  const MockToken = await (await hre.ethers.getContractFactory("MockToken")).connect(signer2);
+  const L2Factory = await (await hre.ethers.getContractFactory("PairFactory")).connect(signer2);
+  const L2StakingFactory = await (await hre.ethers.getContractFactory("StakingFactory")).connect(signer2);
+  const L2Router = await (await hre.ethers.getContractFactory("Router")).connect(signer2);
+  const L2PriceOracle = await (await hre.ethers.getContractFactory("PriceOracle")).connect(signer2);
+  const PriceOracleForTest = await (await hre.ethers.getContractFactory("PriceOracleForTest")).connect(signer2);
+  const L2Amm = await (await hre.ethers.getContractFactory("Amm")).connect(signer2);
+  const L2Margin = await (await hre.ethers.getContractFactory("Margin")).connect(signer2);
 
   //new config
   l2Config = await L2Config.deploy();
@@ -71,8 +86,12 @@ async function createContracts() {
   l2Factory = await L2Factory.deploy(l2Config.address);
   await l2Factory.deployed();
   console.log(`l2Factory: ${l2Factory.address}`);
+  //new staking factory
+  l2StakingFactory = await L2StakingFactory.deploy(l2Config.address, l2Factory.address);
+  await l2StakingFactory.deployed();
+  console.log(`l2StakingFactory: ${l2StakingFactory.address}`);
   //new router
-  l2Router = await L2Router.deploy(l2Factory.address, l2Weth.address);
+  l2Router = await L2Router.deploy(l2Factory.address, l2StakingFactory.address, l2Weth.address);
   await l2Router.deployed();
   console.log(`l2Router: ${l2Router.address}`);
   //new PriceOracleForTest
@@ -93,9 +112,9 @@ async function createContracts() {
   await tx.wait();
   tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 1, 2000);
   await tx.wait();
-  tx = await l2BaseToken.mint(l2Signer.address, ethers.utils.parseEther("10000000000000.0"));
+  tx = await l2BaseToken.mint(signer2.address, ethers.utils.parseEther("10000000000000.0"));
   await tx.wait();
-  tx = await l2QuoteToken.mint(l2Signer.address, ethers.utils.parseEther("20000000000000.0"));
+  tx = await l2QuoteToken.mint(signer2.address, ethers.utils.parseEther("20000000000000.0"));
   await tx.wait();
   tx = await l2BaseToken.approve(l2Router.address, ethers.constants.MaxUint256);
   await tx.wait();
@@ -111,22 +130,25 @@ async function createContracts() {
 
   ammAddress = await l2Factory.getAmm(l2BaseToken.address, l2QuoteToken.address);
   marginAddress = await l2Factory.getMargin(l2BaseToken.address, l2QuoteToken.address);
-  vaultAddress = await l2Factory.getVault(l2BaseToken.address, l2QuoteToken.address);
 
   l2Amm = await L2Amm.attach(ammAddress); //exist amm address
   l2Margin = await L2Margin.attach(marginAddress); //exist margin address
 
   console.log("ammAddress: ", ammAddress);
   console.log("marginAddress: ", marginAddress);
-  console.log("vaultAddress: ", vaultAddress);
   console.log("✌️");
-  console.log("npx hardhat verify --network l2 " + l2Config.address);
-  console.log("npx hardhat verify --network l2 " + l2Factory.address + " " + l2Config.address);
-  console.log("npx hardhat verify --network l2 " + l2Router.address + " " + l2Factory.address + " " + l2Weth.address);
-  console.log("npx hardhat verify --network l2 " + l2BaseToken.address + " 'base token' 'bt'");
-  console.log("npx hardhat verify --network l2 " + l2QuoteToken.address + " 'quote token' 'qt'");
-  console.log("npx hardhat verify --network l2 " + l2Weth.address + " 'weth token' 'wt'");
-  console.log("npx hardhat verify --network l2 " + priceOracleForTest.address);
+  console.log(verifyStr + process.env.network + " " + l2Config.address);
+  console.log(verifyStr + process.env.network + " " + l2Factory.address + " " + l2Config.address);
+  console.log(
+    verifyStr + process.env.network + " " + l2StakingFactory.address + " " + l2Config.address + " " + l2Factory.address
+  );
+  console.log(
+    verifyStr + process.env.network + " " + l2Router.address + " " + l2Factory.address + " " + l2Weth.address
+  );
+  console.log(verifyStr + process.env.network + " " + l2BaseToken.address + " 'base token' 'bt'");
+  console.log(verifyStr + process.env.network + " " + l2QuoteToken.address + " 'quote token' 'qt'");
+  console.log(verifyStr + process.env.network + " " + l2Weth.address + " 'weth token' 'wt'");
+  console.log(verifyStr + process.env.network + " " + priceOracleForTest.address);
 
   await flowVerify(false);
 }
@@ -134,17 +156,19 @@ async function createContracts() {
 async function flowVerify(needAttach) {
   //attach
   if (needAttach) {
-    const L2Config = await (await hre.ethers.getContractFactory("Config")).connect(l2Signer);
-    const MockToken = await (await hre.ethers.getContractFactory("MockToken")).connect(l2Signer);
-    const L2Factory = await (await hre.ethers.getContractFactory("Factory")).connect(l2Signer);
-    const L2Router = await (await hre.ethers.getContractFactory("Router")).connect(l2Signer);
-    const L2PriceOracle = await (await hre.ethers.getContractFactory("PriceOracle")).connect(l2Signer);
-    const PriceOracleForTest = await (await hre.ethers.getContractFactory("PriceOracleForTest")).connect(l2Signer);
-    const L2Amm = await (await hre.ethers.getContractFactory("Amm")).connect(l2Signer);
-    const L2Margin = await (await hre.ethers.getContractFactory("Margin")).connect(l2Signer);
+    const L2Config = await (await hre.ethers.getContractFactory("Config")).connect(signer2);
+    const MockToken = await (await hre.ethers.getContractFactory("MockToken")).connect(signer2);
+    const L2Factory = await (await hre.ethers.getContractFactory("PairFactory")).connect(signer2);
+    const L2StakingFactory = await (await hre.ethers.getContractFactory("StakingFactory")).connect(signer2);
+    const L2Router = await (await hre.ethers.getContractFactory("Router")).connect(signer2);
+    const L2PriceOracle = await (await hre.ethers.getContractFactory("PriceOracle")).connect(signer2);
+    const PriceOracleForTest = await (await hre.ethers.getContractFactory("PriceOracleForTest")).connect(signer2);
+    const L2Amm = await (await hre.ethers.getContractFactory("Amm")).connect(signer2);
+    const L2Margin = await (await hre.ethers.getContractFactory("Margin")).connect(signer2);
 
     l2Config = await L2Config.attach(configAddress); //exist config address
     l2Factory = await L2Factory.attach(factoryAddress); //exist factory address
+    l2StakingFactory = await L2StakingFactory.attach(stakingFactoryAddress);
     l2Router = await L2Router.attach(routerAddress); //exist router address
     l2BaseToken = await MockToken.attach(baseAddress); //exist base address
     l2QuoteToken = await MockToken.attach(quoteAddress); //exist quote address
@@ -178,7 +202,7 @@ async function flowVerify(needAttach) {
   tx = await l2Router.deposit(
     l2BaseToken.address,
     l2QuoteToken.address,
-    l2Signer.address,
+    signer2.address,
     ethers.utils.parseEther("1.0")
   );
   await tx.wait();
@@ -193,7 +217,7 @@ async function flowVerify(needAttach) {
     deadline
   );
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
   console.log("close position...");
   tx = await l2Router.closePosition(
@@ -204,7 +228,7 @@ async function flowVerify(needAttach) {
     false
   );
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
 
   console.log("withdraw...");
@@ -223,7 +247,7 @@ async function flowVerify(needAttach) {
     deadline
   );
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
 
   console.log("close position...");
@@ -235,7 +259,7 @@ async function flowVerify(needAttach) {
     false
   );
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
 
   console.log("open short position with wallet...");
@@ -249,7 +273,7 @@ async function flowVerify(needAttach) {
     deadline
   );
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
 
   console.log("close position...");
@@ -261,7 +285,7 @@ async function flowVerify(needAttach) {
     true
   );
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
 
   //flow 3: liquidate
@@ -276,10 +300,10 @@ async function flowVerify(needAttach) {
     deadline
   );
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
 
-  let withdrawable = await l2Margin.getWithdrawable(l2Signer.address);
+  let withdrawable = await l2Margin.getWithdrawable(signer2.address);
   tx = await l2Router.withdraw(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(withdrawable).abs());
   await tx.wait();
 
@@ -291,9 +315,9 @@ async function flowVerify(needAttach) {
   await tx.wait();
 
   console.log("liquidate position...");
-  tx = await l2Margin.liquidate(l2Signer.address);
+  tx = await l2Margin.liquidate(signer2.address);
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
 
   //flow 4: close liquidatable position
@@ -315,10 +339,10 @@ async function flowVerify(needAttach) {
     deadline
   );
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
 
-  withdrawable = await l2Margin.getWithdrawable(l2Signer.address);
+  withdrawable = await l2Margin.getWithdrawable(signer2.address);
   tx = await l2Router.withdraw(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(withdrawable).abs());
   await tx.wait();
 
@@ -329,7 +353,7 @@ async function flowVerify(needAttach) {
   tx = await l2Amm.rebase();
   await tx.wait();
 
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
   console.log("close liquidatable position...");
   tx = await l2Router.closePosition(
@@ -340,7 +364,7 @@ async function flowVerify(needAttach) {
     false
   );
   await tx.wait();
-  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, l2Signer.address);
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer2.address);
   printPosition(positionItem);
 }
 
