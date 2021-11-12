@@ -1,17 +1,19 @@
-/**
- * @type import('hardhat/config').HardhatUserConfig
- */
 require("dotenv").config();
 require("hardhat-deploy");
 require("@nomiclabs/hardhat-waffle");
 require("hardhat-watcher");
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
+
+require("hardhat-gas-reporter");
+require("solidity-coverage");
+require("@openzeppelin/hardhat-upgrades");
+
 module.exports = {
   solidity: {
     compilers: [
       {
-        version: "0.8.0",
+        version: "0.8.2",
         settings: {
           optimizer: {
             enabled: true,
@@ -26,18 +28,18 @@ module.exports = {
     hardhat: {
       allowUnlimitedContractSize: true,
     },
-    l1rinkeby: {
-      url: `https://rinkeby.infura.io/v3/` + process.env["INFURA_KEY"],
-      chainId: 4,
-      accounts: [process.env["DEVNET_PRIVKEY"]],
-    },
-    l2rinkeby: {
-      gasPrice: 0,
-      url: process.env["L2RPC"] || "",
-      accounts: [process.env["DEVNET_PRIVKEY"]],
-    },
+
     localhost: {
       url: "http://localhost:8545",
+    },
+    l1rinkeby: {
+      url: process.env.L1RPC,
+      chainId: 4,
+      accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
+    },
+    l2rinkeby: {
+      url: process.env.L2RPC,
+      accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
     },
   },
   etherscan: {

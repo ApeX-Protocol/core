@@ -8,8 +8,8 @@
     "compile_watch": "npx hardhat watch compilation",
     "test": "npx hardhat test",
     "test_watch": "npx hardhat watch test",
-    "deploy_eth": "export network=l1rinkeby && hardhat run scripts/deploy.js",
-    "deploy_arb": "export network=l2rinkeby && hardhat run scripts/deploy.js",
+    "deploy_eth": "hardhat run scripts/deploy.js --network l1rinkeby",
+    "deploy_arb": "hardhat run scripts/deploy.js --network l2rinkeby",
     "simulate_price": "hardhat run scripts/simulate_price.js"
   },
   "repository": {
