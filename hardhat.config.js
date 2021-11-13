@@ -41,6 +41,10 @@ module.exports = {
       url: process.env.L2RPC,
       accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
     },
+    optimismKovan: {
+      url: process.env.OPTIMISM_KOVAN,
+      accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
+    },
   },
   etherscan: {
     apiKey: process.env["ETHERSCAN_APIKEY"],
