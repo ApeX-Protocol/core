@@ -4,11 +4,12 @@ pragma solidity ^0.8.0;
 import "../interfaces/ICorePool.sol";
 import "../interfaces/ICorePoolFactory.sol";
 import "../libraries/ApexAware.sol";
+import "../utils/Initializable.sol";
 import "../utils/Ownable.sol";
 import "./CorePool.sol";
 
-contract CorePoolFactory is ICorePoolFactory, Ownable, ApexAware {
-    uint256 public immutable blocksPerUpdate;
+contract CorePoolFactory is ICorePoolFactory, Ownable, ApexAware, Initializable {
+    uint256 public blocksPerUpdate;
 
     uint256 public apexPerBlock;
 
@@ -22,18 +23,21 @@ contract CorePoolFactory is ICorePoolFactory, Ownable, ApexAware {
 
     mapping(address => address) public override poolTokenMap;
 
-    constructor(
+    function initialize(
         address _apex,
         uint256 _apexPerBlock,
         uint256 _blocksPerUpdate,
         uint256 _initBlock,
         uint256 _endBlock
-    ) ApexAware(_apex) {
+    ) public initializer {
+        require(_apex != address(0), "apex address not set");
         require(_apexPerBlock > 0, "APEX/block not set");
         require(_blocksPerUpdate > 0, "blocks/update not set");
         require(_initBlock > 0, "init block not set");
         require(_endBlock > _initBlock, "invalid end block: must be greater than init block");
 
+        admin = msg.sender;
+        apex = _apex;
         apexPerBlock = _apexPerBlock;
         blocksPerUpdate = _blocksPerUpdate;
         lastRatioUpdate = _initBlock;

@@ -34,7 +34,8 @@
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.7",
     "hardhat": "^2.6.6",
-    "hardhat-deploy": "^0.9.4"
+    "hardhat-deploy": "^0.9.4",
+    "hardhat-gas-reporter": "^1.0.4"
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.3.2",
