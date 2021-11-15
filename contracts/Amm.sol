@@ -250,7 +250,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
     function getQuoteAmountByPriceOracle(uint256 baseAmount) internal view returns (uint256 quoteAmount) {
         // get price oracle
-        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+       // (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         address priceOracle = IConfig(config).priceOracle();
         quoteAmount = IPriceOracle(priceOracle).quote(baseToken, quoteToken, baseAmount);
     }
