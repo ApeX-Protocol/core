@@ -37,6 +37,7 @@ contract CorePoolFactory is ICorePoolFactory, Ownable, ApexAware, Initializable 
         require(_endBlock > _initBlock, "invalid end block: must be greater than init block");
 
         admin = msg.sender;
+        entered = false;
         apex = _apex;
         apexPerBlock = _apexPerBlock;
         blocksPerUpdate = _blocksPerUpdate;
