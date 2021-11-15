@@ -7,7 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 contract MockVAmm is ERC20 {
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
 
-    function swapQuery(
+    function estimateSwap(
         address input,
         address output,
         uint256 inputAmount,
@@ -20,15 +20,16 @@ contract MockVAmm is ERC20 {
     }
 
     function swap(
-        address input,
-        address output,
+        address inputToken,
+        address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external returns (uint256[2] memory) {
+    ) external returns (uint256[2] memory amounts) {
         if (inputAmount != 0) {
-            return [0, inputAmount];
+            amounts = [0, inputAmount];
+        } else {
+            amounts = [outputAmount, 0];
         }
-        return [outputAmount, 0];
     }
 
     function forceSwap(
@@ -38,7 +39,7 @@ contract MockVAmm is ERC20 {
         uint256 outputAmount
     ) external {}
 
-    function swapQueryWithAcctSpecMarkPrice(
+    function estimateSwapWithMarkPrice(
         address inputToken,
         address outputToken,
         uint256 inputAmount,

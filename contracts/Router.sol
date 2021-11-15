@@ -1,7 +1,10 @@
+//SPDX-License-Identifier: UNLICENSED
+
 pragma solidity ^0.8.0;
 
 import "./interfaces/IRouter.sol";
-import "./interfaces/IFactory.sol";
+import "./interfaces/IPairFactory.sol";
+import "./interfaces/IStakingFactory.sol";
 import "./interfaces/IAmm.sol";
 import "./interfaces/IMargin.sol";
 import "./interfaces/ILiquidityERC20.sol";
@@ -9,7 +12,8 @@ import "./interfaces/IStaking.sol";
 import "./libraries/TransferHelper.sol";
 
 contract Router is IRouter {
-    address public immutable override factory;
+    address public immutable override pairFactory;
+    address public immutable override stakingFactory;
     address public immutable override WETH;
 
     modifier ensure(uint256 deadline) {
@@ -17,8 +21,13 @@ contract Router is IRouter {
         _;
     }
 
-    constructor(address _factory, address _WETH) {
-        factory = _factory;
+    constructor(
+        address pairFactory_,
+        address stakingFactory_,
+        address _WETH
+    ) {
+        pairFactory = pairFactory_;
+        stakingFactory = stakingFactory_;
         WETH = _WETH;
     }
 
@@ -34,16 +43,16 @@ contract Router is IRouter {
         uint256 deadline,
         bool autoStake
     ) external override ensure(deadline) returns (uint256 quoteAmount, uint256 liquidity) {
-        if (IFactory(factory).getAmm(baseToken, quoteToken) == address(0)) {
-            IFactory(factory).createPair(baseToken, quoteToken);
+        if (IPairFactory(pairFactory).getAmm(baseToken, quoteToken) == address(0)) {
+            IPairFactory(pairFactory).createPair(baseToken, quoteToken);
         }
-        address amm = IFactory(factory).getAmm(baseToken, quoteToken);
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         TransferHelper.safeTransferFrom(baseToken, msg.sender, amm, baseAmount);
         if (autoStake) {
             (quoteAmount, liquidity) = IAmm(amm).mint(address(this));
-            address staking = IFactory(factory).getStaking(amm);
+            address staking = IStakingFactory(stakingFactory).getStaking(amm);
             if (staking == address(0)) {
-                staking = IFactory(factory).createStaking(baseToken, quoteToken);
+                staking = IStakingFactory(stakingFactory).createStaking(baseToken, quoteToken);
             }
             ILiquidityERC20(amm).approve(staking, liquidity);
             IStaking(staking).stake(liquidity);
@@ -60,7 +69,7 @@ contract Router is IRouter {
         uint256 baseAmountMin,
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 quoteAmount) {
-        address amm = IFactory(factory).getAmm(baseToken, quoteToken);
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         ILiquidityERC20(amm).transferFrom(msg.sender, amm, liquidity);
         (baseAmount, quoteAmount) = IAmm(amm).burn(msg.sender);
         require(baseAmount >= baseAmountMin, "Router: INSUFFICIENT_BASE_AMOUNT");
@@ -72,7 +81,7 @@ contract Router is IRouter {
         address holder,
         uint256 amount
     ) external override {
-        address margin = IFactory(factory).getMargin(baseToken, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, amount);
         IMargin(margin).addMargin(holder, amount);
@@ -83,7 +92,7 @@ contract Router is IRouter {
         address quoteToken,
         uint256 amount
     ) external override {
-        address margin = IFactory(factory).getMargin(baseToken, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         IMargin(margin).removeMargin(amount);
     }
@@ -97,7 +106,7 @@ contract Router is IRouter {
         uint256 baseAmountLimit,
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount) {
-        address margin = IFactory(factory).getMargin(baseToken, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, marginAmount);
@@ -118,7 +127,7 @@ contract Router is IRouter {
         uint256 baseAmountLimit,
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount) {
-        address margin = IFactory(factory).getMargin(baseToken, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
         baseAmount = IMargin(margin).openPosition(side, quoteAmount);
@@ -136,7 +145,7 @@ contract Router is IRouter {
         uint256 deadline,
         bool autoWithdraw
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
-        address margin = IFactory(factory).getMargin(baseToken, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         baseAmount = IMargin(margin).closePosition(quoteAmount);
         if (autoWithdraw) {
@@ -153,7 +162,7 @@ contract Router is IRouter {
         override
         returns (uint256 reserveBase, uint256 reserveQuote)
     {
-        address amm = IFactory(factory).getAmm(baseToken, quoteToken);
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         (reserveBase, reserveQuote, ) = IAmm(amm).getReserves();
     }
 
@@ -163,7 +172,7 @@ contract Router is IRouter {
         uint8 side,
         uint256 baseAmount
     ) external view override returns (uint256 quoteAmount) {
-        address amm = IFactory(factory).getAmm(baseToken, quoteToken);
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         (uint256 reserveBase, uint256 reserveQuote, ) = IAmm(amm).getReserves();
         if (side == 0) {
             quoteAmount = getAmountIn(baseAmount, reserveQuote, reserveBase);
@@ -177,7 +186,7 @@ contract Router is IRouter {
         address quoteToken,
         address holder
     ) external view override returns (uint256 amount) {
-        address margin = IFactory(factory).getMargin(baseToken, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         amount = IMargin(margin).getWithdrawable(holder);
     }
 
@@ -195,7 +204,7 @@ contract Router is IRouter {
             uint256 tradeSize
         )
     {
-        address margin = IFactory(factory).getMargin(baseToken, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         (baseSize, quoteSize, tradeSize) = IMargin(margin).getPosition(holder);
     }
 
@@ -205,7 +214,7 @@ contract Router is IRouter {
         uint8 side,
         uint256 baseAmount
     ) external view override returns (uint256 quoteAmount) {
-        address margin = IFactory(factory).getMargin(baseToken, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         return IMargin(margin).queryMaxOpenPosition(side, baseAmount);
     }
 

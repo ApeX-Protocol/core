@@ -12,8 +12,8 @@ contract PairFactory is IPairFactory {
     mapping(address => mapping(address => address)) public override getAmm;
     mapping(address => mapping(address => address)) public override getMargin;
 
-    constructor(address _config) {
-        config = _config;
+    constructor(address config_) {
+        config = config_;
     }
 
     function createPair(address baseToken, address quoteToken) external override returns (address amm, address margin) {

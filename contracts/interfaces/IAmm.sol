@@ -10,6 +10,8 @@ interface IAmm {
     event Rebase(uint256 quoteAmountBefore, uint256 quoteAmountAfter, uint256 baseAmount);
     event Sync(uint112 reserveBase, uint112 reserveQuote);
 
+    function MINIMUM_LIQUIDITY() external pure returns (uint256);
+
     function baseToken() external view returns (address);
 
     function quoteToken() external view returns (address);
@@ -20,6 +22,10 @@ interface IAmm {
 
     function margin() external view returns (address);
 
+    function price0CumulativeLast() external view returns (uint256);
+
+    function price1CumulativeLast() external view returns (uint256);
+
     function getReserves()
         external
         view
@@ -29,12 +35,26 @@ interface IAmm {
             uint32 blockTimestamp
         );
 
+    function estimateSwap(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external view returns (uint256[2] memory amounts);
+
+    function estimateSwapWithMarkPrice(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount
+    ) external view returns (uint256[2] memory amounts);
+
     // only factory can call this function
     function initialize(
-        address _baseToken,
-        address _quoteToken,
-        address _config,
-        address _margin
+        address baseToken_,
+        address quoteToken_,
+        address config_,
+        address margin_
     ) external;
 
     function mint(address to) external returns (uint256 quoteAmount, uint256 liquidity);
@@ -58,18 +78,4 @@ interface IAmm {
     ) external;
 
     function rebase() external returns (uint256 amount);
-
-    function swapQuery(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount
-    ) external view returns (uint256[2] memory amounts);
-
-    function swapQueryWithAcctSpecMarkPrice(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount
-    ) external view returns (uint256[2] memory amounts);
 }

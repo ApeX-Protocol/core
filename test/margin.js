@@ -8,7 +8,6 @@ describe("Margin contract", function () {
   let addrs;
   let mockVAmm;
   let mockBaseToken;
-  let vault;
   let ownerInitBaseAmount = 20000;
   let addr1InitBaseAmount = 100;
   let routerAllowance = 10000;
@@ -29,24 +28,14 @@ describe("Margin contract", function () {
     const MockRouter = await ethers.getContractFactory("MockRouter");
     mockRouter = await MockRouter.deploy(mockBaseToken.address);
 
-    const Vault = await ethers.getContractFactory("Vault");
-    vault = await Vault.deploy();
-
     const Config = await ethers.getContractFactory("Config");
     config = await Config.deploy();
 
     const Margin = await ethers.getContractFactory("Margin");
     margin = await Margin.deploy();
 
-    await margin.initialize(
-      mockBaseToken.address,
-      mockQuoteToken.address,
-      config.address,
-      mockVAmm.address,
-      vault.address
-    );
+    await margin.initialize(mockBaseToken.address, mockQuoteToken.address, config.address, mockVAmm.address);
     await mockRouter.setMarginContract(margin.address);
-    await vault.initialize(mockBaseToken.address, mockVAmm.address, margin.address);
 
     await mockBaseToken.mint(owner.address, ownerInitBaseAmount);
     await mockBaseToken.mint(addr1.address, addr1InitBaseAmount);
@@ -113,7 +102,6 @@ describe("Margin contract", function () {
 
     it("remove correct margin", async function () {
       await margin.removeMargin(routerAllowance);
-      expect(await mockBaseToken.balanceOf(vault.address)).to.equal(0);
       expect(await mockBaseToken.balanceOf(owner.address)).to.equal(ownerInitBaseAmount);
     });
 
