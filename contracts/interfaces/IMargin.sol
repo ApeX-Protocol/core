@@ -15,37 +15,11 @@ interface IMargin {
         uint256 bonus
     );
 
-    function baseToken() external view returns (address);
-
-    function quoteToken() external view returns (address);
-
-    function factory() external view returns (address);
-
-    function config() external view returns (address);
-
-    function amm() external view returns (address);
-
-    function getPosition(address trader)
-        external
-        view
-        returns (
-            int256 baseSize,
-            int256 quoteSize,
-            uint256 tradeSize
-        );
-
-    function getWithdrawable(address trader) external view returns (uint256 amount);
-
-    function canLiquidate(address trader) external view returns (bool);
-
-    function queryMaxOpenPosition(uint8 side, uint256 _margin) external view returns (uint256 quoteAmount);
-
     // only factory can call this function
     function initialize(
-        address _baseToken,
-        address _quoteToken,
-        address _config,
-        address _amm
+        address baseToken_,
+        address quoteToken_,
+        address amm_
     ) external;
 
     function addMargin(address trader, uint256 depositAmount) external;
@@ -63,4 +37,29 @@ interface IMargin {
             uint256 baseAmount,
             uint256 bonus
         );
+
+    function factory() external view returns (address);
+
+    function config() external view returns (address);
+
+    function baseToken() external view returns (address);
+
+    function quoteToken() external view returns (address);
+
+    function amm() external view returns (address);
+
+    function getPosition(address trader)
+        external
+        view
+        returns (
+            int256 baseSize,
+            int256 quoteSize,
+            uint256 tradeSize
+        );
+
+    function getWithdrawable(address trader) external view returns (uint256 amount);
+
+    function getMaxOpenPosition(uint8 side, uint256 marginAmount) external view returns (uint256 quoteAmount);
+
+    function canLiquidate(address trader) external view returns (bool);
 }

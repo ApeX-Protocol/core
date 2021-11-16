@@ -1,23 +1,22 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/ILiquidityERC20.sol";
-import "./libraries/SafeMath.sol";
 
 contract LiquidityERC20 is ILiquidityERC20 {
+    string public constant override name = "APEX LP";
+    string public constant override symbol = "APEX-LP";
+    uint8 public constant override decimals = 18;
+    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+    bytes32 public constant override PERMIT_TYPEHASH =
+        0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
 
-    using SafeMath for uint256;
+    bytes32 public immutable override DOMAIN_SEPARATOR;
 
-    string public override constant name = "Davion LP";
-    string public override constant symbol = "Davion-LP";
-    uint8 public override constant decimals = 18;
     uint256 public override totalSupply;
     mapping(address => uint256) public override balanceOf;
     mapping(address => mapping(address => uint256)) public override allowance;
-
-    bytes32 public override DOMAIN_SEPARATOR;
-    // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
-    bytes32 public override constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
     mapping(address => uint256) public override nonces;
+
     constructor() {
         uint256 chainId;
         assembly {
@@ -32,37 +31,6 @@ contract LiquidityERC20 is ILiquidityERC20 {
                 address(this)
             )
         );
-    }
-
-    function _mint(address to, uint256 value) internal {
-        totalSupply = totalSupply.add(value);
-        balanceOf[to] = balanceOf[to].add(value);
-        emit Transfer(address(0), to, value);
-    }
-
-    function _burn(address from, uint256 value) internal {
-        balanceOf[from] = balanceOf[from].sub(value);
-        totalSupply = totalSupply.sub(value);
-        emit Transfer(from, address(0), value);
-    }
-
-    function _approve(
-        address owner,
-        address spender,
-        uint256 value
-    ) private {
-        allowance[owner][spender] = value;
-        emit Approval(owner, spender, value);
-    }
-
-    function _transfer(
-        address from,
-        address to,
-        uint256 value
-    ) private {
-        balanceOf[from] = balanceOf[from].sub(value);
-        balanceOf[to] = balanceOf[to].add(value);
-        emit Transfer(from, to, value);
     }
 
     function approve(address spender, uint256 value) external override returns (bool) {
@@ -81,7 +49,7 @@ contract LiquidityERC20 is ILiquidityERC20 {
         uint256 value
     ) external override returns (bool) {
         if (allowance[from][msg.sender] != type(uint256).max) {
-            allowance[from][msg.sender] = allowance[from][msg.sender].sub(value);
+            allowance[from][msg.sender] = allowance[from][msg.sender] - value;
         }
         _transfer(from, to, value);
         return true;
@@ -107,5 +75,36 @@ contract LiquidityERC20 is ILiquidityERC20 {
         address recoveredAddress = ecrecover(digest, v, r, s);
         require(recoveredAddress != address(0) && recoveredAddress == owner, "UniswapV2: INVALID_SIGNATURE");
         _approve(owner, spender, value);
+    }
+
+    function _mint(address to, uint256 value) internal {
+        totalSupply = totalSupply + value;
+        balanceOf[to] = balanceOf[to] + value;
+        emit Transfer(address(0), to, value);
+    }
+
+    function _burn(address from, uint256 value) internal {
+        balanceOf[from] = balanceOf[from] - value;
+        totalSupply = totalSupply - value;
+        emit Transfer(from, address(0), value);
+    }
+
+    function _approve(
+        address owner,
+        address spender,
+        uint256 value
+    ) private {
+        allowance[owner][spender] = value;
+        emit Approval(owner, spender, value);
+    }
+
+    function _transfer(
+        address from,
+        address to,
+        uint256 value
+    ) private {
+        balanceOf[from] = balanceOf[from] - value;
+        balanceOf[to] = balanceOf[to] + value;
+        emit Transfer(from, to, value);
     }
 }
