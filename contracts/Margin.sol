@@ -23,7 +23,7 @@ contract Margin is IMargin, IVault, Reentrant {
     uint256 constant MAXRATIO = 10000;
 
     address public immutable override factory;
-    address public immutable override config;
+    address public override config;
     address public override amm;
     address public override baseToken;
     address public override quoteToken;
@@ -33,7 +33,6 @@ contract Margin is IMargin, IVault, Reentrant {
 
     constructor() {
         factory = msg.sender;
-        config = IMarginFactory(factory).config();
     }
 
     function initialize(
@@ -45,6 +44,7 @@ contract Margin is IMargin, IVault, Reentrant {
         baseToken = baseToken_;
         quoteToken = quoteToken_;
         amm = amm_;
+        config = IMarginFactory(factory).config();
     }
 
     function addMargin(address trader, uint256 depositAmount) external override nonReentrant {
@@ -62,9 +62,10 @@ contract Margin is IMargin, IVault, Reentrant {
         //fixme
         // address trader = msg.sender;
         address trader = tx.origin;
+        // test carefully if withdraw margin more than withdrawable
         require(withdrawAmount <= getWithdrawable(trader), "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE");
         Position storage traderPosition = traderPositionMap[trader];
-        traderPosition.baseSize = traderPosition.baseSize.subU(withdrawAmount);
+        traderPosition.baseSize.subU(withdrawAmount);
         _withdraw(trader, trader, withdrawAmount);
         emit RemoveMargin(trader, withdrawAmount);
     }
