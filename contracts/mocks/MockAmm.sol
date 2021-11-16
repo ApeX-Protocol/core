@@ -12,7 +12,9 @@ contract MockVAmm is ERC20 {
         address output,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external view returns (uint256[2] memory) {
+    ) external pure returns (uint256[2] memory) {
+        input = input;
+        output = output;
         if (inputAmount != 0) {
             return [0, inputAmount];
         }
@@ -24,7 +26,10 @@ contract MockVAmm is ERC20 {
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external returns (uint256[2] memory amounts) {
+    ) external pure returns (uint256[2] memory amounts) {
+        inputToken = inputToken;
+        outputToken = outputToken;
+
         if (inputAmount != 0) {
             amounts = [0, inputAmount];
         } else {
@@ -44,7 +49,9 @@ contract MockVAmm is ERC20 {
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external view returns (uint256[2] memory amounts) {
+    ) external pure returns (uint256[2] memory amounts) {
+        inputToken = inputToken;
+        outputToken = outputToken;
         if (inputAmount != 0) {
             return [0, inputAmount];
         }

@@ -5,10 +5,10 @@ pragma solidity ^0.8.0;
 import "./interfaces/IERC20.sol";
 import "./interfaces/IConfig.sol";
 import "./utils/Initializable.sol";
+import "./utils/Ownable.sol";
 
-contract Config is IConfig, Initializable {
+contract Config is IConfig, Ownable, Initializable {
     address public override priceOracle;
-    address public admin;
 
     uint256 public override rebasePriceGap;
     uint256 public override initMarginRatio; //if 1000, means margin ratio >= 10%
@@ -16,18 +16,9 @@ contract Config is IConfig, Initializable {
     uint256 public override liquidateFeeRatio; //if 100, means liquidator bot get 1% as fee
     uint8 public override beta; // 50-100
 
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Ownable: REQUIRE_ADMIN");
-        _;
-    }
-
     function initialize(address _admin, uint8 _beta) public initializer {
         admin = _admin;
         beta = _beta;
-    }
-
-    function setAdmin(address newAdmin) external onlyAdmin {
-        admin = newAdmin;
     }
 
     function setPriceOracle(address newOracle) external override onlyAdmin {
