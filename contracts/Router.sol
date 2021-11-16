@@ -49,7 +49,7 @@ contract Router is IRouter {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         TransferHelper.safeTransferFrom(baseToken, msg.sender, amm, baseAmount);
         if (autoStake) {
-            (quoteAmount, liquidity) = IAmm(amm).mint(address(this));
+            (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
             address staking = IStakingFactory(stakingFactory).getStaking(amm);
             if (staking == address(0)) {
                 staking = IStakingFactory(stakingFactory).createStaking(baseToken, quoteToken);
@@ -57,7 +57,7 @@ contract Router is IRouter {
             ILiquidityERC20(amm).approve(staking, liquidity);
             IStaking(staking).stake(liquidity);
         } else {
-            (quoteAmount, liquidity) = IAmm(amm).mint(msg.sender);
+            (, quoteAmount, liquidity) = IAmm(amm).mint(msg.sender);
         }
         require(quoteAmount >= quoteAmountMin, "Router: INSUFFICIENT_QUOTE_AMOUNT");
     }
@@ -71,7 +71,7 @@ contract Router is IRouter {
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         ILiquidityERC20(amm).transferFrom(msg.sender, amm, liquidity);
-        (baseAmount, quoteAmount) = IAmm(amm).burn(msg.sender);
+        ( baseAmount, quoteAmount,) = IAmm(amm).burn(msg.sender);
         require(baseAmount >= baseAmountMin, "Router: INSUFFICIENT_BASE_AMOUNT");
     }
 
@@ -215,7 +215,7 @@ contract Router is IRouter {
         uint256 baseAmount
     ) external view override returns (uint256 quoteAmount) {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        return IMargin(margin).queryMaxOpenPosition(side, baseAmount);
+        return IMargin(margin).getMaxOpenPosition(side, baseAmount);
     }
 
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset

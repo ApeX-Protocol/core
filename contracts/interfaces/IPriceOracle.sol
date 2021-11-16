@@ -9,7 +9,8 @@ interface IPriceOracle {
         uint256 baseAmount
     ) external view returns (uint256 quoteAmount);
 
-    function markPrice(address baseToken, address quoteToken) external view returns (uint256);
+   // todo
+   // function markPrice(address baseToken, address quoteToken) external view returns (uint256);
 
     function estimateSwapWithMarkPrice(
         address inputToken,

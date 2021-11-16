@@ -4,11 +4,14 @@ import "./LiquidityERC20.sol";
 import "./interfaces/IAmmFactory.sol";
 import "./interfaces/IConfig.sol";
 import "./interfaces/IPriceOracle.sol";
+import "./interfaces/IMarginFactory.sol";
 import "./interfaces/IAmm.sol";
 import "./interfaces/IVault.sol";
+import "./interfaces/IPairFactory.sol";
 import "./utils/Reentrant.sol";
 import "./libraries/UQ112x112.sol";
 import "./libraries/Math.sol";
+import "./libraries/FullMath.sol";
 
 contract Amm is IAmm, LiquidityERC20, Reentrant {
     using UQ112x112 for uint224;
@@ -16,7 +19,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
 
     address public immutable override factory;
-    address public immutable override config;
+    address public override config;
     address public override baseToken;
     address public override quoteToken;
     address public override margin;
@@ -37,7 +40,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
     constructor() {
         factory = msg.sender;
-        config = IAmmFactory(factory).config();
     }
 
     function initialize(
@@ -49,6 +51,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         baseToken = baseToken_;
         quoteToken = quoteToken_;
         margin = margin_;
+        config = IMarginFactory(factory).config();
     }
 
     function mint(address to)
@@ -181,27 +184,27 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 inputAmount,
         uint256 outputAmount
     ) external view override returns (uint256[2] memory amounts) {
-        // (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-        // uint256 quoteAmount;
-        // uint256 baseAmount;
-        // if (inputAmount != 0) {
-        //     quoteAmount = inputAmount;
-        // } else {
-        //     quoteAmount = outputAmount;
-        // }
-        // uint256 inputSquare = quoteAmount * quoteAmount;
-        // // price = (sqrt(y/x)+ betal * deltaY/L).**2;
-        // // deltaX = deltaY/price
-        // // deltaX = (deltaY * L)/(y + betal * deltaY)**2
-        // uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
-        // uint8 beta = IConfig(IPairFactory(factory).config()).beta();
-        // require(beta >= 50 && beta <= 100, "beta error");
-        // //112
-        // uint256 denominator = (_quoteReserve + (beta * quoteAmount) / 100);
-        // //224
-        // denominator = denominator * denominator;
-        // baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
-        // return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+        uint256 quoteAmount;
+        uint256 baseAmount;
+        if (inputAmount != 0) {
+            quoteAmount = inputAmount;
+        } else {
+            quoteAmount = outputAmount;
+        }
+        uint256 inputSquare = quoteAmount * quoteAmount;
+        // price = (sqrt(y/x)+ betal * deltaY/L).**2;
+        // deltaX = deltaY/price
+        // deltaX = (deltaY * L)/(y + betal * deltaY)**2
+        uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
+        uint8 beta = IConfig(config).beta();
+        require(beta >= 50 && beta <= 100, "beta error");
+        //112
+        uint256 denominator = (_quoteReserve + (beta * quoteAmount) / 100);
+        //224
+        denominator = denominator * denominator;
+        baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
+        return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
     }
 
     function getReserves()
@@ -235,6 +238,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 reserve1;
         if (inputAmount > 0 && inputToken != address(0)) {
             if (inputToken == baseToken) {
+                // swapOut
                 outputAmount = _getAmountOut(inputAmount, _baseReserve, _quoteReserve);
                 reserve0 = _baseReserve + inputAmount;
                 reserve1 = _quoteReserve - outputAmount;
@@ -244,6 +248,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 reserve1 = _quoteReserve + inputAmount;
             }
         } else {
+            //swapIn
             if (outputToken == baseToken) {
                 inputAmount = _getAmountIn(outputAmount, _quoteReserve, _baseReserve);
                 reserve0 = _baseReserve - outputAmount;
@@ -296,6 +301,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 uint256 rootKLast = Math.sqrt(_kLast);
                 if (rootK > rootKLast) {
                     uint256 numerator = totalSupply * (rootK - rootKLast);
+                    //todo
                     uint256 denominator = rootK * 5 + rootKLast;
                     uint256 liquidity = numerator / denominator;
                     if (liquidity > 0) _mint(feeTo, liquidity);

@@ -18,7 +18,7 @@ contract PairFactory is IPairFactory, Ownable {
         marginFactory = marginFactory_;
     }
 
-    function createPair(address baseToken, address quoteToken) external returns (address amm, address margin) {
+    function createPair(address baseToken, address quoteToken) external override returns (address amm, address margin) {
         amm = IAmmFactory(ammFactory).createAmm(baseToken, quoteToken);
         margin = IMarginFactory(marginFactory).createMargin(baseToken, quoteToken);
         IAmmFactory(ammFactory).initAmm(baseToken, quoteToken, margin);
@@ -26,11 +26,11 @@ contract PairFactory is IPairFactory, Ownable {
         emit NewPair(baseToken, quoteToken, amm, margin);
     }
 
-    function getAmm(address baseToken, address quoteToken) external view returns (address) {
+    function getAmm(address baseToken, address quoteToken) external override view returns (address) {
         return IAmmFactory(ammFactory).getAmm(baseToken, quoteToken);
     }
 
-    function getMargin(address baseToken, address quoteToken) external view returns (address) {
+    function getMargin(address baseToken, address quoteToken) external override view returns (address) {
         return IMarginFactory(marginFactory).getMargin(baseToken, quoteToken);
     }
 }
