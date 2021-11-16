@@ -23,7 +23,7 @@ contract Margin is IMargin, IVault, Reentrant {
     uint256 constant MAXRATIO = 10000;
 
     address public immutable override factory;
-    address public immutable override config;
+    address public override config;
     address public override amm;
     address public override baseToken;
     address public override quoteToken;
@@ -33,7 +33,6 @@ contract Margin is IMargin, IVault, Reentrant {
 
     constructor() {
         factory = msg.sender;
-        config = IMarginFactory(factory).config();
     }
 
     function initialize(
@@ -45,6 +44,7 @@ contract Margin is IMargin, IVault, Reentrant {
         baseToken = baseToken_;
         quoteToken = quoteToken_;
         amm = amm_;
+        config = IMarginFactory(factory).config();
     }
 
     function addMargin(address trader, uint256 depositAmount) external override nonReentrant {
@@ -63,8 +63,12 @@ contract Margin is IMargin, IVault, Reentrant {
         // address trader = msg.sender;
         address trader = tx.origin;
         require(withdrawAmount <= getWithdrawable(trader), "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE");
-        Position storage traderPosition = traderPositionMap[trader];
+        Position memory traderPosition = traderPositionMap[trader];
         traderPosition.baseSize = traderPosition.baseSize.subU(withdrawAmount);
+        if (traderPosition.quoteSize != 0) {
+            // important! check position health, maybe no need because have checked getWithdrawable
+            _checkInitMarginRatio(traderPosition);
+        }
         _withdraw(trader, trader, withdrawAmount);
         emit RemoveMargin(trader, withdrawAmount);
     }
@@ -131,7 +135,7 @@ contract Margin is IMargin, IVault, Reentrant {
             if (isLong) {
                 int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount);
                 if (remainBaseAmount >= 0) {
-                    _minusPositionWithVAmm(isLong, quoteSize);
+                    _minusPositionWithAmm(isLong, quoteSize);
                     traderPosition.quoteSize = 0;
                     traderPosition.tradeSize = 0;
                     traderPosition.baseSize = remainBaseAmount;
@@ -149,7 +153,7 @@ contract Margin is IMargin, IVault, Reentrant {
             } else {
                 int256 remainBaseAmount = traderPosition.baseSize.addU(baseAmount);
                 if (remainBaseAmount >= 0) {
-                    _minusPositionWithVAmm(isLong, quoteSize);
+                    _minusPositionWithAmm(isLong, quoteSize);
                     traderPosition.quoteSize = 0;
                     traderPosition.tradeSize = 0;
                     traderPosition.baseSize = remainBaseAmount;
@@ -166,7 +170,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 }
             }
         } else {
-            baseAmount = _minusPositionWithVAmm(isLong, quoteAmount);
+            baseAmount = _minusPositionWithAmm(isLong, quoteAmount);
             //old: quote -10, base 11; close position: quote 5, base -5; new: quote -5, base 6
             //old: quote 10, base -9; close position: quote -5, base +5; new: quote 5, base -4
             if (isLong) {
