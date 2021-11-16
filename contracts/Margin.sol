@@ -62,13 +62,10 @@ contract Margin is IMargin, IVault, Reentrant {
         //fixme
         // address trader = msg.sender;
         address trader = tx.origin;
+        // test carefully if withdraw margin more than withdrawable
         require(withdrawAmount <= getWithdrawable(trader), "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE");
-        Position memory traderPosition = traderPositionMap[trader];
-        traderPosition.baseSize = traderPosition.baseSize.subU(withdrawAmount);
-        if (traderPosition.quoteSize != 0) {
-            // important! check position health, maybe no need because have checked getWithdrawable
-            _checkInitMarginRatio(traderPosition);
-        }
+        Position storage traderPosition = traderPositionMap[trader];
+        traderPosition.baseSize.subU(withdrawAmount);
         _withdraw(trader, trader, withdrawAmount);
         emit RemoveMargin(trader, withdrawAmount);
     }
