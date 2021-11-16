@@ -4,6 +4,7 @@ import "./LiquidityERC20.sol";
 import "./interfaces/IAmmFactory.sol";
 import "./interfaces/IConfig.sol";
 import "./interfaces/IPriceOracle.sol";
+import "./interfaces/IMarginFactory.sol";
 import "./interfaces/IAmm.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IPairFactory.sol";
@@ -12,14 +13,13 @@ import "./libraries/UQ112x112.sol";
 import "./libraries/Math.sol";
 import "./libraries/FullMath.sol";
 
-
 contract Amm is IAmm, LiquidityERC20, Reentrant {
     using UQ112x112 for uint224;
 
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
 
     address public immutable override factory;
-    address public immutable override config;
+    address public override config;
     address public override baseToken;
     address public override quoteToken;
     address public override margin;
@@ -40,7 +40,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
     constructor() {
         factory = msg.sender;
-        config = IAmmFactory(factory).config();
     }
 
     function initialize(
@@ -52,6 +51,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         baseToken = baseToken_;
         quoteToken = quoteToken_;
         margin = margin_;
+        config = IMarginFactory(factory).config();
     }
 
     function mint(address to)
@@ -205,7 +205,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         denominator = denominator * denominator;
         baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
         return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
-
     }
 
     function getReserves()
