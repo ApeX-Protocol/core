@@ -131,7 +131,7 @@ contract Margin is IMargin, IVault, Reentrant {
             if (isLong) {
                 int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount);
                 if (remainBaseAmount >= 0) {
-                    _minusPositionWithVAmm(isLong, quoteSize);
+                    _minusPositionWithAmm(isLong, quoteSize);
                     traderPosition.quoteSize = 0;
                     traderPosition.tradeSize = 0;
                     traderPosition.baseSize = remainBaseAmount;
@@ -149,7 +149,7 @@ contract Margin is IMargin, IVault, Reentrant {
             } else {
                 int256 remainBaseAmount = traderPosition.baseSize.addU(baseAmount);
                 if (remainBaseAmount >= 0) {
-                    _minusPositionWithVAmm(isLong, quoteSize);
+                    _minusPositionWithAmm(isLong, quoteSize);
                     traderPosition.quoteSize = 0;
                     traderPosition.tradeSize = 0;
                     traderPosition.baseSize = remainBaseAmount;
@@ -166,7 +166,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 }
             }
         } else {
-            baseAmount = _minusPositionWithVAmm(isLong, quoteAmount);
+            baseAmount = _minusPositionWithAmm(isLong, quoteAmount);
             //old: quote -10, base 11; close position: quote 5, base -5; new: quote -5, base 6
             //old: quote 10, base -9; close position: quote -5, base +5; new: quote 5, base -4
             if (isLong) {
