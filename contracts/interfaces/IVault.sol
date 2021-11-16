@@ -4,8 +4,6 @@ interface IVault {
     event Deposit(address indexed user, uint256 amount);
     event Withdraw(address indexed user, address indexed receiver, uint256 amount);
 
-    function reserve() external view returns (uint256);
-
     function deposit(address user, uint256 amount) external;
 
     function withdraw(
@@ -13,4 +11,6 @@ interface IVault {
         address receiver,
         uint256 amount
     ) external;
+
+    function reserve() external view returns (uint256);
 }

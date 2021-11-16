@@ -1,36 +1,36 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IPairFactory.sol";
+import "./interfaces/IAmmFactory.sol";
+import "./interfaces/IMarginFactory.sol";
 import "./interfaces/IAmm.sol";
 import "./interfaces/IMargin.sol";
-import "./Amm.sol";
-import "./Margin.sol";
+import "./utils/Ownable.sol";
 
-contract PairFactory is IPairFactory {
-    address public override config;
+contract PairFactory is IPairFactory, Ownable {
+    address public override ammFactory;
+    address public override marginFactory;
 
-    mapping(address => mapping(address => address)) public override getAmm;
-    mapping(address => mapping(address => address)) public override getMargin;
-
-    constructor(address config_) {
-        config = config_;
+    function init(address ammFactory_, address marginFactory_) external onlyAdmin {
+        require(ammFactory == address(0) && marginFactory == address(0), "PairFactory: ALREADY_INITED");
+        require(ammFactory_ != address(0) && marginFactory_ != address(0), "PairFactory: ZERO_ADDRESS");
+        ammFactory = ammFactory_;
+        marginFactory = marginFactory_;
     }
 
-    function createPair(address baseToken, address quoteToken) external override returns (address amm, address margin) {
-        require(baseToken != quoteToken, "Factory: IDENTICAL_ADDRESSES");
-        require(baseToken != address(0) && quoteToken != address(0), "Factory: ZERO_ADDRESS");
-        require(getAmm[baseToken][quoteToken] == address(0), "Factory: PAIR_EXIST");
-        bytes32 salt = keccak256(abi.encodePacked(baseToken, quoteToken));
-        bytes memory ammBytecode = type(Amm).creationCode;
-        bytes memory marginBytecode = type(Margin).creationCode;
-        assembly {
-            amm := create2(0, add(ammBytecode, 32), mload(ammBytecode), salt)
-            margin := create2(0, add(marginBytecode, 32), mload(marginBytecode), salt)
-        }
-        IAmm(amm).initialize(baseToken, quoteToken, config, margin);
-        IMargin(margin).initialize(baseToken, quoteToken, config, amm);
-        getAmm[baseToken][quoteToken] = amm;
-        getMargin[baseToken][quoteToken] = margin;
+    function createPair(address baseToken, address quoteToken) external returns (address amm, address margin) {
+        amm = IAmmFactory(ammFactory).createAmm(baseToken, quoteToken);
+        margin = IMarginFactory(marginFactory).createMargin(baseToken, quoteToken);
+        IAmmFactory(ammFactory).initAmm(baseToken, quoteToken, margin);
+        IMarginFactory(marginFactory).initMargin(baseToken, quoteToken, amm);
         emit NewPair(baseToken, quoteToken, amm, margin);
+    }
+
+    function getAmm(address baseToken, address quoteToken) external view returns (address) {
+        return IAmmFactory(ammFactory).getAmm(baseToken, quoteToken);
+    }
+
+    function getMargin(address baseToken, address quoteToken) external view returns (address) {
+        return IMarginFactory(marginFactory).getMargin(baseToken, quoteToken);
     }
 }
