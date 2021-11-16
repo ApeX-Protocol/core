@@ -56,7 +56,7 @@ library UniswapV2Library {
     ) internal pure returns (uint256 amountB) {
         require(amountA > 0, "UniswapV2Library: INSUFFICIENT_AMOUNT");
         require(reserveA > 0 && reserveB > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
-        amountB = (amountA * (reserveB)) / reserveA;
+        amountB = (amountA * reserveB) / reserveA;
     }
 
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
@@ -67,9 +67,9 @@ library UniswapV2Library {
     ) internal pure returns (uint256 amountOut) {
         require(amountIn > 0, "UniswapV2Library: INSUFFICIENT_INPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
-        uint256 amountInWithFee = amountIn * (997);
-        uint256 numerator = amountInWithFee * (reserveOut);
-        uint256 denominator = reserveIn * (1000) + (amountInWithFee);
+        uint256 amountInWithFee = amountIn * 997;
+        uint256 numerator = amountInWithFee * reserveOut;
+        uint256 denominator = reserveIn * 1000 + amountInWithFee;
         amountOut = numerator / denominator;
     }
 
@@ -81,9 +81,9 @@ library UniswapV2Library {
     ) internal pure returns (uint256 amountIn) {
         require(amountOut > 0, "UniswapV2Library: INSUFFICIENT_OUTPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "UniswapV2Library: INSUFFICIENT_LIQUIDITY");
-        uint256 numerator = reserveIn * (amountOut) * (1000);
+        uint256 numerator = reserveIn * amountOut * (1000);
         uint256 denominator = (reserveOut - amountOut) * (997);
-        amountIn = (numerator / denominator) + 1;
+        amountIn = numerator / denominator + 1;
     }
 
     // performs chained getAmountOut calculations on any number of pairs
