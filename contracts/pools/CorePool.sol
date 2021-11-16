@@ -35,9 +35,11 @@ contract CorePool is ICorePool, ERC20Aware {
         address _apex,
         uint256 _initBlock
     ) ERC20Aware(_poolToken) {
-        require(address(_factory) != address(0), "apex Pool fct address not set");
-        require(_poolToken != address(0), "pool token address not set");
-        require(_initBlock > 0, "init block not set");
+        require(_factory != address(0), "cp: INVALID_FACTORY");
+        require(_poolToken != address(0), "cp: INVALID_POOL_TOKEN");
+        require(_apex != address(0), "cp: INVALID_APEX_TOKEN");
+        require(_initBlock > 0, "cp: INVALID_INIT_BLOCK");
+
         apex = _apex;
         factory = ICorePoolFactory(_factory);
         poolToken = _poolToken;
@@ -56,10 +58,13 @@ contract CorePool is ICorePool, ERC20Aware {
         address _staker,
         uint256 _amount,
         uint256 _lockUntil
-    ) internal virtual {
+    ) internal {
+        require(_amount > 0, "cp._stake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
-        require(_amount > 0, "zero amount");
-        require(_lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + ONE_YEAR), "invalid lock interval");
+        require(
+            _lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + ONE_YEAR),
+            "cp._stake: INVALID_LOCK_INTERVAL"
+        );
 
         User storage user = users[_staker];
         _processRewards(_staker, user);
@@ -94,13 +99,13 @@ contract CorePool is ICorePool, ERC20Aware {
         address _staker,
         uint256 _depositId,
         uint256 _amount
-    ) internal virtual {
-        require(_amount > 0, "zero amount");
+    ) internal {
+        require(_amount > 0, "cp._unstake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
         User storage user = users[_staker];
         Deposit storage stakeDeposit = user.deposits[_depositId];
-        require(stakeDeposit.lockFrom == 0 || now256 > stakeDeposit.lockUntil, "deposit not yet unlocked");
-        require(stakeDeposit.amount >= _amount, "amount exceeds stake");
+        require(stakeDeposit.lockFrom == 0 || now256 > stakeDeposit.lockUntil, "cp._unstake: DEPOSIT_LOCKED");
+        require(stakeDeposit.amount >= _amount, "cp._unstake: EXCEED_STAKED");
         _processRewards(_staker, user);
 
         uint256 previousWeight = stakeDeposit.weight;
@@ -128,7 +133,7 @@ contract CorePool is ICorePool, ERC20Aware {
     }
 
     function stakeAsPool(address _staker, uint256 _amount) external override {
-        require(factory.poolTokenMap(msg.sender) != address(0), "access denied");
+        require(factory.poolTokenMap(msg.sender) != address(0), "cp.stakeAsPool: ACCESS_DENIED");
         syncWeightPrice(); //need sync apexCorePool
 
         User storage user = users[_staker];
@@ -154,18 +159,18 @@ contract CorePool is ICorePool, ERC20Aware {
 
     function updateStakeLock(uint256 _depositId, uint256 _lockUntil) external override {
         uint256 now256 = block.timestamp;
-        require(_lockUntil > now256, "lock should be in the future");
+        require(_lockUntil > now256, "cp.updateStakeLock: INVALID_LOCK_UNTIL");
 
         address _staker = msg.sender;
         User storage user = users[_staker];
         Deposit storage stakeDeposit = user.deposits[_depositId];
-        require(_lockUntil > stakeDeposit.lockUntil, "invalid new lock");
+        require(_lockUntil > stakeDeposit.lockUntil, "cp.updateStakeLock: INVALID_NEW_LOCK");
 
         if (stakeDeposit.lockFrom == 0) {
-            require(_lockUntil <= now256 + ONE_YEAR, "max lock period is 365 days");
+            require(_lockUntil <= now256 + ONE_YEAR, "cp.updateStakeLock: EXCEED_MAX_LOCK_PERIOD");
             stakeDeposit.lockFrom = now256;
         } else {
-            require(_lockUntil <= stakeDeposit.lockFrom + ONE_YEAR, "max lock period is 365 days");
+            require(_lockUntil <= stakeDeposit.lockFrom + ONE_YEAR, "cp.updateStakeLock: EXCEED_MAX_LOCK");
         }
 
         stakeDeposit.lockUntil = _lockUntil;
@@ -179,7 +184,7 @@ contract CorePool is ICorePool, ERC20Aware {
         emit UpdateStakeLock(_staker, _depositId, stakeDeposit.lockFrom, _lockUntil);
     }
 
-    function processRewards() external virtual override {
+    function processRewards() external override {
         User storage user = users[msg.sender];
 
         _processRewards(msg.sender, user);
@@ -200,17 +205,16 @@ contract CorePool is ICorePool, ERC20Aware {
             lastYieldDistribution = blockNumber;
             return;
         }
-
+        //notice: if nobody sync this corePool for a long time, this corePool reward shrink
         uint256 apexReward = factory.calCorePoolApexReward(lastYieldDistribution, poolToken);
         yieldRewardsPerWeight += deltaWeightPrice(apexReward, usersLockingWeight);
-
         lastYieldDistribution = blockNumber > endBlock ? endBlock : blockNumber;
 
         emit Synchronized(msg.sender, yieldRewardsPerWeight, lastYieldDistribution);
     }
 
     //update weight price, then if apex, add deposits; if not, stake as pool.
-    function _processRewards(address _staker, User storage user) internal virtual {
+    function _processRewards(address _staker, User storage user) internal {
         syncWeightPrice();
 
         //if no yield
