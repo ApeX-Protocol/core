@@ -8,6 +8,7 @@ contract AmmFactory is IAmmFactory {
     address public immutable override config;
     address public override feeTo;
     address public override feeToSetter;
+    address[] public allPairs;
 
     mapping(address => mapping(address => address)) public override getAmm;
 
@@ -27,6 +28,10 @@ contract AmmFactory is IAmmFactory {
         feeToSetter = feeToSetter_;
     }
 
+
+    function allPairsLength() external view returns (uint) {
+        return allPairs.length;
+    }
     function createAmm(address baseToken, address quoteToken) external override onlyUpper returns (address amm) {
         require(baseToken != quoteToken, "AmmFactory.createAmm: IDENTICAL_ADDRESSES");
         require(baseToken != address(0) && quoteToken != address(0), "AmmFactory.createAmm: ZERO_ADDRESS");
@@ -37,6 +42,9 @@ contract AmmFactory is IAmmFactory {
             amm := create2(0, add(ammBytecode, 32), mload(ammBytecode), salt)
         }
         getAmm[baseToken][quoteToken] = amm;
+        allPairs.push(amm);
+        emit AmmCreated(baseToken ,quoteToken,  amm,  allPairs.length);
+
     }
 
     function initAmm(
