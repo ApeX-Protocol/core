@@ -15,9 +15,9 @@ describe("Amm", function () {
   let margin = 0x0;
   let exp1 = ethers.BigNumber.from("10").pow(18);
   let exp2 = ethers.BigNumber.from("10").pow(6);
-  let feeToSetter ; 
+  let feeToSetter;
   beforeEach(async function () {
-    [owner, alice, bob ,feeToSetter] = await ethers.getSigners();
+    [owner, alice, bob, feeToSetter] = await ethers.getSigners();
     console.log("owner:", owner.address);
     console.log("feeToSetter:", feeToSetter.address);
     const AMMFactory = await ethers.getContractFactory("Amm");
@@ -26,22 +26,21 @@ describe("Amm", function () {
     const PriceOracle = await ethers.getContractFactory("MockPriceOracle");
     const MockConfig = await ethers.getContractFactory("Config");
 
-     //config
+    //config
     config = await MockConfig.deploy();
     console.log("config: ", config.address);
-    await config.initialize( owner.address, 100);
+    await config.initialize(owner.address, 100);
     let admin = await config.admin();
     console.log("admin:", admin);
-   
+
     //ammFactory
     // ( upperFactory_, address config_, address feeToSetter_)
-    ammFactory = await AMMFactoryContract.deploy(owner.address , config.address, feeToSetter.address );
+    ammFactory = await AMMFactoryContract.deploy(owner.address, config.address, feeToSetter.address);
     console.log("amm factory: ", ammFactory.address);
-    
+
     // oracle
     priceOracle = await PriceOracle.deploy();
     console.log("priceOracle: ", priceOracle.address);
-   
 
     await config.setPriceOracle(priceOracle.address);
     //token deploy
@@ -53,7 +52,7 @@ describe("Amm", function () {
     console.log("USDT:", USDT.address);
 
     // init alice and bob balance
-   
+
     await AAAToken.transfer(alice.address, ethers.BigNumber.from("10000").mul(exp1));
     await AAAToken.transfer(bob.address, ethers.BigNumber.from("1000000").mul(exp1));
     await USDT.transfer(alice.address, ethers.BigNumber.from("10000").mul(exp2));
@@ -69,13 +68,13 @@ describe("Amm", function () {
     // amm initialize
     //await amm.initialize(AAAToken.address, USDT.address, config.address);
 
-    let tx =  await ammFactory.createAmm(AAAToken.address, USDT.address);
-    let txReceipt= await tx.wait();
+    let tx = await ammFactory.createAmm(AAAToken.address, USDT.address);
+    let txReceipt = await tx.wait();
     await ammFactory.initAmm(AAAToken.address, USDT.address, owner.address);
     console.log("amm: ", txReceipt["events"][0].args[2]);
     let ammAddress = txReceipt["events"][0].args[2];
-    
-    amm =  AMMFactory.attach(ammAddress);
+
+    amm = AMMFactory.attach(ammAddress);
     expect(await amm.totalSupply()).to.equal(0);
     expect(await USDT.balanceOf(alice.address)).to.equal(ethers.BigNumber.from("10000").mul(exp2));
     expect(await AAAToken.balanceOf(alice.address)).to.equal(ethers.BigNumber.from("10000").mul(exp1));
@@ -105,7 +104,7 @@ describe("Amm", function () {
         100000000000,
         ethers.BigNumber.from("316227766016836933")
       );
-      console.log("------------------2");
+    console.log("------------------2");
     //alice swap in
     const ammAlice = amm.connect(alice);
     // alice swap 100AAA to usdt
@@ -117,8 +116,8 @@ describe("Amm", function () {
     let iface1 = new ethers.utils.Interface(eventabi);
     let log1 = iface1.parseLog(swapRes.logs[1]);
     let args1 = log1["args"];
-     console.log("swap input AAA for vusd event input  : ", args1.inputAmount.toString());
-     console.log("swap input AAA for vusd event output: ", args1.outputAmount.toString());
+    console.log("swap input AAA for vusd event input  : ", args1.inputAmount.toString());
+    console.log("swap input AAA for vusd event output: ", args1.outputAmount.toString());
     expect(args1.outputAmount).to.equal(9989002);
 
     //alice swap out

@@ -90,7 +90,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         _safeTransfer(baseToken, margin, baseAmount);
         //todo
-       // IVault(margin).deposit(msg.sender, baseAmount);
+        IVault(margin).deposit(msg.sender, baseAmount);
 
         emit Mint(msg.sender, to, baseAmount, quoteAmount, liquidity);
     }
@@ -127,7 +127,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 inputAmount,
         uint256 outputAmount
     ) external override nonReentrant onlyMargin returns (uint256[2] memory amounts) {
-       // todo onlymargin
+        // todo onlymargin
         uint256[2] memory reserves;
         (reserves, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
         _update(reserves[0], reserves[1], baseReserve, quoteReserve);
