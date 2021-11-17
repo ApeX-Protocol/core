@@ -239,8 +239,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 reserve0;
         uint256 reserve1;
         if (inputAmount > 0 && inputToken != address(0)) {
+            // swapOut
             if (inputToken == baseToken) {
-                // swapOut
                 outputAmount = _getAmountOut(inputAmount, _baseReserve, _quoteReserve);
                 reserve0 = _baseReserve + inputAmount;
                 reserve1 = _quoteReserve - outputAmount;
