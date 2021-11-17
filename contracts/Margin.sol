@@ -59,9 +59,10 @@ contract Margin is IMargin, IVault, Reentrant {
 
     function removeMargin(uint256 withdrawAmount) external override nonReentrant {
         require(withdrawAmount > 0, "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT");
-        //fixme
-        // address trader = msg.sender;
         address trader = tx.origin;
+        if (msg.sender != trader) {
+            require(IConfig(config).routerMap(msg.sender), "Margin.removeMargin: FORBIDDEN");
+        }
         // test carefully if withdraw margin more than withdrawable
         require(withdrawAmount <= getWithdrawable(trader), "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE");
         Position storage traderPosition = traderPositionMap[trader];
@@ -73,9 +74,10 @@ contract Margin is IMargin, IVault, Reentrant {
     function openPosition(uint8 side, uint256 quoteAmount) external override nonReentrant returns (uint256 baseAmount) {
         require(side == 0 || side == 1, "Margin.openPosition: INVALID_SIDE");
         require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
-        //fixme
-        // address trader = msg.sender;
         address trader = tx.origin;
+        if (msg.sender != trader) {
+            require(IConfig(config).routerMap(msg.sender), "Margin.removeMargin: FORBIDDEN");
+        }
 
         Position memory traderPosition = traderPositionMap[trader];
         bool isLong = side == 0;
@@ -114,9 +116,10 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     function closePosition(uint256 quoteAmount) external override nonReentrant returns (uint256 baseAmount) {
-        //fixme
-        // address trader = msg.sender;
         address trader = tx.origin;
+        if (msg.sender != trader) {
+            require(IConfig(config).routerMap(msg.sender), "Margin.removeMargin: FORBIDDEN");
+        }
 
         Position memory traderPosition = traderPositionMap[trader];
         require(traderPosition.quoteSize != 0 && quoteAmount != 0, "Margin.closePosition: ZERO_POSITION");
@@ -397,10 +400,6 @@ contract Margin is IMargin, IVault, Reentrant {
         IERC20(baseToken).transfer(receiver, amount);
         emit Withdraw(user, receiver, amount);
     }
-
-    // function _setPosition(address _trader, Position memory _position) internal {
-    //     traderPositionMap[_trader] = _position;
-    // }
 
     function _addPositionWithAmm(bool isLong, uint256 quoteAmount) internal returns (uint256) {
         address inputToken;

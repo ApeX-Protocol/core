@@ -16,6 +16,8 @@ contract Config is IConfig, Ownable, Initializable {
     uint256 public override liquidateFeeRatio; //if 100, means liquidator bot get 1% as fee
     uint8 public override beta; // 50-100
 
+    mapping(address => bool) public override routerMap;
+
     function initialize(address _admin, uint8 _beta) public initializer {
         admin = _admin;
         beta = _beta;
@@ -33,22 +35,35 @@ contract Config is IConfig, Ownable, Initializable {
         rebasePriceGap = newGap;
     }
 
-    function setInitMarginRatio(uint256 _initMarginRatio) external override onlyAdmin {
-        require(_initMarginRatio >= 500, "ratio >= 500");
-        initMarginRatio = _initMarginRatio;
+    function setInitMarginRatio(uint256 marginRatio) external override onlyAdmin {
+        require(marginRatio >= 500, "ratio >= 500");
+        initMarginRatio = marginRatio;
     }
 
-    function setLiquidateThreshold(uint256 _liquidateThreshold) external override onlyAdmin {
-        require(_liquidateThreshold > 9000 && _liquidateThreshold <= 10000, "9000 < liquidateThreshold <= 10000");
-        liquidateThreshold = _liquidateThreshold;
+    function setLiquidateThreshold(uint256 threshold) external override onlyAdmin {
+        require(threshold > 9000 && threshold <= 10000, "9000 < liquidateThreshold <= 10000");
+        liquidateThreshold = threshold;
     }
 
-    function setLiquidateFeeRatio(uint256 _liquidateFeeRatio) external override onlyAdmin {
-        require(_liquidateFeeRatio > 0 && _liquidateFeeRatio <= 2000, "0 < liquidateFeeRatio <= 2000");
-        liquidateFeeRatio = _liquidateFeeRatio;
+    function setLiquidateFeeRatio(uint256 feeRatio) external override onlyAdmin {
+        require(feeRatio > 0 && feeRatio <= 2000, "0 < liquidateFeeRatio <= 2000");
+        liquidateFeeRatio = feeRatio;
     }
 
-    function setBeta(uint8 _beta) external override onlyAdmin {
-        beta = _beta;
+    function setBeta(uint8 newBeta) external override onlyAdmin {
+        beta = newBeta;
+    }
+
+    function registerRouter(address router) external override onlyAdmin {
+        require(router != address(0), "Config: ZERO_ADDRESS");
+        routerMap[router] = true;
+        emit RouterRegistered(router);
+    }
+
+    function unregisterRouter(address router) external override onlyAdmin {
+        require(router != address(0), "Config: ZERO_ADDRESS");
+        require(routerMap[router] == true, "Config: UNREGISTERED");
+        delete routerMap[router];
+        emit RouterUnregistered(router);
     }
 }

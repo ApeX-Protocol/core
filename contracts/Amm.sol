@@ -156,6 +156,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     }
 
     function rebase() external override nonReentrant returns (uint256 quoteReserveAfter) {
+        require(msg.sender == tx.origin, "Amm.rebase: ONLY_EOA");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         quoteReserveAfter = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, _baseReserve);
         uint256 gap = IConfig(config).rebasePriceGap();
@@ -316,15 +317,15 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 baseReserveNew,
         uint256 quoteReserveNew,
         uint112 baseReserveOld,
-        uint112 quoeteReserveOld
+        uint112 quoteReserveOld
     ) private {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
         uint32 blockTimestamp = uint32(block.timestamp % 2**32);
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
-        if (timeElapsed > 0 && baseReserveOld != 0 && quoeteReserveOld != 0) {
+        if (timeElapsed > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
             // * never overflows, and + overflow is desired
-            price0CumulativeLast += uint256(UQ112x112.encode(quoeteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
-            price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoeteReserveOld)) * timeElapsed;
+            price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
+            price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
         }
         baseReserve = uint112(baseReserveNew);
         quoteReserve = uint112(quoteReserveNew);
