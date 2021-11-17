@@ -9,7 +9,9 @@ npm install
 npm run compile
 
 ## Run Tests
-npm run test
+npm run test  
+npx hardhat test ./test/amm.js
+
 
 ## Run Deploy
 > set .env
