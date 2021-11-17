@@ -51,7 +51,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         baseToken = baseToken_;
         quoteToken = quoteToken_;
         margin = margin_;
-        config = IMarginFactory(factory).config();
+        config = IAmmFactory(factory).config();
     }
 
     function mint(address to)
@@ -89,7 +89,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
         _safeTransfer(baseToken, margin, baseAmount);
-        IVault(margin).deposit(msg.sender, baseAmount);
+        //todo
+       // IVault(margin).deposit(msg.sender, baseAmount);
 
         emit Mint(msg.sender, to, baseAmount, quoteAmount, liquidity);
     }
@@ -126,6 +127,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 inputAmount,
         uint256 outputAmount
     ) external override nonReentrant onlyMargin returns (uint256[2] memory amounts) {
+       // todo onlymargin
         uint256[2] memory reserves;
         (reserves, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
         _update(reserves[0], reserves[1], baseReserve, quoteReserve);
