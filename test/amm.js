@@ -96,7 +96,6 @@ describe("Amm", function () {
     // console.log("mint event baseAmount  : ", args.baseAmount.toString());
     // console.log("mint event quoteAmount: ", args.quoteAmount.toString());
     // console.log("mint event liquidity: ", args.liquidity.toString());
-    console.log("------------------1");
     await expect(amm.mint(owner.address))
       .to.emit(amm, "Mint")
       .withArgs(
