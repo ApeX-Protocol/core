@@ -213,10 +213,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         if (dir) {
             //long
-            denominator = (_quoteReserve + (beta * quoteAmount) / 100);
+            denominator = (_quoteReserve - (beta * quoteAmount) / 100);
         } else {
             //short
-            denominator = (_quoteReserve - (beta * quoteAmount) / 100);
+            denominator = (_quoteReserve + (beta * quoteAmount) / 100);
         }
 
         //224
