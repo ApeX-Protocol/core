@@ -85,14 +85,14 @@ describe("corePool contract", function () {
       await apexCorePoolIns.stake(10000, oneYearLockUntil);
       let user = await apexCorePoolIns.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(10000);
-      expect(user.totalWeight.toNumber()).to.equal(19999980000);
+      expect(user.totalWeight.toNumber()).to.be.at.least(19999900000);
       expect(user.subYieldRewards.toNumber()).to.equal(0);
 
       oneYearLockUntil = await oneYearLater();
       await apexCorePoolIns.stake(20000, oneYearLockUntil);
       user = await apexCorePoolIns.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(30019);
-      expect(user.totalWeight.toNumber()).to.equal(60037940000);
+      expect(user.totalWeight.toNumber()).to.be.at.most(60037990000);
       expect(user.subYieldRewards.toNumber()).to.equal(60);
     });
   });
