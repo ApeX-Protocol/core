@@ -189,11 +189,17 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         uint256 quoteAmount;
         uint256 baseAmount;
-        if (inputAmount != 0) {
+        bool dir;
+        if (inputAmount != 0 && inputToken == quoteToken) {
+            //short
             quoteAmount = inputAmount;
+            dir = false;
         } else {
+            //long
             quoteAmount = outputAmount;
+            dir = true;
         }
+
         uint256 inputSquare = quoteAmount * quoteAmount;
         // price = (sqrt(y/x)+ betal * deltaY/L).**2;
         // deltaX = deltaY/price
@@ -201,8 +207,18 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
         uint8 beta = IConfig(config).beta();
         require(beta >= 50 && beta <= 100, "beta error");
+
         //112
-        uint256 denominator = (_quoteReserve + (beta * quoteAmount) / 100);
+        uint256 denominator;
+
+        if (dir) {
+            //long
+            denominator = (_quoteReserve - (beta * quoteAmount) / 100);
+        } else {
+            //short
+            denominator = (_quoteReserve + (beta * quoteAmount) / 100);
+        }
+
         //224
         denominator = denominator * denominator;
         baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
