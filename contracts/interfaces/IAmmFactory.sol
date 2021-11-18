@@ -1,6 +1,8 @@
 pragma solidity ^0.8.0;
 
 interface IAmmFactory {
+    event AmmCreated(address indexed baseToken, address indexed quoteToken, address amm);
+
     function createAmm(address baseToken, address quoteToken) external returns (address amm);
 
     function initAmm(

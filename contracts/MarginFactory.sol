@@ -30,6 +30,7 @@ contract MarginFactory is IMarginFactory {
             margin := create2(0, add(marginBytecode, 32), mload(marginBytecode), salt)
         }
         getMargin[baseToken][quoteToken] = margin;
+        emit MarginCreated(baseToken, quoteToken, margin);
     }
 
     function initMargin(

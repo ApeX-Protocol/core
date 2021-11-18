@@ -37,6 +37,7 @@ contract AmmFactory is IAmmFactory {
             amm := create2(0, add(ammBytecode, 32), mload(ammBytecode), salt)
         }
         getAmm[baseToken][quoteToken] = amm;
+        emit AmmCreated(baseToken, quoteToken, amm);
     }
 
     function initAmm(
