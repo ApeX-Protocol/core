@@ -1,6 +1,8 @@
 pragma solidity ^0.8.0;
 
 interface IMarginFactory {
+    event MarginCreated(address indexed baseToken, address indexed quoteToken, address margin);
+
     function createMargin(address baseToken, address quoteToken) external returns (address margin);
 
     function initMargin(
