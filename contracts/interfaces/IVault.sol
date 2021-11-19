@@ -4,10 +4,13 @@ interface IVault {
     event Deposit(address indexed user, uint256 amount);
     event Withdraw(address indexed user, address indexed receiver, uint256 amount);
 
+    /// @notice get baseToken amount in margin
     function reserve() external view returns (uint256);
 
+    /// @notice deposit baseToken to user
     function deposit(address user, uint256 amount) external;
 
+    /// @notice withdraw user's baseToken from margin contract to receiver
     function withdraw(
         address user,
         address receiver,
