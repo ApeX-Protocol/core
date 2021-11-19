@@ -8,7 +8,7 @@ abstract contract ERC20Aware is Reentrant {
     address public token;
 
     constructor(address _token) {
-        require(_token != address(0), "token address not set");
+        require(_token != address(0), "ERC20Aware: INVALID_POOL_TOKEN");
         token = _token;
     }
 

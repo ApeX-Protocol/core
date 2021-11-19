@@ -36,7 +36,6 @@ contract CorePool is ICorePool, ERC20Aware {
         uint256 _initBlock
     ) ERC20Aware(_poolToken) {
         require(_factory != address(0), "cp: INVALID_FACTORY");
-        require(_poolToken != address(0), "cp: INVALID_POOL_TOKEN");
         require(_apex != address(0), "cp: INVALID_APEX_TOKEN");
         require(_initBlock > 0, "cp: INVALID_INIT_BLOCK");
 
