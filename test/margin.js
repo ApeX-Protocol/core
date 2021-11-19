@@ -34,6 +34,7 @@ describe("Margin contract", function () {
     const Margin = await ethers.getContractFactory("Margin");
     margin = await Margin.deploy();
 
+    await config.initialize(owner.address, 100);
     await margin.initialize(mockBaseToken.address, mockQuoteToken.address, config.address, mockVAmm.address);
     await mockRouter.setMarginContract(margin.address);
 
