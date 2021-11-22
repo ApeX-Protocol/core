@@ -7,44 +7,35 @@ describe("Invitation", function () {
   let alice;
   let owner;
   let bob;
-  
+
   beforeEach(async function () {
     [owner, alice, bob] = await ethers.getSigners();
     console.log("owner:", owner.address);
-    const InvivationFactory = await ethers.getContractFactory("Invivation");
+    console.log("alice:", alice.address);
+    const InvivationFactory = await ethers.getContractFactory("Invitation");
 
-    //ammFactory
-    
     invitation = await InvivationFactory.deploy();
     console.log("invitation address: ", invitation.address);
-
   });
 
   it("register", async function () {
-  
     console.log("---------test begin---------");
-    await invitation.register();
     console.log(await invitation.totalRegisterCount());
-    
+
     await expect(invitation.register())
       .to.emit(invitation, "Invite")
-      .withArgs(
-        owner.address,
-        0,
-        1
-      );
+      .withArgs(owner.address, "0x0000000000000000000000000000000000000000", 2);
+    expect(await invitation.totalRegisterCount()).to.equal(1);
 
-      const invitationAlice = invitation.connect(alice);
+    const invitationAlice = invitation.connect(alice);
 
+    await invitationAlice.acceptInvitation(owner.address);
 
-     await invitationAlice.acceptInvitation(owner.address);
-     
-     console.log(await invitation.totalRegisterCount());
-    
+    expect(await invitation.totalRegisterCount()).to.equal(2);
 
+    console.log(await invitationAlice.getLowers1(owner.address));
+
+    expect((await invitationAlice.getLowers1(owner.address))[0]).equal(alice.address);
+    expect(await invitationAlice.getUpper1(alice.address)).equal(owner.address);
   });
-
-
-
-  
 });
