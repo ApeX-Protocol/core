@@ -85,6 +85,8 @@ contract Invitation {
     function acceptInvitation(address inviter) external returns (bool) {
         require(msg.sender != inviter, "FORBIDDEN");
         UserInvitation storage sender = userInvitations[msg.sender];
+
+        // ensure not registered
         require(0 == sender.startBlock, "REGISTERED");
         UserInvitation storage upper = userInvitations[inviter];
         // throw exception 
@@ -105,5 +107,6 @@ contract Invitation {
 
         return true;
     }
+
 
 }
