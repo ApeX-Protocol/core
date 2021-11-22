@@ -12,7 +12,7 @@ contract Invitation {
 
     uint256 public startBlock;
     mapping(address => UserInvitation) public userInvitations;
-
+    uint256 public totalRegisterCount = 0;
     constructor() public {
         startBlock = block.number;
     }
@@ -35,10 +35,12 @@ contract Invitation {
         return userInvitations[user].lowers;
     }
 
+     //todo
     function getLowers2(address user) external view returns (address[] memory, address[] memory) {
         address[] memory lowers1 = userInvitations[user].lowers;
         uint256 count = 0;
         uint256 lowers1Len = lowers1.length;
+        // get the  total count;
         for (uint256 i = 0; i < lowers1Len; i++) {
             count += userInvitations[lowers1[i]].lowers.length;
         }
@@ -68,12 +70,14 @@ contract Invitation {
     }
 
     function register() external returns (bool) {
-        UserInvitation storage user = userInvitations[tx.origin];
+        UserInvitation storage user = userInvitations[msg.sender];
         require(0 == user.startBlock, "REGISTERED");
+        //todo
         user.upper = address(0);
         user.startBlock = block.number;
+        totalRegisterCount++;
         
-        emit Invite(tx.origin, user.upper, user.startBlock);
+        emit Invite(msg.sender, user.upper, user.startBlock);
         
         return true;
     }
@@ -83,15 +87,19 @@ contract Invitation {
         UserInvitation storage sender = userInvitations[msg.sender];
         require(0 == sender.startBlock, "REGISTERED");
         UserInvitation storage upper = userInvitations[inviter];
-        if (0 == upper.startBlock) {
-            upper.upper = address(0);
-            upper.startBlock = block.number;
+        // throw exception 
+        // if (0 == upper.startBlock) {
+        //     upper.upper = address(0);
+        //     upper.startBlock = block.number;
             
-            emit Invite(inviter, upper.upper, upper.startBlock);
-        }
+        //     emit Invite(inviter, upper.upper, upper.startBlock);
+        // }
+        require(upper.startBlock != 0 , "INVITER_NOT_EXIST!");
+
         sender.upper = inviter;
         upper.lowers.push(msg.sender);
         sender.startBlock = block.number;
+        totalRegisterCount++;
         
         emit Invite(msg.sender, sender.upper, sender.startBlock);
 
