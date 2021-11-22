@@ -437,4 +437,18 @@ describe("Margin contract", function () {
       expect(await margin.getWithdrawable(addr1.address)).to.equal(1);
     });
   });
+
+  describe("updateCPF", async function () {
+    it("reverted when update frequently and directly", async function () {
+      await margin.updateCPF();
+      await expect(margin.updateCPF()).to.be.revertedWith("Margin._updateCPF: CANT_UPDATE_NOW");
+    });
+
+    it("no change when update frequently and indirectly", async function () {
+      await mockRouter.addMargin(owner.address, 8);
+      let latestUpdateCPF = await margin.lastUpdateCPF();
+      await mockRouter.addMargin(owner.address, 8);
+      expect(await margin.lastUpdateCPF()).to.be.equal(latestUpdateCPF);
+    });
+  });
 });
