@@ -5,6 +5,8 @@ import "./libraries/UniswapV2Library.sol";
 
 contract PriceOracle is IPriceOracle {
     address public uniswapV2Factory;
+    IAmmFactory public ammFactory;
+    IConfig public config;
 
     constructor(address _uniswapV2Facroty) {
         uniswapV2Factory = _uniswapV2Facroty;
@@ -21,6 +23,15 @@ contract PriceOracle is IPriceOracle {
             quoteToken
         );
         quoteAmount = UniswapV2Library.quote(baseAmount, reserveBase, reserveQuote);
+    }
+
+    function markPrice(address baseToken, address quoteToken) external view returns (uint256) {
+        IAmm amm = IAmm(ammFactory.getAmm(baseToken, quoteToken));
+
+    }
+
+    function markPriceAcc(int256 quoteAmount, int256 quoteReserve) external view returns (uint256) {
+        2 * config.beta() * quoteAmount / quoteReserve
     }
 
     function estimateSwapWithMarkPrice(
