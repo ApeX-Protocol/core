@@ -9,6 +9,7 @@ import "./utils/Ownable.sol";
 
 contract Config is IConfig, Ownable, Initializable {
     address public override priceOracle;
+    address public override router;
 
     uint256 public override rebasePriceGap;
     uint256 public override initMarginRatio; //if 1000, means margin ratio >= 10%
@@ -50,5 +51,9 @@ contract Config is IConfig, Ownable, Initializable {
 
     function setBeta(uint8 _beta) external override onlyAdmin {
         beta = _beta;
+    }
+
+    function setRouter(address _router) external override onlyAdmin {
+        router = _router;
     }
 }

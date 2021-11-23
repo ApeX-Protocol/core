@@ -8,6 +8,7 @@ import "./interfaces/IAmm.sol";
 import "./interfaces/IConfig.sol";
 import "./interfaces/IMargin.sol";
 import "./interfaces/IVault.sol";
+import "./interfaces/IPriceOracle.sol";
 import "./utils/Reentrant.sol";
 import "./libraries/SignedMath.sol";
 
@@ -21,7 +22,7 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     uint256 constant MAXRATIO = 10000;
-    uint256 constant fundingRatePrecision = 10000;
+    uint256 constant fundingRatePrecision = 1e18;
     uint256 constant maxCPFBoost = 10;
 
     address public immutable override factory;
@@ -66,11 +67,11 @@ contract Margin is IMargin, IVault, Reentrant {
         emit AddMargin(trader, depositAmount);
     }
 
-    function removeMargin(uint256 withdrawAmount) external override nonReentrant {
+    function removeMargin(address trader, uint256 withdrawAmount) external override nonReentrant {
         require(withdrawAmount > 0, "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT");
-        //fixme
-        // address trader = msg.sender;
-        address trader = tx.origin;
+        if (msg.sender != trader) {
+            require(msg.sender == IConfig(config).router());
+        }
 
         updateCPF();
         // test carefully if withdraw margin more than withdrawable
@@ -82,12 +83,16 @@ contract Margin is IMargin, IVault, Reentrant {
         emit RemoveMargin(trader, withdrawAmount);
     }
 
-    function openPosition(uint8 side, uint256 quoteAmount) external override nonReentrant returns (uint256 baseAmount) {
+    function openPosition(
+        address trader,
+        uint8 side,
+        uint256 quoteAmount
+    ) external override nonReentrant returns (uint256 baseAmount) {
         require(side == 0 || side == 1, "Margin.openPosition: INVALID_SIDE");
         require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
-        //fixme
-        // address trader = msg.sender;
-        address trader = tx.origin;
+        if (msg.sender != trader) {
+            require(msg.sender == IConfig(config).router());
+        }
         updateCPF();
 
         Position memory traderPosition = traderPositionMap[trader];
@@ -130,10 +135,15 @@ contract Margin is IMargin, IVault, Reentrant {
         emit OpenPosition(trader, side, baseAmount, quoteAmount);
     }
 
-    function closePosition(uint256 quoteAmount) external override nonReentrant returns (uint256 baseAmount) {
-        //fixme
-        // address trader = msg.sender;
-        address trader = tx.origin;
+    function closePosition(address trader, uint256 quoteAmount)
+        external
+        override
+        nonReentrant
+        returns (uint256 baseAmount)
+    {
+        if (msg.sender != trader) {
+            require(msg.sender == IConfig(config).router());
+        }
         updateCPF();
 
         Position memory traderPosition = traderPositionMap[trader];
@@ -282,28 +292,30 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     function updateCPF() public {
-        //settleFunding is (markPrice - indexPrice) * updateCPFInterval / 1day
-        // fixme should be amm's settle price
-        int256 premiumFraction = 0;
+        //premiumFraction is (markPrice - indexPrice) * fundingRatePrecision / 8h / indexPrice
+        int256 premiumFraction = IPriceOracle(IConfig(config).priceOracle()).getPremiumFraction(amm);
         int256 delta;
-        if ((premiumFraction > 0 && totalShort > 0) || (premiumFraction < 0 && totalLong > 0)) {
-            if (totalLong <= maxCPFBoost * totalShort && totalShort <= maxCPFBoost * totalLong) {
-                delta = premiumFraction >= 0
-                    ? premiumFraction.mulU(totalLong).divU(totalShort)
-                    : premiumFraction.mulU(totalShort).divU(totalLong);
-            } else if (totalLong > maxCPFBoost * totalShort) {
-                delta = premiumFraction >= 0 ? premiumFraction.mulU(maxCPFBoost) : premiumFraction.divU(maxCPFBoost);
-            } else {
-                delta = premiumFraction >= 0 ? premiumFraction.divU(maxCPFBoost) : premiumFraction.mulU(maxCPFBoost);
-            }
+        if (
+            totalLong <= maxCPFBoost * totalShort &&
+            totalShort <= maxCPFBoost * totalLong &&
+            (totalShort != 0 && totalLong != 0)
+        ) {
+            delta = premiumFraction >= 0
+                ? premiumFraction.mulU(totalLong).divU(totalShort)
+                : premiumFraction.mulU(totalShort).divU(totalLong);
+        } else if (totalLong > maxCPFBoost * totalShort) {
+            delta = premiumFraction >= 0 ? premiumFraction.mulU(maxCPFBoost) : premiumFraction.divU(maxCPFBoost);
+        } else if (totalShort > maxCPFBoost * totalLong) {
+            delta = premiumFraction >= 0 ? premiumFraction.divU(maxCPFBoost) : premiumFraction.mulU(maxCPFBoost);
         } else {
             delta = premiumFraction;
         }
 
-        int256 newLatestCPF = delta + latestCPF;
+        uint256 currentTimeStamp = block.timestamp;
+        int256 newLatestCPF = delta.mulU(currentTimeStamp - lastUpdateCPF) + latestCPF;
         latestCPF = newLatestCPF;
-        lastUpdateCPF = block.timestamp;
-        emit UpdateCPF(block.timestamp, newLatestCPF);
+        lastUpdateCPF = currentTimeStamp;
+        emit UpdateCPF(currentTimeStamp, newLatestCPF);
     }
 
     //calculate how much fundingFee can earn with quoteSize

@@ -33,16 +33,20 @@ interface IMargin {
 
     /// @notice remove margin to msg.sender
     /// @param withdrawAmount base amount to withdraw.
-    function removeMargin(uint256 withdrawAmount) external;
+    function removeMargin(address trader, uint256 withdrawAmount) external;
 
     /// @notice open position with side and quoteAmount by msg.sender
     /// @param side long or short.
     /// @param quoteAmount quote amount.
-    function openPosition(uint8 side, uint256 quoteAmount) external returns (uint256 baseAmount);
+    function openPosition(
+        address trader,
+        uint8 side,
+        uint256 quoteAmount
+    ) external returns (uint256 baseAmount);
 
     /// @notice close msg.sender's position with quoteAmount
     /// @param quoteAmount quote amount to close.
-    function closePosition(uint256 quoteAmount) external returns (uint256 baseAmount);
+    function closePosition(address trader, uint256 quoteAmount) external returns (uint256 baseAmount);
 
     /// @notice liquidate trader
     function liquidate(address trader)

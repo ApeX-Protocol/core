@@ -23,6 +23,6 @@ contract MockRouter {
     }
 
     function removeMargin(uint256 _amount) external {
-        margin.removeMargin(_amount);
+        margin.removeMargin(msg.sender, _amount);
     }
 }

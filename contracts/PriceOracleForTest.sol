@@ -31,7 +31,7 @@ contract PriceOracleForTest is IPriceOracle {
         getReserves[baseToken][quoteToken] = Reserves(reserveBase, reserveQuote);
     }
 
-     function estimateSwapWithMarkPrice(
+    function estimateSwapWithMarkPrice(
         address inputToken,
         address outputToken,
         uint256 inputAmount,
@@ -58,5 +58,9 @@ contract PriceOracleForTest is IPriceOracle {
         // denominator = denominator * denominator;
         // baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
         // return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
+    }
+
+    function getPremiumFraction(address amm) external view override returns (int256) {
+        return 0;
     }
 }

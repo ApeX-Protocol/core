@@ -51,4 +51,6 @@ contract PriceOracle is IPriceOracle {
         // baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
         // return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
     }
+
+    function getPremiumFraction(address amm) external view override returns (int256) {}
 }

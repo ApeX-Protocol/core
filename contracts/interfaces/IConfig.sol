@@ -9,6 +9,9 @@ interface IConfig {
     /// @notice get price oracle address.
     function priceOracle() external view returns (address);
 
+    /// @notice get router.
+    function router() external view returns (address);
+
     /// @notice get beta of amm.
     function beta() external view returns (uint8);
 
@@ -47,4 +50,7 @@ interface IConfig {
     /// @notice Set a new liquidate fee of margin
     /// @param _liquidateFeeRatio new liquidate fee of margin.
     function setLiquidateFeeRatio(uint256 _liquidateFeeRatio) external;
+
+    /// @notice Set a new router contract
+    function setRouter(address _router) external;
 }
