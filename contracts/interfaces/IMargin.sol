@@ -14,6 +14,7 @@ interface IMargin {
         uint256 baseAmount,
         uint256 bonus
     );
+    event UpdateCPF(uint256 timeStamp, int256 cpf);
 
     /// @notice only factory can call this function
     /// @param baseToken_ margin's baseToken.
