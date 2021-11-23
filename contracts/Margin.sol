@@ -22,6 +22,7 @@ contract Margin is IMargin, IVault, Reentrant {
 
     uint256 constant MAXRATIO = 10000;
     uint256 constant fundingRatePrecision = 10000;
+    uint256 constant maxCPFBoost = 10;
 
     address public immutable override factory;
     address public override config;
@@ -284,11 +285,20 @@ contract Margin is IMargin, IVault, Reentrant {
         //settleFunding is (markPrice - indexPrice) * updateCPFInterval / 1day
         // fixme should be amm's settle price
         int256 premiumFraction = 0;
-
-        //tocheck
-        int256 delta = premiumFraction > 0
-            ? (totalShort == 0 ? premiumFraction : premiumFraction.mulU(totalLong).divU(totalShort))
-            : (totalLong == 0 ? premiumFraction : premiumFraction.mulU(totalShort).divU(totalLong));
+        int256 delta;
+        if ((premiumFraction > 0 && totalShort > 0) || (premiumFraction < 0 && totalLong > 0)) {
+            if (totalLong <= maxCPFBoost * totalShort && totalShort <= maxCPFBoost * totalLong) {
+                delta = premiumFraction >= 0
+                    ? premiumFraction.mulU(totalLong).divU(totalShort)
+                    : premiumFraction.mulU(totalShort).divU(totalLong);
+            } else if (totalLong > maxCPFBoost * totalShort) {
+                delta = premiumFraction >= 0 ? premiumFraction.mulU(maxCPFBoost) : premiumFraction.divU(maxCPFBoost);
+            } else {
+                delta = premiumFraction >= 0 ? premiumFraction.divU(maxCPFBoost) : premiumFraction.mulU(maxCPFBoost);
+            }
+        } else {
+            delta = premiumFraction;
+        }
 
         int256 newLatestCPF = delta + latestCPF;
         latestCPF = newLatestCPF;

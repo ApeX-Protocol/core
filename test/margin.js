@@ -439,16 +439,20 @@ describe("Margin contract", function () {
   });
 
   describe("updateCPF", async function () {
-    it("reverted when update frequently and directly", async function () {
+    it("can update frequently and directly", async function () {
       await margin.updateCPF();
-      await expect(margin.updateCPF()).to.be.revertedWith("Margin._updateCPF: CANT_UPDATE_NOW");
+      let latestUpdateCPF1 = await margin.lastUpdateCPF();
+      await margin.updateCPF();
+      let latestUpdateCPF2 = await margin.lastUpdateCPF();
+      expect(latestUpdateCPF2.toNumber()).to.be.greaterThan(latestUpdateCPF1.toNumber());
     });
 
-    it("no change when update frequently and indirectly", async function () {
+    it("can update frequently and indirectly", async function () {
       await mockRouter.addMargin(owner.address, 8);
-      let latestUpdateCPF = await margin.lastUpdateCPF();
+      let latestUpdateCPF1 = await margin.lastUpdateCPF();
       await mockRouter.addMargin(owner.address, 8);
-      expect(await margin.lastUpdateCPF()).to.be.equal(latestUpdateCPF);
+      let latestUpdateCPF2 = await margin.lastUpdateCPF();
+      expect(latestUpdateCPF2.toNumber()).to.be.greaterThan(latestUpdateCPF1.toNumber());
     });
   });
 });
