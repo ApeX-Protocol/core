@@ -71,7 +71,7 @@ contract Router is IRouter {
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         ILiquidityERC20(amm).transferFrom(msg.sender, amm, liquidity);
-        ( baseAmount, quoteAmount,) = IAmm(amm).burn(msg.sender);
+        (baseAmount, quoteAmount, ) = IAmm(amm).burn(msg.sender);
         require(baseAmount >= baseAmountMin, "Router: INSUFFICIENT_BASE_AMOUNT");
     }
 
@@ -94,7 +94,7 @@ contract Router is IRouter {
     ) external override {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
-        IMargin(margin).removeMargin(amount);
+        IMargin(margin).removeMargin(msg.sender, amount);
     }
 
     function openPositionWithWallet(
@@ -111,7 +111,7 @@ contract Router is IRouter {
         require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, marginAmount);
         IMargin(margin).addMargin(msg.sender, marginAmount);
-        baseAmount = IMargin(margin).openPosition(side, quoteAmount);
+        baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
             require(baseAmount >= baseAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
         } else {
@@ -130,7 +130,7 @@ contract Router is IRouter {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
         require(side == 0 || side == 1, "Router: INSUFFICIENT_SIDE");
-        baseAmount = IMargin(margin).openPosition(side, quoteAmount);
+        baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
             require(baseAmount >= baseAmountLimit, "Router: INSUFFICIENT_QUOTE_AMOUNT");
         } else {
@@ -147,11 +147,11 @@ contract Router is IRouter {
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router: ZERO_ADDRESS");
-        baseAmount = IMargin(margin).closePosition(quoteAmount);
+        baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
         if (autoWithdraw) {
             withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
             if (withdrawAmount > 0) {
-                IMargin(margin).removeMargin(withdrawAmount);
+                IMargin(margin).removeMargin(msg.sender, withdrawAmount);
             }
         }
     }

@@ -26,15 +26,29 @@ interface ICorePool {
 
     event UpdateStakeLock(address indexed by, uint256 depositId, uint256 lockFrom, uint256 lockUntil);
 
+    /// @notice Get pool token of this core pool
     function poolToken() external view returns (address);
 
+    /// @notice Process yield reward (apex) of msg.sender
     function processRewards() external;
 
+    /// @notice Stake poolToken
+    /// @param amount poolToken's amount to stake.
+    /// @param lockUntil time to lock.
     function stake(uint256 amount, uint256 lockUntil) external;
 
+    /// @notice Unstake poolToken
+    /// @param depositId the deposit index.
+    /// @param amount poolToken's amount to unstake.
     function unstake(uint256 depositId, uint256 amount) external;
 
+    /// @notice Not-apex corePool to stake their users' yield to apex corePool
+    /// @param staker add yield to this staker in apex corePool.
+    /// @param amount yield apex amount to stake.
     function stakeAsPool(address staker, uint256 amount) external;
 
+    /// @notice enlarge lock time of this deposit `depositId` to `lockUntil`
+    /// @param depositId the deposit index.
+    /// @param lockUntil new lock time.
     function updateStakeLock(uint256 depositId, uint256 lockUntil) external;
 }

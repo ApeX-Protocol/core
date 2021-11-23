@@ -7,7 +7,8 @@ describe("Config contract", function () {
     [owner, addr1, liquidator, ...addrs] = await ethers.getSigners();
 
     const Config = await ethers.getContractFactory("Config");
-    config = await Config.deploy();
+    config = await upgrades.deployProxy(Config, [owner.address, 100]);
+    await config.deployed();
 
     await config.setInitMarginRatio(909);
     await config.setLiquidateThreshold(10000);
