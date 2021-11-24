@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "../interfaces/IMintableERC20.sol";
-import "../utils/Reentrant.sol";
+import "./Reentrant.sol";
 
 abstract contract ApexAware is Reentrant {
     address public apex;

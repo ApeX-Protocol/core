@@ -52,7 +52,7 @@ describe("Margin contract", function () {
     await mockBaseToken.approve(mockRouter.address, routerAllowance);
     await mockBaseToken.connect(addr1).approve(mockRouter.address, addr1InitBaseAmount);
 
-    await config.setRouter(mockRouter.address);
+    await config.registerRouter(mockRouter.address);
     await config.setInitMarginRatio(909);
     await config.setLiquidateThreshold(10000);
     await config.setLiquidateFeeRatio(2000);
@@ -461,8 +461,9 @@ describe("Margin contract", function () {
 
     it("can update frequently and indirectly", async function () {
       await mockRouter.addMargin(owner.address, 8);
+      await mockRouter.removeMargin(1);
       let latestUpdateCPF1 = await margin.lastUpdateCPF();
-      await mockRouter.addMargin(owner.address, 8);
+      await mockRouter.removeMargin(1);
       let latestUpdateCPF2 = await margin.lastUpdateCPF();
       expect(latestUpdateCPF2.toNumber()).to.be.greaterThan(latestUpdateCPF1.toNumber());
     });

@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "../interfaces/ICorePool.sol";
 import "../interfaces/ICorePoolFactory.sol";
-import "../libraries/ApexAware.sol";
+import "../utils/ApexAware.sol";
 import "../utils/Initializable.sol";
 import "../utils/Ownable.sol";
 import "./CorePool.sol";

@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 import "../interfaces/ICorePool.sol";
 import "../interfaces/ICorePoolFactory.sol";
 import "../interfaces/IERC20.sol";
-import "../libraries/ERC20Aware.sol";
+import "../utils/ERC20Aware.sol";
 
 contract CorePool is ICorePool, ERC20Aware {
     uint256 internal constant ONE_YEAR = 365 days;

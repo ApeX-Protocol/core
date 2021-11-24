@@ -92,4 +92,10 @@ interface IMargin {
 
     /// @notice check if can liquidate this trader's position
     function canLiquidate(address trader) external view returns (bool);
+
+    /// @notice calculate the latest funding fee with current position
+    function calFundingFee() external view returns (int256 fundingFee);
+
+    /// @notice calculate the latest debt ratio with Pnl and funding fee
+    function calDebtRatio(int256 quoteSize, int256 baseSize) external view returns (uint256 debtRatio);
 }
