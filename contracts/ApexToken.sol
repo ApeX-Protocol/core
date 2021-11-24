@@ -11,7 +11,7 @@ contract ApeXToken {
     uint8 public constant decimals = 18;
 
     /// @notice Total number of tokens in circulation
-    uint256 public constant totalSupply = 1_000_000_000e18; // 1 billion UU
+    uint256 public constant totalSupply = 100_000_000e18; // 100 million
 
     /// @notice Allowance amounts on behalf of others
     mapping(address => mapping(address => uint96)) internal allowances;
@@ -65,7 +65,7 @@ contract ApeXToken {
      * @notice Construct a new UU token
      * @param account The initial account to grant all the tokens
      */
-    constructor(address account) {
+    constructor(address account) public {
         balances[account] = uint96(totalSupply);
         emit Transfer(address(0), account, totalSupply);
     }

@@ -8,7 +8,7 @@ interface IBondPool {
     struct Bond {
         uint256 payout;
         uint256 vesting;
-        uint256 lastBlock;
+        uint256 lastBlockTime;
         uint256 paidAmount;
     }
 
@@ -33,9 +33,9 @@ interface IBondPool {
     function discount() external view returns (uint256);
 
     function vestingTerm() external view returns (uint256);
-    
+
     function bondInfoFor(address depositor) external view returns (Bond memory);
-    
+
     function payoutFor(uint256 amount) external view returns (uint256 payout);
 
     function percentVestedFor(address depositor) external view returns (uint256 percentVested);

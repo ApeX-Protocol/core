@@ -26,7 +26,8 @@ interface IPCVTreasury {
     function withdraw(
         address lpToken,
         address policy,
-        uint256 amount
+        uint256 amount,
+        bytes calldata data
     ) external;
 
     function grantApeX(address to, uint256 amount) external;

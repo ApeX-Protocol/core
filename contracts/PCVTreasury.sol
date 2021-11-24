@@ -46,7 +46,8 @@ contract PCVTreasury is IPCVTreasury, Ownable {
     function withdraw(
         address lpToken,
         address policy,
-        uint256 amount
+        uint256 amount,
+        bytes calldata data
     ) external override onlyAdmin {
         require(isLiquidityToken[lpToken], "PCVTreasury.deposit: NOT_LIQUIDITY_TOKEN");
         require(policy != address(0), "PCVTreasury.deposit: ZERO_ADDRESS");
@@ -54,7 +55,7 @@ contract PCVTreasury is IPCVTreasury, Ownable {
         uint256 balance = IERC20(lpToken).balanceOf(address(this));
         require(amount <= balance, "PCVTreasury.deposit: NOT_ENOUGH_BALANCE");
         TransferHelper.safeTransfer(lpToken, policy, amount);
-        IPCVPolicy(policy).execute(lpToken, amount);
+        IPCVPolicy(policy).execute(lpToken, amount, data);
         emit Withdraw(lpToken, policy, amount);
     }
 
