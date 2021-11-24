@@ -1,67 +1,88 @@
 pragma solidity ^0.8.0;
 
+import "./interfaces/IERC20.sol";
+import "./interfaces/IAmm.sol";
+import "./interfaces/IConfig.sol";
 import "./interfaces/IPriceOracle.sol";
-import "./libraries/UniswapV2Library.sol";
+import "./interfaces/IUniswapV3Factory.sol";
+import "./interfaces/IUniswapV3Pool.sol";
+import "./libraries/FullMath.sol";
 
 contract PriceOracle is IPriceOracle {
-    address public uniswapV2Factory;
-    IAmmFactory public ammFactory;
-    IConfig public config;
+    address public immutable uniswapV3Factory;
+    uint24[3] public fees;
 
-    constructor(address _uniswapV2Facroty) {
-        uniswapV2Factory = _uniswapV2Facroty;
+    constructor(address uniswapV3Factory_) {
+        uniswapV3Factory = uniswapV3Factory_;
+        fees[0] = 500;
+        fees[1] = 3000;
+        fees[2] = 10000;
     }
 
     function quote(
         address baseToken,
         address quoteToken,
         uint256 baseAmount
-    ) external view override returns (uint256 quoteAmount) {
-        (uint256 reserveBase, uint256 reserveQuote) = UniswapV2Library.getReserves(
-            uniswapV2Factory,
-            baseToken,
-            quoteToken
-        );
-        quoteAmount = UniswapV2Library.quote(baseAmount, reserveBase, reserveQuote);
+    ) public view override returns (uint256 quoteAmount) {
+        uint128 maxLiquidity;
+        uint160 sqrtPriceX96;
+        address pool;
+        uint128 liquidity;
+        for (uint256 i = 0; i < fees.length; i++) {
+            pool = IUniswapV3Factory(uniswapV3Factory).getPool(baseToken, quoteToken, fees[i]);
+            if (pool == address(0)) continue;
+            liquidity = IUniswapV3Pool(pool).liquidity();
+            if (liquidity > maxLiquidity) {
+                maxLiquidity = liquidity;
+                (sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
+            }
+        }
+        require(sqrtPriceX96 > 0, "PriceOracle.quote: NO_PRICE");
+        uint256 price = uint256(sqrtPriceX96) * sqrtPriceX96; // price = token1/token0
+        if (baseToken == IUniswapV3Pool(pool).token0()) {
+            quoteAmount = baseAmount * price;
+        } else {
+            quoteAmount = baseAmount / price;
+        }
     }
 
-    function markPrice(address baseToken, address quoteToken) external view returns (uint256) {
-        IAmm amm = IAmm(ammFactory.getAmm(baseToken, quoteToken));
-
+    function getIndexPrice(address amm) public view override returns (uint256) {
+        address baseToken = IAmm(amm).baseToken();
+        address quoteToken = IAmm(amm).quoteToken();
+        uint256 baseDecimals = IERC20(baseToken).decimals();
+        uint256 quoteDecimals = IERC20(quoteToken).decimals();
+        uint256 quoteAmount = quote(baseToken, quoteToken, 10**baseDecimals);
+        return quoteAmount * (10**(18 - quoteDecimals));
     }
 
-    function markPriceAcc(int256 quoteAmount, int256 quoteReserve) external view returns (uint256) {
-        2 * config.beta() * quoteAmount / quoteReserve
+    function getMarkPrice(address amm) public view override returns (uint256 price) {
+        (uint256 baseReserve, uint256 quoteReserve, ) = IAmm(amm).getReserves();
+        uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
+        uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
+        uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
+        price = FullMath.mulDiv(exponent, quoteReserve, baseReserve);
     }
 
-    function estimateSwapWithMarkPrice(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount
-    ) external view override returns (uint256[2] memory amounts) {
-        // (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-        // uint256 quoteAmount;
-        // uint256 baseAmount;
-        // if (inputAmount != 0) {
-        //     quoteAmount = inputAmount;
-        // } else {
-        //     quoteAmount = outputAmount;
-        // }
-        // uint256 inputSquare = quoteAmount * quoteAmount;
-        // // price = (sqrt(y/x)+ betal * deltaY/L).**2;
-        // // deltaX = deltaY/price
-        // // deltaX = (deltaY * L)/(y + betal * deltaY)**2
-        // uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
-        // uint8 beta = IConfig(IPairFactory(factory).config()).beta();
-        // require(beta >= 50 && beta <= 100, "beta error");
-        // //112
-        // uint256 denominator = (_quoteReserve + (beta * quoteAmount) / 100);
-        // //224
-        // denominator = denominator * denominator;
-        // baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
-        // return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
+    function getMarkPriceAcc(
+        address amm,
+        uint8 beta,
+        uint256 quoteAmount,
+        bool negative
+    ) public view override returns (uint256 price) {
+        (, uint256 quoteReserve, ) = IAmm(amm).getReserves();
+        uint256 markPrice = getMarkPrice(amm);
+        uint256 rvalue = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
+        if (negative) {
+            price = markPrice - rvalue;
+        } else {
+            price = markPrice + rvalue;
+        }
     }
 
-    function getPremiumFraction(address amm) external view override returns (int256) {}
+    //premiumFraction is (markPrice - indexPrice) / 8h / indexPrice
+    function getPremiumFraction(address amm) public view override returns (int256) {
+        int256 markPrice = int256(getMarkPrice(amm));
+        int256 indexPrice = int256(getIndexPrice(amm));
+        return ((markPrice - indexPrice) * 1e18) / (8 * 3600) / indexPrice;
+    }
 }

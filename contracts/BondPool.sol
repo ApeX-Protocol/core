@@ -16,7 +16,7 @@ contract BondPool is IBondPool, Ownable {
     address public immutable amm;
     uint256 public maxPayout;
     uint256 public discount; // [0, 10000]
-    uint256 public vestingTerm; // in block number
+    uint256 public vestingTerm; // in seconds
 
     mapping(address => Bond) private bondInfo; // stores bond information for depositor
 
@@ -40,7 +40,7 @@ contract BondPool is IBondPool, Ownable {
         maxPayout = maxPayout_;
         require(discount_ <= 10000, "BondPool: DISCOUNT_OVER_100%");
         discount = discount_;
-        require(vestingTerm_ >= 10000, "BondPool: MUST_BE_LONGER_THAN_36_HOURS");
+        require(vestingTerm_ >= 129600, "BondPool: MUST_BE_LONGER_THAN_36_HOURS");
         vestingTerm = vestingTerm_;
     }
 
@@ -54,7 +54,7 @@ contract BondPool is IBondPool, Ownable {
     }
 
     function setVestingTerm(uint256 vestingTerm_) external onlyAdmin {
-        require(vestingTerm_ >= 10000, "BondPool.setVestingTerm: MUST_BE_LONGER_THAN_36_HOURS");
+        require(vestingTerm_ >= 129600, "BondPool.setVestingTerm: MUST_BE_LONGER_THAN_36_HOURS");
         vestingTerm = vestingTerm_;
     }
 
@@ -80,10 +80,10 @@ contract BondPool is IBondPool, Ownable {
         bondInfo[depositor] = Bond({
             payout: bondInfo[depositor].payout + payout,
             vesting: vestingTerm,
-            lastBlock: block.number,
-            paidAmount: depositAmount
+            lastBlockTime: block.timestamp,
+            paidAmount: bondInfo[depositor].paidAmount + depositAmount
         });
-        emit BondCreated(depositAmount, payout, block.number + vestingTerm);
+        emit BondCreated(depositAmount, payout, block.timestamp + vestingTerm);
     }
 
     function redeem(address depositor) external returns (uint256 payout) {
@@ -99,13 +99,13 @@ contract BondPool is IBondPool, Ownable {
         } else {
             // if unfinished
             // calculate payout vested
-            payout = info.payout * percentVested / 10000;
+            payout = (info.payout * percentVested) / 10000;
 
             // store updated deposit info
             bondInfo[depositor] = Bond({
                 payout: info.payout - payout,
-                vesting: info.vesting - (block.number-info.lastBlock),
-                lastBlock: block.number,
+                vesting: info.vesting - (block.timestamp - info.lastBlockTime),
+                lastBlockTime: block.timestamp,
                 paidAmount: info.paidAmount
             });
 
@@ -113,11 +113,11 @@ contract BondPool is IBondPool, Ownable {
             TransferHelper.safeTransfer(apeXToken, depositor, payout);
         }
     }
-    
+
     function bondInfoFor(address depositor) external view returns (Bond memory) {
         return bondInfo[depositor];
     }
-    
+
     function payoutFor(uint256 amount) public view returns (uint256 payout) {
         address baseToken = IAmm(amm).baseToken();
         uint256 marketApeXAmount = IPriceOracle(priceOracle).quote(baseToken, apeXToken, amount);
@@ -127,10 +127,10 @@ contract BondPool is IBondPool, Ownable {
 
     function percentVestedFor(address depositor) public view returns (uint256 percentVested) {
         Bond memory bond = bondInfo[depositor];
-        uint256 blocksSinceLast = block.number - bond.lastBlock;
+        uint256 deltaSinceLast = block.timestamp - bond.lastBlockTime;
         uint256 vesting = bond.vesting;
         if (vesting > 0) {
-            percentVested = blocksSinceLast * 10000 / vesting;
+            percentVested = (deltaSinceLast * 10000) / vesting;
         } else {
             percentVested = 0;
         }
