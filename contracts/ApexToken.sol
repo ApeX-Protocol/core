@@ -1,4 +1,4 @@
-pragma solidity ^0.8.0;
+pragma solidity ^0.5.16;
 
 contract ApeXToken {
     /// @notice EIP-20 token name for this token
