@@ -7,9 +7,9 @@ import "../libraries/TransferHelper.sol";
 import "../utils/Ownable.sol";
 
 contract PCVTreasury is IPCVTreasury, Ownable {
-    address public immutable apeXToken;
-    mapping(address => bool) public isLiquidityToken;
-    mapping(address => bool) public isBondPool;
+    address public override immutable apeXToken;
+    mapping(address => bool) public override isLiquidityToken;
+    mapping(address => bool) public override isBondPool;
 
     constructor(address apeXToken_) {
         apeXToken = apeXToken_;

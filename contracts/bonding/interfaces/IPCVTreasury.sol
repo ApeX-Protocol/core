@@ -9,9 +9,9 @@ interface IPCVTreasury {
 
     function apeXToken() external view returns (address);
 
-    function isLiquidityToken(address) external view returns (bool);
+    function isLiquidityToken(address) external  view returns (bool);
 
-    function isBondPool(address) external view returns (bool);
+    function isBondPool(address) external  view returns (bool);
 
     function addLiquidityToken(address lpToken) external;
 
