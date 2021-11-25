@@ -6,7 +6,7 @@ describe("Margin contract", function () {
   let addr1;
   let liquidator;
   let addrs;
-  let mockVAmm;
+  let mockAmm;
   let mockBaseToken;
   let ownerInitBaseAmount = 20000;
   let addr1InitBaseAmount = 100;
@@ -14,7 +14,7 @@ describe("Margin contract", function () {
   let longSide = 0;
   let shortSide = 1;
   let config;
-  let priceOracleForTest;
+  let mockPriceOracle;
 
   beforeEach(async function () {
     [owner, addr1, liquidator, ...addrs] = await ethers.getSigners();
@@ -23,8 +23,8 @@ describe("Margin contract", function () {
     mockBaseToken = await MockToken.deploy("bit dao", "bit");
     mockQuoteToken = await MockToken.deploy("usdt dao", "usdt");
 
-    const MockVAmm = await ethers.getContractFactory("MockVAmm");
-    mockVAmm = await MockVAmm.deploy("amm shares", "as");
+    const MockAmm = await ethers.getContractFactory("MockAmm");
+    mockAmm = await MockAmm.deploy("amm shares", "as");
 
     const MockRouter = await ethers.getContractFactory("MockRouter");
     mockRouter = await MockRouter.deploy(mockBaseToken.address);
@@ -36,15 +36,15 @@ describe("Margin contract", function () {
     factory = await Factory.deploy(config.address);
     await factory.createPair();
 
-    const PriceOracleForTest = await ethers.getContractFactory("PriceOracleForTest");
-    priceOracleForTest = await PriceOracleForTest.deploy();
+    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
+    mockPriceOracle = await MockPriceOracle.deploy();
 
     let marginAddress = await factory.margin();
     const Margin = await ethers.getContractFactory("Margin");
     margin = await Margin.attach(marginAddress);
 
     await config.initialize(owner.address, 100);
-    await factory.initialize(mockBaseToken.address, mockQuoteToken.address, mockVAmm.address);
+    await factory.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address);
     await mockRouter.setMarginContract(margin.address);
 
     await mockBaseToken.mint(owner.address, ownerInitBaseAmount);
@@ -56,7 +56,7 @@ describe("Margin contract", function () {
     await config.setInitMarginRatio(909);
     await config.setLiquidateThreshold(10000);
     await config.setLiquidateFeeRatio(2000);
-    await config.setPriceOracle(priceOracleForTest.address);
+    await config.setPriceOracle(mockPriceOracle.address);
   });
 
   describe("add margin", function () {
@@ -468,4 +468,36 @@ describe("Margin contract", function () {
       expect(latestUpdateCPF2.toNumber()).to.be.greaterThan(latestUpdateCPF1.toNumber());
     });
   });
+
+  describe("calFundingFee", async function () {
+    let quoteAmount = 10;
+    beforeEach(async function () {
+      await mockRouter.addMargin(owner.address, 1);
+      await margin.openPosition(owner.address, longSide, quoteAmount); //start to pay funding fee
+      await mockPriceOracle.setPf("1000000000000000000"); //1e18
+    });
+
+    it("check funding fee at different timestamp", async function () {
+      //maxBoost*baseAmount*pf*time
+      expect((await margin.calFundingFee()).toNumber()).to.be.equal(-100);
+
+      await margin.updateCPF();
+      expect((await margin.calFundingFee()).toNumber()).to.be.equal(-200);
+      let latestUpdateCPF1 = await margin.lastUpdateCPF();
+
+      await sleep(5000);
+      //notice: in hardhat, block.timestamp is former block timestamp, so time == 0
+      expect((await margin.calFundingFee()).toNumber()).to.be.equal(-200);
+
+      await margin.updateCPF();
+      expect((await margin.calFundingFee()).toNumber()).to.be.equal(-700);
+      let latestUpdateCPF2 = await margin.lastUpdateCPF();
+
+      expect(latestUpdateCPF2.toNumber()).to.be.greaterThan(latestUpdateCPF1.toNumber());
+    });
+  });
 });
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
