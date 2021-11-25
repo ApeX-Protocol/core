@@ -6,7 +6,13 @@ interface IMargin {
     event AddMargin(address indexed trader, uint256 depositAmount);
     event RemoveMargin(address indexed trader, uint256 withdrawAmount);
     event OpenPosition(address indexed trader, uint8 side, uint256 baseAmount, uint256 quoteAmount);
-    event ClosePosition(address indexed trader, uint256 quoteAmount, uint256 baseAmount);
+    event ClosePosition(
+        address indexed trader,
+        uint256 quoteAmount,
+        uint256 baseAmount,
+        uint256 quoteSize,
+        bool isLong
+    );
     event Liquidate(
         address indexed liquidator,
         address indexed trader,
