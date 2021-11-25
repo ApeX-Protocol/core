@@ -15,14 +15,14 @@ contract PCVTreasury is IPCVTreasury, Ownable {
         apeXToken = apeXToken_;
     }
 
-    function addLiquidityToken(address lpToken) external onlyAdmin {
+    function addLiquidityToken(address lpToken) external override onlyAdmin {
         require(lpToken != address(0), "PCVTreasury.addLiquidityToken: ZERO_ADDRESS");
         require(!isLiquidityToken[lpToken], "PCVTreasury.addLiquidityToken: ALREADY_ADDED");
         isLiquidityToken[lpToken] = true;
         emit NewLiquidityToken(lpToken);
     }
 
-    function addBondPool(address pool) external onlyAdmin {
+    function addBondPool(address pool) external override onlyAdmin {
         require(pool != address(0), "PCVTreasury.addBondPool: ZERO_ADDRESS");
         require(!isBondPool[pool], "PCVTreasury.addBondPool: ALREADY_ADDED");
         isBondPool[pool] = true;
