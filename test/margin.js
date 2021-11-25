@@ -204,12 +204,6 @@ describe("Margin contract", function () {
       await mockRouter.addMargin(owner.address, routerAllowance);
     });
 
-    it("query max OpenQuote", async function () {
-      let _margin = 10;
-      expect(await margin.getMaxOpenPosition(longSide, _margin)).to.equal(100);
-      expect(await margin.getMaxOpenPosition(shortSide, _margin)).to.equal(110);
-    });
-
     it("open correct long position", async function () {
       let quoteAmount = 10;
       let price = 1;

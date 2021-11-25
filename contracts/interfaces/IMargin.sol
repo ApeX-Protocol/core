@@ -91,11 +91,6 @@ interface IMargin {
     /// @notice get withdrawable margin of trader
     function getWithdrawable(address trader) external view returns (uint256 amount);
 
-    /// @notice get max open position with side and margin
-    /// @param side long or short.
-    /// @param marginAmount base amount.
-    function getMaxOpenPosition(uint8 side, uint256 marginAmount) external view returns (uint256 quoteAmount);
-
     /// @notice check if can liquidate this trader's position
     function canLiquidate(address trader) external view returns (bool);
 

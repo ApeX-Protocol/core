@@ -96,11 +96,4 @@ interface IRouter {
             int256 quoteSize,
             uint256 tradeSize
         );
-
-    function queryMaxOpenPosition(
-        address baseToken,
-        address quoteToken,
-        uint8 side,
-        uint256 baseAmount
-    ) external view returns (uint256 quoteAmount);
 }

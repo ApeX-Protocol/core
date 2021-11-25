@@ -371,26 +371,6 @@ contract Margin is IMargin, IVault, Reentrant {
         return (position.baseSize, position.quoteSize, position.tradeSize);
     }
 
-    function getMaxOpenPosition(uint8 side, uint256 marginAmount) external view override returns (uint256 quoteAmount) {
-        require(side == 0 || side == 1, "Margin.getMaxOpenPosition: INVALID_SIDE");
-        bool isLong = side == 0;
-        uint256 maxBase;
-        if (isLong) {
-            maxBase = marginAmount * (MAXRATIO / IConfig(config).initMarginRatio() - 1);
-        } else {
-            maxBase = (marginAmount * MAXRATIO) / IConfig(config).initMarginRatio();
-        }
-
-        (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
-            isLong,
-            maxBase,
-            address(baseToken)
-        );
-
-        uint256[2] memory result = IAmm(amm).estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
-        quoteAmount = isLong ? result[0] : result[1];
-    }
-
     function getWithdrawable(address trader) external view override returns (uint256 amount) {
         return _getWithdrawable(trader, _getNewLatestCPF());
     }

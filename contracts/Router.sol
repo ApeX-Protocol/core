@@ -208,16 +208,6 @@ contract Router is IRouter {
         (baseSize, quoteSize, tradeSize) = IMargin(margin).getPosition(holder);
     }
 
-    function queryMaxOpenPosition(
-        address baseToken,
-        address quoteToken,
-        uint8 side,
-        uint256 baseAmount
-    ) external view override returns (uint256 quoteAmount) {
-        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        return IMargin(margin).getMaxOpenPosition(side, baseAmount);
-    }
-
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
     function getAmountOut(
         uint256 amountIn,

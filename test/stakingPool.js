@@ -85,7 +85,7 @@ describe("stakingPool contract", function () {
       await apexStakingPoolIns.stake(10000, oneYearLockUntil);
       let user = await apexStakingPoolIns.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(10000);
-      expect(user.totalWeight.toNumber()).to.be.at.least(19999900000);
+      expect(user.totalWeight.toNumber()).to.be.at.least(19999000000);
       expect(user.subYieldRewards.toNumber()).to.equal(0);
 
       oneYearLockUntil = await oneYearLater();

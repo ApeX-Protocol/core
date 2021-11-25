@@ -13,4 +13,13 @@ contract MockPriceOracle {
     function setPf(int256 _pf) external {
         pf = _pf;
     }
+
+    function getMarkPriceAcc(
+        address amm,
+        uint8 beta,
+        uint256 quoteAmount,
+        bool negative
+    ) public view returns (uint256 price) {
+        return 1;
+    }
 }
