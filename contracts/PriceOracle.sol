@@ -83,6 +83,7 @@ contract PriceOracle is IPriceOracle {
     function getPremiumFraction(address amm) public view override returns (int256) {
         int256 markPrice = int256(getMarkPrice(amm));
         int256 indexPrice = int256(getIndexPrice(amm));
+        require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
         return ((markPrice - indexPrice) * 1e18) / (8 * 3600) / indexPrice;
     }
 }

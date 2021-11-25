@@ -2,9 +2,9 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IPCVTreasury.sol";
 import "./interfaces/IPCVPolicy.sol";
-import "./interfaces/IERC20.sol";
-import "./libraries/TransferHelper.sol";
-import "./utils/Ownable.sol";
+import "../interfaces/IERC20.sol";
+import "../libraries/TransferHelper.sol";
+import "../utils/Ownable.sol";
 
 contract PCVTreasury is IPCVTreasury, Ownable {
     address public immutable apeXToken;

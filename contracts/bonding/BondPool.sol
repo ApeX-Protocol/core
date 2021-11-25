@@ -2,21 +2,21 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IBondPool.sol";
 import "./interfaces/IPCVTreasury.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IERC20.sol";
-import "./interfaces/IPriceOracle.sol";
-import "./libraries/TransferHelper.sol";
-import "./libraries/FullMath.sol";
-import "./utils/Ownable.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IERC20.sol";
+import "../interfaces/IPriceOracle.sol";
+import "../libraries/TransferHelper.sol";
+import "../libraries/FullMath.sol";
+import "../utils/Ownable.sol";
 
 contract BondPool is IBondPool, Ownable {
-    address public immutable apeXToken;
-    address public immutable treasury;
-    address public immutable priceOracle;
-    address public immutable amm;
-    uint256 public maxPayout;
-    uint256 public discount; // [0, 10000]
-    uint256 public vestingTerm; // in seconds
+    address public immutable override apeXToken;
+    address public immutable override treasury;
+    address public immutable override priceOracle;
+    address public immutable override amm;
+    uint256 public override maxPayout;
+    uint256 public override discount; // [0, 10000]
+    uint256 public override vestingTerm; // in seconds
 
     mapping(address => Bond) private bondInfo; // stores bond information for depositor
 
@@ -62,7 +62,7 @@ contract BondPool is IBondPool, Ownable {
         address depositor,
         uint256 depositAmount,
         uint256 minPayout
-    ) external returns (uint256 payout) {
+    ) external override returns (uint256 payout) {
         require(depositor != address(0), "BondPool.deposit: ZERO_ADDRESS");
         require(depositAmount > 0, "BondPool.deposit: ZERO_AMOUNT");
 
@@ -86,7 +86,7 @@ contract BondPool is IBondPool, Ownable {
         emit BondCreated(depositAmount, payout, block.timestamp + vestingTerm);
     }
 
-    function redeem(address depositor) external returns (uint256 payout) {
+    function redeem(address depositor) external override returns (uint256 payout) {
         Bond memory info = bondInfo[depositor];
         uint256 percentVested = percentVestedFor(depositor); // (blocks since last interaction / vesting term remaining)
 
@@ -114,18 +114,18 @@ contract BondPool is IBondPool, Ownable {
         }
     }
 
-    function bondInfoFor(address depositor) external view returns (Bond memory) {
+    function bondInfoFor(address depositor) external view override returns (Bond memory) {
         return bondInfo[depositor];
     }
 
-    function payoutFor(uint256 amount) public view returns (uint256 payout) {
+    function payoutFor(uint256 amount) public view override returns (uint256 payout) {
         address baseToken = IAmm(amm).baseToken();
         uint256 marketApeXAmount = IPriceOracle(priceOracle).quote(baseToken, apeXToken, amount);
         uint256 denominator = (marketApeXAmount * (10000 - discount)) / 10000;
         payout = FullMath.mulDiv(amount, amount, denominator);
     }
 
-    function percentVestedFor(address depositor) public view returns (uint256 percentVested) {
+    function percentVestedFor(address depositor) public view override returns (uint256 percentVested) {
         Bond memory bond = bondInfo[depositor];
         uint256 deltaSinceLast = block.timestamp - bond.lastBlockTime;
         uint256 vesting = bond.vesting;
