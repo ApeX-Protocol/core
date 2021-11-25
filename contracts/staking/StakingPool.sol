@@ -125,7 +125,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
         usersLockingWeight = usersLockingWeight - previousWeight + newWeight;
 
         if (isYield) {
-            factory.mintYieldTo(msg.sender, _amount);
+            factory.transferYieldTo(msg.sender, _amount);
         } else {
             transferTokenFrom(address(this), msg.sender, _amount);
         }
@@ -192,7 +192,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
 
     function syncWeightPrice() public {
         if (factory.shouldUpdateRatio()) {
-            factory.updateApexPerBlock();
+            factory.updateApeXPerBlock();
         }
 
         uint256 endBlock = factory.endBlock();
@@ -205,7 +205,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
             return;
         }
         //notice: if nobody sync this stakingPool for a long time, this stakingPool reward shrink
-        uint256 apexReward = factory.calStakingPoolApexReward(lastYieldDistribution, poolToken);
+        uint256 apexReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
         yieldRewardsPerWeight += deltaWeightPrice(apexReward, usersLockingWeight);
         lastYieldDistribution = blockNumber > endBlock ? endBlock : blockNumber;
 
@@ -248,7 +248,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
         uint256 newYieldRewardsPerWeight;
 
         if (blockNumber > lastYieldDistribution && usersLockingWeight != 0) {
-            uint256 apexReward = factory.calStakingPoolApexReward(lastYieldDistribution, poolToken);
+            uint256 apexReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
             newYieldRewardsPerWeight = deltaWeightPrice(apexReward, usersLockingWeight) + yieldRewardsPerWeight;
         } else {
             newYieldRewardsPerWeight = yieldRewardsPerWeight;

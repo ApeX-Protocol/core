@@ -69,17 +69,17 @@ describe("stakingPoolFactory contract", function () {
     });
   });
 
-  describe("updateApexPerBlock", function () {
+  describe("updateApeXPerBlock", function () {
     it("update apex rewards per block", async function () {
       await network.provider.send("evm_mine");
-      await stakingPoolFactory.updateApexPerBlock();
+      await stakingPoolFactory.updateApeXPerBlock();
       await network.provider.send("evm_mine");
-      await stakingPoolFactory.updateApexPerBlock();
+      await stakingPoolFactory.updateApeXPerBlock();
     });
 
-    it("revert when update ApexPerBlock in next block", async function () {
-      await stakingPoolFactory.updateApexPerBlock();
-      await expect(stakingPoolFactory.updateApexPerBlock()).to.be.revertedWith("cpf.updateApexPerBlock: TOO_FREQUENT");
+    it("revert when update ApeXPerBlock in next block", async function () {
+      await stakingPoolFactory.updateApeXPerBlock();
+      await expect(stakingPoolFactory.updateApeXPerBlock()).to.be.revertedWith("cpf.updateApeXPerBlock: TOO_FREQUENT");
     });
   });
 
