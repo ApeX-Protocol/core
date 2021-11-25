@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../interfaces/ICorePool.sol";
-import "../interfaces/ICorePoolFactory.sol";
+import "../interfaces/IStakingPool.sol";
+import "../interfaces/IStakingPoolFactory.sol";
 import "../utils/ApexAware.sol";
 import "../utils/Initializable.sol";
 import "../utils/Ownable.sol";
-import "./CorePool.sol";
+import "./StakingPool.sol";
 
-contract CorePoolFactory is ICorePoolFactory, Ownable, ApexAware, Initializable {
+contract StakingPoolFactory is IStakingPoolFactory, Ownable, ApexAware, Initializable {
     uint256 public blocksPerUpdate;
 
     uint256 public apexPerBlock;
@@ -49,13 +49,13 @@ contract CorePoolFactory is ICorePoolFactory, Ownable, ApexAware, Initializable 
         uint256 _initBlock,
         uint256 _weight
     ) external override onlyAdmin {
-        ICorePool pool = new CorePool(address(this), _poolToken, apex, _initBlock);
+        IStakingPool pool = new StakingPool(address(this), _poolToken, apex, _initBlock);
         registerPool(address(pool), _weight);
     }
 
     function registerPool(address _pool, uint256 _weight) public override onlyAdmin {
         require(poolTokenMap[_pool] == address(0), "cpf.registerPool: POOL_REGISTERED");
-        address poolToken = ICorePool(_pool).poolToken();
+        address poolToken = IStakingPool(_pool).poolToken();
         require(poolToken != address(0), "cpf.registerPool: ZERO_ADDRESS");
 
         pools[poolToken] = PoolInfo({pool: _pool, weight: _weight});
@@ -89,7 +89,7 @@ contract CorePoolFactory is ICorePoolFactory, Ownable, ApexAware, Initializable 
         emit WeightUpdated(msg.sender, _pool, _weight);
     }
 
-    function calCorePoolApexReward(uint256 _lastYieldDistribution, address _poolToken)
+    function calStakingPoolApexReward(uint256 _lastYieldDistribution, address _poolToken)
         external
         view
         override

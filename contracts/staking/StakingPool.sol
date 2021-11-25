@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../interfaces/ICorePool.sol";
-import "../interfaces/ICorePoolFactory.sol";
+import "../interfaces/IStakingPool.sol";
+import "../interfaces/IStakingPoolFactory.sol";
 import "../interfaces/IERC20.sol";
 import "../utils/ERC20Aware.sol";
 
-contract CorePool is ICorePool, ERC20Aware {
+contract StakingPool is IStakingPool, ERC20Aware {
     uint256 internal constant ONE_YEAR = 365 days;
 
     uint256 internal constant WEIGHT_MULTIPLIER = 1e6;
@@ -19,7 +19,7 @@ contract CorePool is ICorePool, ERC20Aware {
 
     address public immutable override poolToken;
 
-    ICorePoolFactory public immutable factory;
+    IStakingPoolFactory public immutable factory;
 
     uint256 public lastYieldDistribution;
 
@@ -40,7 +40,7 @@ contract CorePool is ICorePool, ERC20Aware {
         require(_initBlock > 0, "cp: INVALID_INIT_BLOCK");
 
         apex = _apex;
-        factory = ICorePoolFactory(_factory);
+        factory = IStakingPoolFactory(_factory);
         poolToken = _poolToken;
         lastYieldDistribution = _initBlock;
     }
@@ -133,7 +133,7 @@ contract CorePool is ICorePool, ERC20Aware {
 
     function stakeAsPool(address _staker, uint256 _amount) external override {
         require(factory.poolTokenMap(msg.sender) != address(0), "cp.stakeAsPool: ACCESS_DENIED");
-        syncWeightPrice(); //need sync apexCorePool
+        syncWeightPrice(); //need sync apexStakingPool
 
         User storage user = users[_staker];
 
@@ -204,8 +204,8 @@ contract CorePool is ICorePool, ERC20Aware {
             lastYieldDistribution = blockNumber;
             return;
         }
-        //notice: if nobody sync this corePool for a long time, this corePool reward shrink
-        uint256 apexReward = factory.calCorePoolApexReward(lastYieldDistribution, poolToken);
+        //notice: if nobody sync this stakingPool for a long time, this stakingPool reward shrink
+        uint256 apexReward = factory.calStakingPoolApexReward(lastYieldDistribution, poolToken);
         yieldRewardsPerWeight += deltaWeightPrice(apexReward, usersLockingWeight);
         lastYieldDistribution = blockNumber > endBlock ? endBlock : blockNumber;
 
@@ -236,8 +236,8 @@ contract CorePool is ICorePool, ERC20Aware {
             user.totalWeight += yieldWeight;
             usersLockingWeight += yieldWeight;
         } else {
-            address apexCorePool = factory.getPoolAddress(apex);
-            ICorePool(apexCorePool).stakeAsPool(_staker, yieldAmount);
+            address apexStakingPool = factory.getPoolAddress(apex);
+            IStakingPool(apexStakingPool).stakeAsPool(_staker, yieldAmount);
         }
 
         emit YieldClaimed(msg.sender, _staker, yieldAmount);
@@ -248,7 +248,7 @@ contract CorePool is ICorePool, ERC20Aware {
         uint256 newYieldRewardsPerWeight;
 
         if (blockNumber > lastYieldDistribution && usersLockingWeight != 0) {
-            uint256 apexReward = factory.calCorePoolApexReward(lastYieldDistribution, poolToken);
+            uint256 apexReward = factory.calStakingPoolApexReward(lastYieldDistribution, poolToken);
             newYieldRewardsPerWeight = deltaWeightPrice(apexReward, usersLockingWeight) + yieldRewardsPerWeight;
         } else {
             newYieldRewardsPerWeight = yieldRewardsPerWeight;

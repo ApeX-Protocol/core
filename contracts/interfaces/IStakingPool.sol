@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-interface ICorePool {
+interface IStakingPool {
     struct Deposit {
         uint256 amount;
         uint256 weight;
@@ -42,8 +42,8 @@ interface ICorePool {
     /// @param amount poolToken's amount to unstake.
     function unstake(uint256 depositId, uint256 amount) external;
 
-    /// @notice Not-apex corePool to stake their users' yield to apex corePool
-    /// @param staker add yield to this staker in apex corePool.
+    /// @notice Not-apex stakingPool to stake their users' yield to apex stakingPool
+    /// @param staker add yield to this staker in apex stakingPool.
     /// @param amount yield apex amount to stake.
     function stakeAsPool(address staker, uint256 amount) external;
 

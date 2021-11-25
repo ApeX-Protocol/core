@@ -546,24 +546,27 @@ contract Margin is IMargin, IVault, Reentrant {
         } else if (quoteSize < 0 && baseSize <= 0) {
             debtRatio = MAXRATIO;
         } else if (quoteSize > 0) {
+            uint256 quoteAmount = quoteSize.abs();
             //calculate asset
-            uint256[2] memory result = IAmm(amm).estimateSwapWithMarkPrice(
-                address(quoteToken),
-                address(baseToken),
-                quoteSize.abs(),
-                0
+            uint256 price = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+                amm,
+                IConfig(config).beta(),
+                quoteAmount,
+                false
             );
-            uint256 baseAmount = result[1];
+            uint256 baseAmount = price * quoteAmount;
             debtRatio = baseAmount == 0 ? MAXRATIO : (0 - baseSize).mulU(MAXRATIO).divU(baseAmount).abs();
         } else {
+            uint256 quoteAmount = quoteSize.abs();
             //calculate debt
-            uint256[2] memory result = IAmm(amm).estimateSwapWithMarkPrice(
-                address(baseToken),
-                address(quoteToken),
-                0,
-                quoteSize.abs()
+            uint256 price = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+                amm,
+                IConfig(config).beta(),
+                quoteAmount,
+                true
             );
-            uint256 baseAmount = result[0];
+
+            uint256 baseAmount = price * quoteAmount;
             uint256 ratio = (baseAmount * MAXRATIO) / baseSize.abs();
             debtRatio = MAXRATIO < ratio ? MAXRATIO : ratio;
         }

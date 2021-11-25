@@ -4,7 +4,7 @@ const verifyStr = "npx hardhat verify --network";
 
 let apexToken;
 let slpToken;
-let corePoolFactory;
+let stakingPoolFactory;
 let tx;
 
 const main = async () => {
@@ -13,7 +13,7 @@ const main = async () => {
 
 async function createContracts() {
   const MockToken = await ethers.getContractFactory("MockToken");
-  const CorePoolFactory = await ethers.getContractFactory("CorePoolFactory");
+  const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
 
   apexToken = await MockToken.deploy("apex token", "at");
   await apexToken.deployed();
@@ -21,14 +21,14 @@ async function createContracts() {
   slpToken = await MockToken.deploy("slp token", "slp");
   await slpToken.deployed();
 
-  corePoolFactory = await upgrades.deployProxy(CorePoolFactory, [apexToken.address, 100, 2, 6690016, 7090016]);
-  await corePoolFactory.deployed();
-  console.log(`corePoolFactory: ${corePoolFactory.address}`);
+  stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [apexToken.address, 100, 2, 6690016, 7090016]);
+  await stakingPoolFactory.deployed();
+  console.log(`stakingPoolFactory: ${stakingPoolFactory.address}`);
 
-  tx = await corePoolFactory.createPool(apexToken.address, 6690016, 21);
+  tx = await stakingPoolFactory.createPool(apexToken.address, 6690016, 21);
   await tx.wait();
 
-  tx = await corePoolFactory.createPool(slpToken.address, 6690016, 79);
+  tx = await stakingPoolFactory.createPool(slpToken.address, 6690016, 79);
   await tx.wait();
 
   console.log("✌️");

@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.0;
 
-interface ICorePoolFactory {
+interface IStakingPoolFactory {
     struct PoolInfo {
         address pool;
         uint256 weight;
@@ -18,16 +18,16 @@ interface ICorePoolFactory {
     /// @notice check if can update yield reward ratio
     function shouldUpdateRatio() external view returns (bool);
 
-    /// @notice get corePool's poolToken
+    /// @notice get stakingPool's poolToken
     function poolTokenMap(address pool) external view returns (address);
 
-    /// @notice get corePool's address of poolToken
+    /// @notice get stakingPool's address of poolToken
     /// @param poolToken staked token.
     function getPoolAddress(address poolToken) external view returns (address);
 
     /// @notice calculate yield reward of poolToken since lastYieldDistribution
     /// @param poolToken staked token.
-    function calCorePoolApexReward(uint256 lastYieldDistribution, address poolToken)
+    function calStakingPoolApexReward(uint256 lastYieldDistribution, address poolToken)
         external
         view
         returns (uint256 reward);
@@ -35,10 +35,10 @@ interface ICorePoolFactory {
     /// @notice update yield reward rate
     function updateApexPerBlock() external;
 
-    /// @notice create a new corePool
-    /// @param poolToken corePool staked token.
+    /// @notice create a new stakingPool
+    /// @param poolToken stakingPool staked token.
     /// @param initBlock when to yield reward.
-    /// @param weight new pool's weight between all other corePools.
+    /// @param weight new pool's weight between all other stakingPools.
     function createPool(
         address poolToken,
         uint256 initBlock,
@@ -47,7 +47,7 @@ interface ICorePoolFactory {
 
     /// @notice register an exist pool to factory
     /// @param pool the exist pool.
-    /// @param weight pool's weight between all other corePools.
+    /// @param weight pool's weight between all other stakingPools.
     function registerPool(address pool, uint256 weight) external;
 
     /// @notice mint apex to staker
