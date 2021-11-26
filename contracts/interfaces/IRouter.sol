@@ -5,7 +5,7 @@ pragma solidity ^0.8.0;
 interface IRouter {
     function pairFactory() external view returns (address);
 
-    function stakingFactory() external view returns (address);
+    function pcvTreasury() external view returns (address);
 
     function WETH() external view returns (address);
 
@@ -15,7 +15,7 @@ interface IRouter {
         uint256 baseAmount,
         uint256 quoteAmountMin,
         uint256 deadline,
-        bool autoStake
+        bool pcv
     ) external returns (uint256 quoteAmount, uint256 liquidity);
 
     function removeLiquidity(
