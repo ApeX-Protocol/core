@@ -43,7 +43,7 @@ describe("Margin contract", function () {
     const Margin = await ethers.getContractFactory("Margin");
     margin = await Margin.attach(marginAddress);
 
-    await config.initialize(owner.address, 100);
+    await config.initialize(owner.address);
     await factory.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address);
     await mockRouter.setMarginContract(margin.address);
 
@@ -53,6 +53,7 @@ describe("Margin contract", function () {
     await mockBaseToken.connect(addr1).approve(mockRouter.address, addr1InitBaseAmount);
 
     await config.registerRouter(mockRouter.address);
+    await config.setBeta(100);
     await config.setInitMarginRatio(909);
     await config.setLiquidateThreshold(10000);
     await config.setLiquidateFeeRatio(2000);
@@ -484,7 +485,7 @@ describe("Margin contract", function () {
       expect((await margin.calFundingFee()).toNumber()).to.be.equal(-200);
 
       await margin.updateCPF();
-      expect((await margin.calFundingFee()).toNumber()).to.be.equal(-700);
+      expect((await margin.calFundingFee()).toNumber()).to.be.equal(-800);
       let latestUpdateCPF2 = await margin.lastUpdateCPF();
 
       expect(latestUpdateCPF2.toNumber()).to.be.greaterThan(latestUpdateCPF1.toNumber());

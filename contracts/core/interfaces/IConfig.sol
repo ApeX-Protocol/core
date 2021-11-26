@@ -7,6 +7,10 @@ interface IConfig {
     event RebasePriceGapChanged(uint256 oldGap, uint256 newGap);
     event RouterRegistered(address indexed router);
     event RouterUnregistered(address indexed router);
+    event SetLiquidateFeeRatio(uint256 oldLiquidateFeeRatio, uint256 liquidateFeeRatio);
+    event SetLiquidateThreshold(uint256 oldLiquidateThreshold, uint256 liquidateThreshold);
+    event SetInitMarginRatio(uint256 oldInitMarginRatio, uint256 initMarginRatio);
+    event SetBeta(uint256 oldBeta, uint256 beta);
 
     /// @notice get price oracle address.
     function priceOracle() external view returns (address);
