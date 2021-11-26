@@ -108,6 +108,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
         _processRewards(_staker, user);
 
         uint256 previousWeight = stakeDeposit.weight;
+        //tocheck if lockTime is not 1 year?
         uint256 newWeight = (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
             ONE_YEAR +
             WEIGHT_MULTIPLIER) * (stakeDeposit.amount - _amount);
@@ -145,7 +146,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
             amount: yieldAmount,
             weight: yieldWeight,
             lockFrom: now256,
-            lockUntil: now256 + ONE_YEAR,
+            lockUntil: now256 + factory.yieldLockTime(),
             isYield: true
         });
         user.deposits.push(newDeposit);

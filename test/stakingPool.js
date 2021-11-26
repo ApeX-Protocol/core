@@ -44,6 +44,8 @@ describe("stakingPool contract", function () {
     await apexToken.mint(owner.address, 100_0000);
     await apexToken.approve(apexStakingPool.address, 100_0000);
     await apexToken.mint(treasury.address, 100_0000);
+    await slpToken.mint(owner.address, 100_0000);
+    await slpToken.approve(slpStakingPool.address, 100_0000);
   });
 
   describe("stake", function () {
@@ -110,7 +112,7 @@ describe("stakingPool contract", function () {
       await apexStakingPool.stake(10000, 0);
     });
 
-    it("transfer apeX from treasury to _to", async function () {
+    it("stake, process reward, unstake, transfer apeX from treasury to _to", async function () {
       await network.provider.send("evm_mine");
       await apexStakingPool.processRewards();
       await network.provider.send("evm_mine");
@@ -121,6 +123,55 @@ describe("stakingPool contract", function () {
       await apexStakingPool.unstake(1, 9);
       let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
       expect(oldBalance + 9).to.be.equal(newBalance);
+    });
+  });
+
+  describe("stakeAsPool", function () {
+    beforeEach(async function () {
+      await stakingPoolFactory.setTreasury(treasury.address);
+      await stakingPoolFactory.setYieldLockTime(10);
+      await apexToken.connect(treasury).approve(stakingPoolFactory.address, 20000);
+
+      await slpStakingPool.stake(10000, 0);
+    });
+
+    it("unlock too early", async function () {
+      let oneYearLockUntil = await oneYearLater();
+      await slpStakingPool.stake(10000, oneYearLockUntil);
+      await expect(slpStakingPool.unstake(1, 10000)).to.be.revertedWith("p._unstake: DEPOSIT_LOCKE");
+    });
+
+    it("stake, process reward to apeXPool, unstake from slpPool, unstake from apeXPool", async function () {
+      await network.provider.send("evm_mine");
+      await slpStakingPool.processRewards();
+
+      await network.provider.send("evm_mine");
+      await slpStakingPool.unstake(0, 10000);
+      await mineBlocks(100);
+      let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
+      await apexStakingPool.unstake(0, 1);
+      let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
+      expect(oldBalance + 1).to.be.equal(newBalance);
+    });
+  });
+
+  describe("pendingYieldRewards", function () {
+    beforeEach(async function () {
+      await stakingPoolFactory.setTreasury(treasury.address);
+      await stakingPoolFactory.setYieldLockTime(10);
+      await apexToken.connect(treasury).approve(stakingPoolFactory.address, 20000);
+      await slpStakingPool.stake(10000, 0);
+    });
+
+    it("stake, process reward to apeXPool, unstake from slpPool, unstake from apeXPool", async function () {
+      await network.provider.send("evm_mine");
+      //linear to apeXPerBlock, 97*79/100
+      expect(await slpStakingPool.pendingYieldRewards(owner.address)).to.be.equal(76);
+      await slpStakingPool.processRewards();
+      expect(await slpStakingPool.pendingYieldRewards(owner.address)).to.be.equal(0);
+      await network.provider.send("evm_mine");
+      //linear to apeXPerBlock, 94*79/100
+      expect(await slpStakingPool.pendingYieldRewards(owner.address)).to.be.equal(74);
     });
   });
 });
