@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../interfaces/IStakingPool.sol";
-import "../interfaces/IStakingPoolFactory.sol";
+import "./interfaces/IStakingPool.sol";
+import "./interfaces/IStakingPoolFactory.sol";
 import "../utils/ApeXAware.sol";
 import "../utils/Initializable.sol";
 import "../utils/Ownable.sol";
