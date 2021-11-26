@@ -24,6 +24,8 @@ interface IStakingPoolFactory {
     /// @param poolToken staked token.
     function getPoolAddress(address poolToken) external view returns (address);
 
+    function shouldUpdateRatio() external view returns (bool);
+
     /// @notice calculate yield reward of poolToken since lastYieldDistribution
     /// @param poolToken staked token.
     function calStakingPoolApeXReward(uint256 lastYieldDistribution, address poolToken)

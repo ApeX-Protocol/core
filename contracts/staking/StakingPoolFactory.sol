@@ -110,6 +110,11 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, ApeXAware, Initiali
         reward = (blocksPassed * apeXPerBlock * pools[_poolToken].weight) / totalWeight;
     }
 
+    function shouldUpdateRatio() external view override returns (bool) {
+        uint256 blockNumber = block.number;
+        return blockNumber > endBlock ? false : blockNumber >= lastUpdateBlock + blocksPerUpdate;
+    }
+
     function getPoolAddress(address _poolToken) external view override returns (address) {
         return pools[_poolToken].pool;
     }
