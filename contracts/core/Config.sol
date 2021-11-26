@@ -59,6 +59,7 @@ contract Config is IConfig, Ownable, Initializable {
 
     function registerRouter(address router) external override onlyAdmin {
         require(router != address(0), "Config: ZERO_ADDRESS");
+        require(!routerMap[router], "Config: REGISTERED");
         routerMap[router] = true;
 
         emit RouterRegistered(router);
@@ -66,7 +67,7 @@ contract Config is IConfig, Ownable, Initializable {
 
     function unregisterRouter(address router) external override onlyAdmin {
         require(router != address(0), "Config: ZERO_ADDRESS");
-        require(routerMap[router] == true, "Config: UNREGISTERED");
+        require(routerMap[router], "Config: UNREGISTERED");
         delete routerMap[router];
 
         emit RouterUnregistered(router);
