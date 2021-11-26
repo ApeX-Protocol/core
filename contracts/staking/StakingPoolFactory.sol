@@ -15,6 +15,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, ApeXAware, Initiali
     uint256 public totalWeight;
     uint256 public override endBlock;
     uint256 public lastUpdateBlock;
+    uint256 public override yieldLockTime;
     mapping(address => PoolInfo) public pools;
     mapping(address => address) public override poolTokenMap;
 
@@ -94,6 +95,13 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, ApeXAware, Initiali
         treasury = _treasury;
 
         emit SetTreasury(_treasury);
+    }
+
+    function setYieldLockTime(uint256 _yieldLockTime) external onlyAdmin {
+        require(_yieldLockTime > yieldLockTime, "cpf.setYieldLockTime: INVALID_YIELDLOCKTIME");
+        yieldLockTime = _yieldLockTime;
+
+        emit SetYieldLockTime(_yieldLockTime);
     }
 
     function calStakingPoolApeXReward(uint256 _lastYieldDistribution, address _poolToken)

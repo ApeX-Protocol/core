@@ -14,8 +14,12 @@ interface IStakingPoolFactory {
 
     event SetTreasury(address _treasury);
 
+    event SetYieldLockTime(uint256 _yieldLockTime);
+
     /// @notice get the endBlock number to yield, after this, no yield reward
     function endBlock() external view returns (uint256);
+
+    function yieldLockTime() external view returns (uint256);
 
     /// @notice get stakingPool's poolToken
     function poolTokenMap(address pool) external view returns (address);

@@ -228,7 +228,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
                 amount: yieldAmount,
                 weight: yieldWeight,
                 lockFrom: now256,
-                lockUntil: now256 + ONE_YEAR,
+                lockUntil: now256 + factory.yieldLockTime(),
                 isYield: true
             });
             user.deposits.push(newDeposit);

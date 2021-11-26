@@ -39,6 +39,7 @@ describe("stakingPoolFactory contract", function () {
     apexStakingPool = await StakingPool.attach(apexStakingPoolAddr);
 
     await apexToken.mint(owner.address, "100000000000000000000");
+    await apexToken.mint(treasury.address, "100000000000000000000");
   });
 
   describe("createPool", function () {
@@ -102,7 +103,7 @@ describe("stakingPoolFactory contract", function () {
       await network.provider.send("evm_mine");
       await stakingPoolFactory.updateApeXPerBlock();
       let latestBlock = (await stakingPoolFactory.lastUpdateBlock()).toNumber();
-      //61 * 97 * 21 / 21
+      //(latestBlock-0) * 97
       expect(await stakingPoolFactory.calStakingPoolApeXReward(0, apexToken.address)).to.be.equal(latestBlock * 97);
     });
   });
@@ -115,19 +116,6 @@ describe("stakingPoolFactory contract", function () {
   });
 
   describe("transferYieldTo", function () {
-    beforeEach(async function () {
-      let oneYearLockUntil = await oneYearLater();
-      await apexToken.approve(apexStakingPool.address, 20000);
-      await stakingPoolFactory.setTreasury(treasury.address);
-
-      await apexStakingPool.stake(10000, 0);
-    });
-
-    it("transfer apeX from treasury to _to", async function () {
-      await network.provider.send("evm_mine");
-      await apexStakingPool.unstake(0, 10000);
-    });
-
     it("reverted when transfer apeX by unauthorized account", async function () {
       await expect(stakingPoolFactory.transferYieldTo(addr1.address, 10)).to.be.revertedWith(
         "cpf.transferYieldTo: ACCESS_DENIED"
@@ -135,7 +123,3 @@ describe("stakingPoolFactory contract", function () {
     });
   });
 });
-
-async function oneYearLater() {
-  return Math.floor(Date.now() / 1000) + 31536000;
-}
