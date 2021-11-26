@@ -263,19 +263,28 @@ contract Margin is IMargin, IVault, Reentrant {
         //query swap exact quote to base
         quoteAmount = quoteSize.abs();
         baseAmount = _querySwapBaseWithAmm(isLong, quoteAmount);
+        uint256 remainBaseAmountForAmm;
+        {
+            //calc remain base after liquidate
+            int256 fundingFee = _calFundingFee(_latestCPF);
+            int256 remainBaseAmountAfterLiquidate = isLong
+                ? traderPosition.baseSize.subU(baseAmount) + fundingFee
+                : traderPosition.baseSize.addU(baseAmount) + fundingFee;
+            require(remainBaseAmountAfterLiquidate >= 0, "Margin.liquidate: NO_REWARD");
+            uint256 liquidateFeeRatio = IConfig(config).liquidateFeeRatio();
+            uint256 remainBaseAmountAfterLiquidateAbs = remainBaseAmountAfterLiquidate.abs();
 
-        //calc liquidate fee
-        //todo change to part of remain rewards
-        uint256 liquidateFeeRatio = IConfig(config).liquidateFeeRatio();
-        bonus = (baseAmount * liquidateFeeRatio) / MAXRATIO;
-        int256 fundingFee = _calFundingFee(_latestCPF);
-        int256 remainBaseAmount = traderPosition.baseSize.subU(bonus) + fundingFee;
+            //calc liquidate reward
+            bonus = (remainBaseAmountAfterLiquidateAbs * liquidateFeeRatio) / MAXRATIO;
+            remainBaseAmountForAmm = remainBaseAmountAfterLiquidateAbs - bonus;
+        }
+
         if (isLong) {
             totalLong -= quoteAmount;
-            IAmm(amm).forceSwap(address(baseToken), address(quoteToken), remainBaseAmount.abs(), quoteAmount);
+            IAmm(amm).forceSwap(address(baseToken), address(quoteToken), remainBaseAmountForAmm, quoteAmount);
         } else {
             totalShort -= quoteAmount;
-            IAmm(amm).forceSwap(address(quoteToken), address(baseToken), quoteAmount, remainBaseAmount.abs());
+            IAmm(amm).forceSwap(address(quoteToken), address(baseToken), quoteAmount, remainBaseAmountForAmm);
         }
 
         traderCPF[trader] = _latestCPF;
