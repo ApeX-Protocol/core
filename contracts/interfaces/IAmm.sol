@@ -81,12 +81,5 @@ interface IAmm {
         uint256 outputAmount
     ) external view returns (uint256[2] memory amounts);
 
-    function estimateSwapWithMarkPrice(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount
-    ) external view returns (uint256[2] memory amounts);
-
     function MINIMUM_LIQUIDITY() external pure returns (uint256);
 }

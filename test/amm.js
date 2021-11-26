@@ -12,7 +12,7 @@ describe("Amm", function () {
   let USDT;
   let priceOracle;
   let config;
-  let margin = 0x0;
+  let margin;
   let exp1 = ethers.BigNumber.from("10").pow(18);
   let exp2 = ethers.BigNumber.from("10").pow(6);
   let feeToSetter;
@@ -20,11 +20,12 @@ describe("Amm", function () {
     [owner, alice, bob, feeToSetter] = await ethers.getSigners();
     console.log("owner:", owner.address);
     console.log("feeToSetter:", feeToSetter.address);
-    const AMMFactory = await ethers.getContractFactory("Amm");
+    const AMMContract = await ethers.getContractFactory("Amm");
     const AMMFactoryContract = await ethers.getContractFactory("AmmFactory");
     const MyToken = await ethers.getContractFactory("MyToken");
     const PriceOracle = await ethers.getContractFactory("MockPriceOracle");
     const MockConfig = await ethers.getContractFactory("Config");
+    const MockMargin = await ethers.getContractFactory("MockMargin");
 
     //config
     config = await MockConfig.deploy();
@@ -41,8 +42,10 @@ describe("Amm", function () {
     // oracle
     priceOracle = await PriceOracle.deploy();
     console.log("priceOracle: ", priceOracle.address);
+  //  console.log((await priceOracle.quote(owner.address, owner.address, 0)).toString);
 
     await config.setPriceOracle(priceOracle.address);
+
     //token deploy
     //aaa 100m
     AAAToken = await MyToken.deploy("AAA Token", "AAA", 18, 100000000);
@@ -52,29 +55,33 @@ describe("Amm", function () {
     console.log("USDT:", USDT.address);
 
     // init alice and bob balance
-
     await AAAToken.transfer(alice.address, ethers.BigNumber.from("10000").mul(exp1));
     await AAAToken.transfer(bob.address, ethers.BigNumber.from("1000000").mul(exp1));
     await USDT.transfer(alice.address, ethers.BigNumber.from("10000").mul(exp2));
     await USDT.transfer(bob.address, ethers.BigNumber.from("1000000").mul(exp2));
-    // const tx = {
-    //   to: amm.address,
-    //   value: ethers.utils.parseEther("0.1"),
-    // };
+    const tx1 = {
+      to: AAAToken.address,
+      value: ethers.utils.parseEther("0.1"),
+    };
 
-    // let fundtx = await owner.sendTransaction(tx);
-    // console.log(await fundtx.wait());
+    await expect(owner.sendTransaction(tx1)).to.be.revertedWith("function selector was not recognized and there's no fallback nor receive function")
+   
 
     // amm initialize
     //await amm.initialize(AAAToken.address, USDT.address, config.address);
 
     let tx = await ammFactory.createAmm(AAAToken.address, USDT.address);
     let txReceipt = await tx.wait();
-    await ammFactory.initAmm(AAAToken.address, USDT.address, owner.address);
     console.log("amm: ", txReceipt["events"][0].args[2]);
     let ammAddress = txReceipt["events"][0].args[2];
 
-    amm = AMMFactory.attach(ammAddress);
+    amm = AMMContract.attach(ammAddress);
+
+     //mock margin
+    margin = await MockMargin.deploy();
+    console.log("margin: ", margin.address );
+    await margin.initialize(AAAToken.address, USDT.address, amm.address, config.address);
+    await ammFactory.initAmm(AAAToken.address, USDT.address, margin.address);
     expect(await amm.totalSupply()).to.equal(0);
     expect(await USDT.balanceOf(alice.address)).to.equal(ethers.BigNumber.from("10000").mul(exp2));
     expect(await AAAToken.balanceOf(alice.address)).to.equal(ethers.BigNumber.from("10000").mul(exp1));
@@ -87,7 +94,7 @@ describe("Amm", function () {
     // price AAA/usdt = 1/10
     console.log("---------test begin---------");
     await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
-    console.log(await AAAToken.balanceOf(amm.address));
+    // console.log(await AAAToken.balanceOf(amm.address));
     // let tx = await amm.mint(owner.address);
     // const minRes = await tx.wait();
     // const events = minRes["events"];
@@ -150,7 +157,7 @@ describe("Amm", function () {
 
     const ammAlice = amm.connect(alice);
     // alice swap 1000000AAA to usdt
-    //alice swap out
+    //alice swap in
     let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0);
 
     const swapRes = await tx1.wait();
@@ -181,10 +188,10 @@ describe("Amm", function () {
       );
 
     const ammAlice = amm.connect(alice);
-    // alice swap 100000AAA to usdt
+    // alice swap  some AAA to 100000 usdt
     //alice swap out
     await expect(
       ammAlice.swap(AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100000").mul(exp2))
-    ).to.be.revertedWith("Amm._getAmountOut: INSUFFICIENT_LIQUIDITY");
+    ).to.be.revertedWith("AMM._estimateSwap: INSUFFICIENT_LIQUIDITY");
   });
 });
