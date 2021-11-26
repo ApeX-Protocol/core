@@ -74,6 +74,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         // forward  baseAmount -> quoteAmount
         if (_totalSupply == 0) {
             quoteAmount = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, baseAmount);
+           
             require(quoteAmount > 0, "Amm.mint: INSUFFICIENT_QUOTE_AMOUNT");
             liquidity = Math.sqrt(baseAmount * quoteAmount) - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
@@ -92,7 +93,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         _safeTransfer(baseToken, margin, baseAmount);
 
-        //todo forward
+    
         IVault(margin).deposit(msg.sender, baseAmount);
 
         emit Mint(msg.sender, to, baseAmount, quoteAmount, liquidity);
@@ -131,7 +132,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 inputAmount,
         uint256 outputAmount
     ) external override nonReentrant onlyMargin returns (uint256[2] memory amounts) {
-        // todo onlymargin
+        
         uint256[2] memory reserves;
         (reserves, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
         _update(reserves[0], reserves[1], baseReserve, quoteReserve);
@@ -185,50 +186,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         (, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
     }
 
-    function estimateSwapWithMarkPrice(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount
-    ) external view override returns (uint256[2] memory amounts) {
-        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-        uint256 quoteAmount;
-        uint256 baseAmount;
-        bool dir;
-        if (inputAmount != 0 && inputToken == quoteToken) {
-            //short
-            quoteAmount = inputAmount;
-            dir = false;
-        } else {
-            //long
-            quoteAmount = outputAmount;
-            dir = true;
-        }
-
-        // price = (sqrt(y/x)+ betal * deltaY/L).**2;
-        // deltaX = deltaY/price
-        // deltaX = (deltaY * L)/(y + betal * deltaY)**2
-
-        uint256 L = uint256(_baseReserve) * uint256(_quoteReserve);
-        uint8 beta = IConfig(config).beta();
-        require(beta >= 50 && beta <= 100, "beta error");
-
-        //112
-        uint256 denominator;
-
-        if (dir) {
-            //long
-            denominator = (_quoteReserve - (beta * quoteAmount) / 100);
-        } else {
-            //short
-            denominator = (_quoteReserve + (beta * quoteAmount) / 100);
-        }
-
-        //224
-        denominator = denominator * denominator;
-        baseAmount = FullMath.mulDiv(quoteAmount, L, denominator);
-        return inputAmount == 0 ? [baseAmount, quoteAmount] : [quoteAmount, baseAmount];
-    }
 
     function getReserves()
         public
@@ -260,7 +217,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 reserve0;
         uint256 reserve1;
         if (inputAmount > 0 && inputToken != address(0)) {
-            // swapOut
+            // swapIn
             if (inputToken == baseToken) {
                 outputAmount = _getAmountOut(inputAmount, _baseReserve, _quoteReserve);
                 reserve0 = _baseReserve + inputAmount;
@@ -271,12 +228,14 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 reserve1 = _quoteReserve + inputAmount;
             }
         } else {
-            //swapIn
+            //swapOutput
             if (outputToken == baseToken) {
+                require(outputAmount < _baseReserve, "AMM._estimateSwap: INSUFFICIENT_LIQUIDITY");
                 inputAmount = _getAmountIn(outputAmount, _quoteReserve, _baseReserve);
                 reserve0 = _baseReserve - outputAmount;
                 reserve1 = _quoteReserve + inputAmount;
             } else {
+                require(outputAmount < _quoteReserve, "AMM._estimateSwap: INSUFFICIENT_LIQUIDITY");
                 inputAmount = _getAmountIn(outputAmount, _baseReserve, _quoteReserve);
                 reserve0 = _baseReserve + inputAmount;
                 reserve1 = _quoteReserve - outputAmount;
