@@ -127,7 +127,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
         if (isYield) {
             factory.transferYieldTo(msg.sender, _amount);
         } else {
-            transferTokenFrom(address(this), msg.sender, _amount);
+            transferToken(msg.sender, _amount);
         }
     }
 

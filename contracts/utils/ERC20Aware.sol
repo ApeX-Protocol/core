@@ -19,4 +19,8 @@ abstract contract ERC20Aware is Reentrant {
     ) internal nonReentrant {
         IERC20(token).transferFrom(_from, _to, _value);
     }
+
+    function transferToken(address _to, uint256 _value) internal nonReentrant {
+        IERC20(token).transfer(_to, _value);
+    }
 }
