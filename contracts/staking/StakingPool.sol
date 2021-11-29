@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IStakingPool.sol";
 import "./interfaces/IStakingPoolFactory.sol";
-import "../interfaces/IERC20.sol";
+import "../core/interfaces/IERC20.sol";
 import "../utils/ERC20Aware.sol";
 
 contract StakingPool is IStakingPool, ERC20Aware {

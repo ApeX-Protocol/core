@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../interfaces/IMintableERC20.sol";
+import "../core/interfaces/IMintableERC20.sol";
 import "./Reentrant.sol";
 
 abstract contract ApeXAware is Reentrant {

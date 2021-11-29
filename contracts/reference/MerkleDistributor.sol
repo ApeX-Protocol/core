@@ -1,6 +1,6 @@
 pragma solidity ^0.8.0;
 
-import "../interfaces/IERC20.sol";
+import "../core/interfaces/IERC20.sol";
 import "./MerkleProof.sol";
 import "./IMerkleDistributor.sol";
 
@@ -32,21 +32,26 @@ contract MerkleDistributor is IMerkleDistributor {
         claimedBitMap[claimedWordIndex] = claimedBitMap[claimedWordIndex] | (1 << claimedBitIndex);
     }
 
-    function claim(uint256 index, address account, uint256 amount, bytes32[] calldata merkleProof) external override {
-        require(!isClaimed(index), 'MerkleDistributor: Drop already claimed.');
+    function claim(
+        uint256 index,
+        address account,
+        uint256 amount,
+        bytes32[] calldata merkleProof
+    ) external override {
+        require(!isClaimed(index), "MerkleDistributor: Drop already claimed.");
 
         // Verify the merkle proof.
         bytes32 node = keccak256(abi.encodePacked(index, account, amount));
-        require(MerkleProof.verify(merkleProof, merkleRoot, node), 'MerkleDistributor: Invalid proof.');
+        require(MerkleProof.verify(merkleProof, merkleRoot, node), "MerkleDistributor: Invalid proof.");
 
         // Mark it claimed and send the token.
         _setClaimed(index);
-        require(IERC20(token).transfer(account, amount), 'MerkleDistributor: Transfer failed.');
+        require(IERC20(token).transfer(account, amount), "MerkleDistributor: Transfer failed.");
 
         emit Claimed(index, account, amount);
     }
 
-       function claimRestTokens() public returns(bool) {
+    function claimRestTokens() public returns (bool) {
         // only owner
         require(msg.sender == owner);
         require(IERC20(token).balanceOf(address(this)) >= 0);

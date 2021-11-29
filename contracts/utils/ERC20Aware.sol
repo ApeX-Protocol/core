@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../interfaces/IERC20.sol";
+import "../core/interfaces/IERC20.sol";
 import "./Reentrant.sol";
 
 abstract contract ERC20Aware is Reentrant {
