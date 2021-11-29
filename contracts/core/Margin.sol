@@ -99,7 +99,7 @@ contract Margin is IMargin, IVault, Reentrant {
         require(side == 0 || side == 1, "Margin.openPosition: INVALID_SIDE");
         require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
         if (msg.sender != trader) {
-            require(IConfig(config).routerMap(msg.sender), "Margin.removeMargin: FORBIDDEN");
+            require(IConfig(config).routerMap(msg.sender), "Margin.openPosition: FORBIDDEN");
         }
         int256 _latestCPF = updateCPF();
 
@@ -270,6 +270,7 @@ contract Margin is IMargin, IVault, Reentrant {
             int256 remainBaseAmountAfterLiquidate = isLong
                 ? traderPosition.baseSize.subU(baseAmount) + fundingFee
                 : traderPosition.baseSize.addU(baseAmount) + fundingFee;
+            //tocheck make sense?
             require(remainBaseAmountAfterLiquidate >= 0, "Margin.liquidate: NO_REWARD");
             uint256 liquidateFeeRatio = IConfig(config).liquidateFeeRatio();
             uint256 remainBaseAmountAfterLiquidateAbs = remainBaseAmountAfterLiquidate.abs();
@@ -341,7 +342,8 @@ contract Margin is IMargin, IVault, Reentrant {
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             !isLong,
             quoteAmount,
-            address(quoteToken)
+            address(quoteToken),
+            address(baseToken)
         );
 
         uint256[2] memory result = IAmm(amm).swap(inputToken, outputToken, inputAmount, outputAmount);
@@ -352,7 +354,8 @@ contract Margin is IMargin, IVault, Reentrant {
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             isLong,
             quoteAmount,
-            address(quoteToken)
+            address(quoteToken),
+            address(baseToken)
         );
 
         uint256[2] memory result = IAmm(amm).swap(inputToken, outputToken, inputAmount, outputAmount);
@@ -411,7 +414,8 @@ contract Margin is IMargin, IVault, Reentrant {
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             isLong,
             quoteAmount,
-            address(quoteToken)
+            address(quoteToken),
+            address(baseToken)
         );
 
         uint256[2] memory result = IAmm(amm).estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
@@ -606,7 +610,8 @@ contract Margin is IMargin, IVault, Reentrant {
     function _getSwapParam(
         bool isLong,
         uint256 amount,
-        address token
+        address token,
+        address anotherToken
     )
         internal
         pure
@@ -620,9 +625,11 @@ contract Margin is IMargin, IVault, Reentrant {
         if (isLong) {
             outputToken = token;
             outputAmount = amount;
+            inputToken = anotherToken;
         } else {
             inputToken = token;
             inputAmount = amount;
+            outputToken = anotherToken;
         }
     }
 }

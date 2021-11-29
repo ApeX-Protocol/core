@@ -8,6 +8,7 @@ abstract contract Ownable {
 
     event NewAdmin(address indexed oldAdmin, address indexed newAdmin);
     event NewPendingAdmin(address indexed oldPendingAdmin, address indexed newPendingAdmin);
+    ///@notice there is no constructor, need to set admin from child contract
 
     modifier onlyAdmin() {
         require(msg.sender == admin, "Ownable: REQUIRE_ADMIN");
