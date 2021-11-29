@@ -29,6 +29,7 @@ contract BondPool is IBondPool, Ownable {
         uint256 discount_,
         uint256 vestingTerm_
     ) {
+        admin = msg.sender;
         require(apeXToken_ != address(0), "BondPool: ZERO_ADDRESS");
         apeXToken = apeXToken_;
         require(treasury_ != address(0), "BondPool: ZERO_ADDRESS");
