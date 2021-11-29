@@ -29,7 +29,6 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         maxPayout = maxPayout_;
         discount = discount_;
         vestingTerm = vestingTerm_;
-        admin = msg.sender;
     }
 
     function updateParams(
