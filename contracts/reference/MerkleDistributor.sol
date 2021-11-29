@@ -2,7 +2,7 @@ pragma solidity ^0.8.0;
 
 import "../core/interfaces/IERC20.sol";
 import "./MerkleProof.sol";
-import "./IMerkleDistributor.sol";
+import "./interfaces/IMerkleDistributor.sol";
 
 contract MerkleDistributor is IMerkleDistributor {
     address public immutable override token;
