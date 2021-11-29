@@ -474,18 +474,18 @@ describe("Margin contract", function () {
 
     it("check funding fee at different timestamp", async function () {
       //maxBoost*baseAmount*pf*time
-      expect((await margin.calFundingFee()).toNumber()).to.be.equal(-100);
+      expect((await margin.calFundingFee(owner.address)).toNumber()).to.be.equal(-100);
 
       await margin.updateCPF();
-      expect((await margin.calFundingFee()).toNumber()).to.be.equal(-200);
+      expect((await margin.calFundingFee(owner.address)).toNumber()).to.be.equal(-200);
       let latestUpdateCPF1 = await margin.lastUpdateCPF();
 
       await sleep(5000);
       //notice: in hardhat, block.timestamp is former block timestamp, so time == 0
-      expect((await margin.calFundingFee()).toNumber()).to.be.equal(-200);
+      expect((await margin.calFundingFee(owner.address)).toNumber()).to.be.equal(-200);
 
       await margin.updateCPF();
-      expect((await margin.calFundingFee()).toNumber()).to.be.greaterThan(-800);
+      expect((await margin.calFundingFee(owner.address)).toNumber()).to.be.greaterThanOrEqual(-800);
       let latestUpdateCPF2 = await margin.lastUpdateCPF();
 
       expect(latestUpdateCPF2.toNumber()).to.be.greaterThan(latestUpdateCPF1.toNumber());

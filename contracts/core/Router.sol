@@ -194,11 +194,12 @@ contract Router is IRouter {
         returns (
             int256 baseSize,
             int256 quoteSize,
-            uint256 tradeSize
+            uint256 tradeSize,
+            int256 realizedPnl
         )
     {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        (baseSize, quoteSize, tradeSize) = IMargin(margin).getPosition(holder);
+        (baseSize, quoteSize, tradeSize, realizedPnl) = IMargin(margin).getPosition(holder);
     }
 
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset

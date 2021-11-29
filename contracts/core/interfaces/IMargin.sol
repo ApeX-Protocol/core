@@ -85,7 +85,8 @@ interface IMargin {
         returns (
             int256 baseSize,
             int256 quoteSize,
-            uint256 tradeSize
+            uint256 tradeSize,
+            int256 realizedPnl
         );
 
     /// @notice get withdrawable margin of trader
@@ -95,8 +96,12 @@ interface IMargin {
     function canLiquidate(address trader) external view returns (bool);
 
     /// @notice calculate the latest funding fee with current position
-    function calFundingFee() external view returns (int256 fundingFee);
+    function calFundingFee(address trader) external view returns (int256 fundingFee);
 
     /// @notice calculate the latest debt ratio with Pnl and funding fee
-    function calDebtRatio(int256 quoteSize, int256 baseSize) external view returns (uint256 debtRatio);
+    function calDebtRatio(
+        address trader,
+        int256 quoteSize,
+        int256 baseSize
+    ) external view returns (uint256 debtRatio);
 }

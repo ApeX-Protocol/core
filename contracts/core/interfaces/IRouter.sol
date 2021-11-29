@@ -94,6 +94,7 @@ interface IRouter {
         returns (
             int256 baseSize,
             int256 quoteSize,
-            uint256 tradeSize
+            uint256 tradeSize,
+            int256 realizedPnl
         );
 }
