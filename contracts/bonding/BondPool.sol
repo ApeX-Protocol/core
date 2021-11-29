@@ -42,6 +42,7 @@ contract BondPool is IBondPool, Ownable {
         discount = discount_;
         require(vestingTerm_ >= 129600, "BondPool: MUST_BE_LONGER_THAN_36_HOURS");
         vestingTerm = vestingTerm_;
+        admin = msg.sender;
     }
 
     function setMaxPayout(uint256 maxPayout_) external onlyAdmin {

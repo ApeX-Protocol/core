@@ -13,6 +13,7 @@ contract PCVTreasury is IPCVTreasury, Ownable {
 
     constructor(address apeXToken_) {
         apeXToken = apeXToken_;
+        admin = msg.sender;
     }
 
     function addLiquidityToken(address lpToken) external override onlyAdmin {
