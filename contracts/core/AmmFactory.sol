@@ -46,7 +46,6 @@ contract AmmFactory is IAmmFactory {
         address margin
     ) external override onlyUpper {
         address amm = getAmm[baseToken][quoteToken];
-        //fixme IAmm?
         Amm(amm).initialize(baseToken, quoteToken, margin);
     }
 

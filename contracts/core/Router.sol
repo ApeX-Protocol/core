@@ -75,7 +75,7 @@ contract Router is IRouter {
         uint256 amount
     ) external override {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        require(margin != address(0), "Router.deposit: ZERO_ADDRESS");
+        require(margin != address(0), "Router.deposit: NOT_FOUND_MARGIN");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, amount);
         IMargin(margin).addMargin(holder, amount);
     }
@@ -86,7 +86,7 @@ contract Router is IRouter {
         uint256 amount
     ) external override {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        require(margin != address(0), "Router.withdraw: ZERO_ADDRESS");
+        require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
         IMargin(margin).removeMargin(msg.sender, amount);
     }
 
@@ -100,7 +100,7 @@ contract Router is IRouter {
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount) {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        require(margin != address(0), "Router.openPositionWithWallet: ZERO_ADDRESS");
+        require(margin != address(0), "Router.openPositionWithWallet: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionWithWallet: INSUFFICIENT_SIDE");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, marginAmount);
         IMargin(margin).addMargin(msg.sender, marginAmount);
@@ -121,7 +121,7 @@ contract Router is IRouter {
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount) {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        require(margin != address(0), "Router.openPositionWithMargin: ZERO_ADDRESS");
+        require(margin != address(0), "Router.openPositionWithMargin: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionWithMargin: INSUFFICIENT_SIDE");
         baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
@@ -139,7 +139,7 @@ contract Router is IRouter {
         bool autoWithdraw
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        require(margin != address(0), "Router.closePosition: ZERO_ADDRESS");
+        require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
         if (autoWithdraw) {
             withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
@@ -208,8 +208,8 @@ contract Router is IRouter {
         uint256 reserveIn,
         uint256 reserveOut
     ) internal pure returns (uint256 amountOut) {
-        require(amountIn > 0, "Router: INSUFFICIENT_INPUT_AMOUNT");
-        require(reserveIn > 0 && reserveOut > 0, "Router: INSUFFICIENT_LIQUIDITY");
+        require(amountIn > 0, "Router.getAmountOut: INSUFFICIENT_INPUT_AMOUNT");
+        require(reserveIn > 0 && reserveOut > 0, "Router.getAmountOut: INSUFFICIENT_LIQUIDITY");
         uint256 amountInWithFee = amountIn * 999;
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = reserveIn * 1000 + amountInWithFee;
@@ -222,8 +222,8 @@ contract Router is IRouter {
         uint256 reserveIn,
         uint256 reserveOut
     ) internal pure returns (uint256 amountIn) {
-        require(amountOut > 0, "Router: INSUFFICIENT_OUTPUT_AMOUNT");
-        require(reserveIn > 0 && reserveOut > 0, "Router: INSUFFICIENT_LIQUIDITY");
+        require(amountOut > 0, "Router.getAmountIn: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(reserveIn > 0 && reserveOut > 0, "Router.getAmountIn: INSUFFICIENT_LIQUIDITY");
         uint256 numerator = reserveIn * amountOut * 1000;
         uint256 denominator = (reserveOut - amountOut) * 999;
         amountIn = numerator / denominator + 1;
