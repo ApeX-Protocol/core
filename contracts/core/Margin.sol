@@ -558,7 +558,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 quoteAmount,
                 false
             );
-            uint256 baseAmount = quoteAmount / price;
+            uint256 baseAmount = (quoteAmount * 1e18) / price;
             //baseSize must be negative
             debtRatio = baseAmount == 0 ? MAXRATIO : (baseSize.abs() * MAXRATIO) / baseAmount;
         } else {
@@ -571,7 +571,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 true
             );
 
-            uint256 baseAmount = quoteAmount / price;
+            uint256 baseAmount = (quoteAmount * 1e18) / price;
             uint256 ratio = (baseAmount * MAXRATIO) / baseSize.abs();
             debtRatio = MAXRATIO < ratio ? MAXRATIO : ratio;
         }

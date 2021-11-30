@@ -298,11 +298,14 @@ async function flowVerify(needAttach) {
   await tx.wait();
 
   console.log("set price...");
-  tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 1, 400);
+  tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 1, 200);
   await tx.wait();
   console.log("rebase...");
   tx = await l2Amm.rebase();
   await tx.wait();
+
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
+  printPosition(positionItem);
 
   console.log("liquidate position...");
   tx = await l2Margin.liquidate(signer);
@@ -317,7 +320,7 @@ async function flowVerify(needAttach) {
     l2QuoteToken.address,
     short,
     ethers.utils.parseEther("1.0"),
-    ethers.utils.parseEther("4000.0"),
+    ethers.utils.parseEther("2000.0"),
     "999999999999999999999999999999",
     deadline
   );
@@ -356,8 +359,7 @@ function printPosition(positionItem) {
     "after open, current baseSize and quoteSize and tradeSize abs and realizedPnl: ",
     BigNumber.from(positionItem[0]).toString(),
     BigNumber.from(positionItem[1]).toString(),
-    BigNumber.from(positionItem[2]).toString(),
-    BigNumber.from(positionItem[3]).toString()
+    BigNumber.from(positionItem[2]).toString()
   );
 }
 
