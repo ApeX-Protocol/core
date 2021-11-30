@@ -35,6 +35,7 @@ contract Margin is IMargin, IVault, Reentrant {
     mapping(address => Position) public traderPositionMap;
     mapping(address => int256) public traderCPF; //one trader's latest cpf
     uint256 public override reserve;
+    int256 public override netPosition; //base token
     uint256 public lastUpdateCPF; //last timestamp update cumulative premium fraction
     uint256 internal totalQuoteLong;
     uint256 internal totalQuoteShort;
@@ -123,11 +124,13 @@ contract Margin is IMargin, IVault, Reentrant {
         if (isLong) {
             traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
             traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount) + fundingFee;
-            totalQuoteLong += quoteAmount;
+            totalQuoteLong = totalQuoteLong + quoteAmount;
+            netPosition = netPosition.addU(baseAmount);
         } else {
             traderPosition.quoteSize = traderPosition.quoteSize.addU(quoteAmount);
             traderPosition.baseSize = traderPosition.baseSize.subU(baseAmount) + fundingFee;
-            totalQuoteShort += quoteAmount;
+            totalQuoteShort = totalQuoteShort + quoteAmount;
+            netPosition = netPosition.subU(baseAmount);
         }
 
         if (traderPosition.quoteSize == 0) {
@@ -176,7 +179,8 @@ contract Margin is IMargin, IVault, Reentrant {
         ) {
             baseAmount = _querySwapBaseWithAmm(isLong, quoteSize);
             if (isLong) {
-                totalQuoteLong -= quoteSize;
+                totalQuoteLong = totalQuoteLong - quoteSize;
+                netPosition = netPosition.subU(baseAmount);
                 int256 remainBaseAmount = traderPosition.baseSize.subU(baseAmount) + fundingFee;
                 if (remainBaseAmount >= 0) {
                     _minusPositionWithAmm(isLong, quoteSize);
@@ -195,7 +199,8 @@ contract Margin is IMargin, IVault, Reentrant {
                     traderPosition.tradeSize = 0;
                 }
             } else {
-                totalQuoteShort -= quoteSize;
+                totalQuoteShort = totalQuoteShort - quoteSize;
+                netPosition = netPosition.addU(baseAmount);
                 int256 remainBaseAmount = traderPosition.baseSize.addU(baseAmount) + fundingFee;
                 if (remainBaseAmount >= 0) {
                     _minusPositionWithAmm(isLong, quoteSize);
@@ -220,11 +225,13 @@ contract Margin is IMargin, IVault, Reentrant {
             //long old: quote -10, base 11; close position: quote 5, base -5; new: quote -5, base 6
             //short old: quote 10, base -9; close position: quote -5, base +5; new: quote 5, base -4
             if (isLong) {
-                totalQuoteLong -= quoteAmount;
+                totalQuoteLong = totalQuoteLong - quoteAmount;
+                netPosition = netPosition.subU(baseAmount);
                 traderPosition.quoteSize = traderPosition.quoteSize.addU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.subU(baseAmount) + fundingFee;
             } else {
-                totalQuoteShort -= quoteAmount;
+                totalQuoteShort = totalQuoteShort - quoteAmount;
+                netPosition = netPosition.addU(baseAmount);
                 traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount) + fundingFee;
             }
@@ -283,7 +290,8 @@ contract Margin is IMargin, IVault, Reentrant {
         }
 
         if (isLong) {
-            totalQuoteLong -= quoteAmount;
+            totalQuoteLong = totalQuoteLong - quoteAmount;
+            netPosition = netPosition.subU(baseAmount);
             IAmm(amm).forceSwap(
                 address(baseToken),
                 address(quoteToken),
@@ -291,7 +299,8 @@ contract Margin is IMargin, IVault, Reentrant {
                 quoteAmount
             );
         } else {
-            totalQuoteShort -= quoteAmount;
+            totalQuoteShort = totalQuoteShort - quoteAmount;
+            netPosition = netPosition.addU(baseAmount);
             IAmm(amm).forceSwap(
                 address(quoteToken),
                 address(baseToken),

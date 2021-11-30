@@ -78,6 +78,9 @@ interface IMargin {
     /// @notice get amm address of this margin
     function amm() external view returns (address);
 
+    /// @notice get all users' net position of base
+    function netPosition() external view returns (int256 netBasePosition);
+
     /// @notice get trader's position
     function getPosition(address trader)
         external
