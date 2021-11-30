@@ -1,9 +1,12 @@
 pragma solidity ^0.8.0;
 
 contract MockPriceOracle {
-    constructor() {}
-
     int256 public pf = 0;
+    uint256 public p;
+
+    constructor() {
+        p = 1;
+    }
 
     //premiumFraction is (markPrice - indexPrice) * fundingRatePrecision / 8h / indexPrice
     function getPremiumFraction(address amm) external view returns (int256) {
@@ -20,14 +23,18 @@ contract MockPriceOracle {
         uint256 quoteAmount,
         bool negative
     ) public view returns (uint256 price) {
-        return 1;
+        return p;
+    }
+
+    function setMarkPrice(uint256 _p) external {
+        p = _p;
     }
 
     function quote(
         address baseToken,
         address quoteToken,
         uint256 baseAmount
-    ) external view  returns (uint256 quoteAmount) {
+    ) external view returns (uint256 quoteAmount) {
         quoteAmount = 100000 * 10**6;
     }
 }

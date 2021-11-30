@@ -340,9 +340,8 @@ describe("Margin contract", function () {
   describe("liquidate", async function () {
     beforeEach(async function () {
       await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
-      await mockRouter.addMargin(owner.address, 8);
-      let quoteAmount = 10;
-      await margin.connect(addr1).openPosition(addr1.address, longSide, quoteAmount);
+      let quoteAmount = 800;
+      await margin.connect(addr1).openPosition(addr1.address, shortSide, quoteAmount);
     });
 
     it("liquidate 0 position, reverted", async function () {
@@ -357,12 +356,17 @@ describe("Margin contract", function () {
       );
     });
 
-    it("liquidate liquidatable position", async function () {
+    it("liquidate non liquidatable position", async function () {
       let quoteAmount = 10;
       await margin.connect(addr1).openPosition(addr1.address, longSide, quoteAmount);
       await expect(margin.connect(liquidator).liquidate(addr1.address)).to.be.revertedWith(
         "Margin.liquidate: NOT_LIQUIDATABLE"
       );
+    });
+
+    it("liquidate liquidatable position", async function () {
+      await mockPriceOracle.setMarkPrice(100);
+      await margin.connect(liquidator).liquidate(addr1.address);
     });
   });
   describe("get margin ratio", async function () {
