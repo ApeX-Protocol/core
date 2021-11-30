@@ -85,8 +85,7 @@ interface IMargin {
         returns (
             int256 baseSize,
             int256 quoteSize,
-            uint256 tradeSize,
-            int256 realizedPnl
+            uint256 tradeSize
         );
 
     /// @notice get withdrawable margin of trader
