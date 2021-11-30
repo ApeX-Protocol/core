@@ -5,14 +5,14 @@ import "./interfaces/IBondPoolFactory.sol";
 import "../utils/Ownable.sol";
 
 contract BondPoolFactory is IBondPoolFactory, Ownable {
-    address public immutable apeXToken;
-    address public immutable treasury;
-    address public immutable priceOracle;
-    uint256 public maxPayout;
-    uint256 public discount; // [0, 10000]
-    uint256 public vestingTerm;
+    address public immutable override apeXToken;
+    address public immutable override treasury;
+    address public immutable override priceOracle;
+    uint256 public override maxPayout;
+    uint256 public override discount; // [0, 10000]
+    uint256 public override vestingTerm;
 
-    address[] public allPools;
+    address[] public override allPools;
 
     constructor(
         address apeXToken_,
@@ -35,9 +35,11 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         uint256 maxPayout_,
         uint256 discount_,
         uint256 vestingTerm_
-    ) external onlyAdmin {
+    ) external override onlyAdmin {
         maxPayout = maxPayout_;
+        require(discount_ <= 10000, "BondPoolFactory.updateParams: DISCOUNT_OVER_100%");
         discount = discount_;
+        require(vestingTerm_ >= 129600, "BondPoolFactory.updateParams: MUST_BE_LONGER_THAN_36_HOURS");
         vestingTerm = vestingTerm_;
     }
 
@@ -46,5 +48,9 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         allPools.push(pool);
         emit BondPoolCreated(amm, pool);
         return pool;
+    }
+
+    function allPoolsLength() external view override returns (uint256) {
+        return allPools.length;
     }
 }
