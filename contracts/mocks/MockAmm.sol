@@ -5,7 +5,29 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockAmm is ERC20 {
+    address public baseToken;
+    address public quoteToken;
+
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
+
+    function initialize(address baseToken_, address quoteToken_) external {
+        baseToken = baseToken_;
+        quoteToken = quoteToken_;
+    }
+
+    function mint(address to)
+        external
+        returns (
+            uint256 baseAmount,
+            uint256 quoteAmount,
+            uint256 liquidity
+        )
+    {
+        baseAmount = 1000;
+        quoteAmount = 1000;
+        liquidity = 1000;
+        _mint(to, liquidity);
+    }
 
     function estimateSwap(
         address input,

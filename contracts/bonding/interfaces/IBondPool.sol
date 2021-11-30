@@ -12,6 +12,12 @@ interface IBondPool {
         uint256 paidAmount;
     }
 
+    function setMaxPayout(uint256 maxPayout_) external;
+
+    function setDiscount(uint256 discount_) external;
+
+    function setVestingTerm(uint256 vestingTerm_) external;
+
     function deposit(
         address depositor,
         uint256 depositAmount,

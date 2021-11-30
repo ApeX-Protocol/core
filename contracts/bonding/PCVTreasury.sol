@@ -40,7 +40,7 @@ contract PCVTreasury is IPCVTreasury, Ownable {
         require(amountIn > 0, "PCVTreasury.deposit: ZERO_AMOUNT_IN");
         require(payout > 0, "PCVTreasury.deposit: ZERO_PAYOUT");
         TransferHelper.safeTransferFrom(lpToken, msg.sender, address(this), amountIn);
-        TransferHelper.safeTransfer(lpToken, msg.sender, payout);
+        TransferHelper.safeTransfer(apeXToken, msg.sender, payout);
         emit Deposit(msg.sender, lpToken, amountIn, payout);
     }
 

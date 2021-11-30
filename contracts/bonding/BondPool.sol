@@ -45,16 +45,16 @@ contract BondPool is IBondPool, Ownable {
         vestingTerm = vestingTerm_;
     }
 
-    function setMaxPayout(uint256 maxPayout_) external onlyAdmin {
+    function setMaxPayout(uint256 maxPayout_) external override onlyAdmin {
         maxPayout = maxPayout_;
     }
 
-    function setDiscount(uint256 discount_) external onlyAdmin {
+    function setDiscount(uint256 discount_) external override onlyAdmin {
         require(discount_ <= 10000, "BondPool.setDiscount: OVER_100%");
         discount = discount_;
     }
 
-    function setVestingTerm(uint256 vestingTerm_) external onlyAdmin {
+    function setVestingTerm(uint256 vestingTerm_) external override onlyAdmin {
         require(vestingTerm_ >= 129600, "BondPool.setVestingTerm: MUST_BE_LONGER_THAN_36_HOURS");
         vestingTerm = vestingTerm_;
     }
@@ -69,7 +69,7 @@ contract BondPool is IBondPool, Ownable {
 
         TransferHelper.safeTransferFrom(IAmm(amm).baseToken(), msg.sender, amm, depositAmount);
         (uint256 actualDepositAmount, , uint256 liquidity) = IAmm(amm).mint(address(this));
-        require(actualDepositAmount == depositAmount, "BondPool.bond: AMOUNT_NOT_MATCH");
+        require(actualDepositAmount == depositAmount, "BondPool.deposit: AMOUNT_NOT_MATCH");
 
         payout = payoutFor(depositAmount);
         require(payout >= minPayout, "BondPool.deposit: UNDER_MIN_LAYOUT");
