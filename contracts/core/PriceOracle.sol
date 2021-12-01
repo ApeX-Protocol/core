@@ -56,7 +56,7 @@ contract PriceOracle is IPriceOracle {
     }
 
     function getMarkPrice(address amm) public view override returns (uint256 price) {
-        (uint256 baseReserve, uint256 quoteReserve, ) = IAmm(amm).getReserves();
+        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
         uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
         uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
         uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
@@ -69,7 +69,7 @@ contract PriceOracle is IPriceOracle {
         uint256 quoteAmount,
         bool negative
     ) public view override returns (uint256 price) {
-        (, uint256 quoteReserve, ) = IAmm(amm).getReserves();
+        (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
         uint256 markPrice = getMarkPrice(amm);
         uint256 rvalue = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
         if (negative) {
