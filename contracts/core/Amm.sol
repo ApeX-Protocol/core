@@ -7,6 +7,7 @@ import "./interfaces/IPriceOracle.sol";
 import "./interfaces/IMarginFactory.sol";
 import "./interfaces/IAmm.sol";
 import "./interfaces/IVault.sol";
+import "./interfaces/IMargin.sol";
 import "./interfaces/IPairFactory.sol";
 import "../utils/Reentrant.sol";
 import "../libraries/UQ112x112.sol";
@@ -65,6 +66,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         )
     {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
+        
+        // get real baseReserve
+       int256 baseTokenOfNetPosition = IMargin(margin).netPosition();
+        int256 realBaseReserveSigned = int256(uint256(_baseReserve)) + baseTokenOfNetPosition;
+        uint256 realBaseReserve = uint256(realBaseReserveSigned);
+
+
         baseAmount = IERC20(baseToken).balanceOf(address(this));
         require(baseAmount > 0, "Amm.mint: ZERO_BASE_AMOUNT");
 
@@ -79,11 +87,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             liquidity = Math.sqrt(baseAmount * quoteAmount) - MINIMUM_LIQUIDITY;
             _mint(address(0), MINIMUM_LIQUIDITY); // permanently lock the first MINIMUM_LIQUIDITY tokens
         } else {
-            quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
-            liquidity = Math.min(
-                (baseAmount * _totalSupply) / _baseReserve,
-                (quoteAmount * _totalSupply) / _quoteReserve
-            );
+             quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
+           
+            // realBaseReserve
+             liquidity = (baseAmount * _totalSupply) / realBaseReserve;
+
         }
         require(liquidity > 0, "Amm.mint: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
@@ -93,7 +101,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         _safeTransfer(baseToken, margin, baseAmount);
 
-    
         IVault(margin).deposit(msg.sender, baseAmount);
 
         emit Mint(msg.sender, to, baseAmount, quoteAmount, liquidity);
@@ -111,9 +118,16 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         liquidity = balanceOf[address(this)];
+        
+         // get real baseReserve
+        int256 baseTokenOfNetPosition = IMargin(margin).netPosition();
+        int256 realBaseReserveSigned = int256(uint256(_baseReserve)) + baseTokenOfNetPosition;
+        uint256 realBaseReserve = uint256(realBaseReserveSigned);
 
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
+       
+        
         baseAmount = (liquidity * _baseReserve) / _totalSupply; // using balances ensures pro-rata distribution
         quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
@@ -121,8 +135,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
-        //forward
-        IVault(margin).withdraw(msg.sender, to, baseAmount);
+      
+        uint realBaseAmount= (liquidity * realBaseReserve) / _totalSupply;
+        IVault(margin).withdraw(msg.sender, to, realBaseAmount);
         emit Burn(msg.sender, to, baseAmount, quoteAmount, liquidity);
     }
 

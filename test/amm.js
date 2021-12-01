@@ -94,14 +94,6 @@ describe("Amm", function () {
     // price AAA/usdt = 1/10
     console.log("---------test begin---------");
     await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
-    // console.log(await AAAToken.balanceOf(amm.address));
-    // let tx = await amm.mint(owner.address);
-    // const minRes = await tx.wait();
-    // const events = minRes["events"];
-    // let args = events[4]["args"];
-    // console.log("mint event baseAmount  : ", args.baseAmount.toString());
-    // console.log("mint event quoteAmount: ", args.quoteAmount.toString());
-    // console.log("mint event liquidity: ", args.liquidity.toString());
     await expect(amm.mint(owner.address))
       .to.emit(amm, "Mint")
       .withArgs(
