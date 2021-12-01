@@ -13,7 +13,7 @@ contract Invitation {
     mapping(address => UserInvitation) public userInvitations;
     uint256 public totalRegisterCount = 0;
 
-    constructor() public {
+    constructor()  {
         startBlock = block.number;
     }
 
@@ -75,7 +75,6 @@ contract Invitation {
         return userInvitations[user].lowers;
     }
 
-    //todo
     function getLowers2(address user) external view returns (address[] memory, address[] memory) {
         address[] memory lowers1 = userInvitations[user].lowers;
         uint256 count = 0;

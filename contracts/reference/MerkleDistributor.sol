@@ -12,7 +12,7 @@ contract MerkleDistributor is IMerkleDistributor {
     mapping(uint256 => uint256) private claimedBitMap;
     address public owner;
 
-    constructor(address token_, bytes32 merkleRoot_) public {
+    constructor(address token_, bytes32 merkleRoot_)  {
         token = token_;
         merkleRoot = merkleRoot_;
         owner = msg.sender;

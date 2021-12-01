@@ -58,7 +58,7 @@ describe("ERC20MerkleDrop", function () {
       // Root
       const root = fileTree.getHexRoot().toString("hex");
       console.log("Reconstructed merkle root", root);
-
+      console.log("root", root);
       distributor = await deploy("MerkleDistributor", erc20.address, tree.getHexRoot());
       distributorFile = await deploy("MerkleDistributor", erc20.address, fileTree.getHexRoot());
 
