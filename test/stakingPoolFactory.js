@@ -13,11 +13,10 @@ describe("stakingPoolFactory contract", function () {
   let blocksPerUpdate = 2;
   let apexPerBlock = 100;
   let apexStakingPool;
-  let treasury;
   let addr1;
 
   beforeEach(async function () {
-    [owner, treasury, addr1] = await ethers.getSigners();
+    [owner, addr1] = await ethers.getSigners();
 
     const MockToken = await ethers.getContractFactory("MockToken");
     const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
@@ -39,7 +38,7 @@ describe("stakingPoolFactory contract", function () {
     apexStakingPool = await StakingPool.attach(apexStakingPoolAddr);
 
     await apexToken.mint(owner.address, "100000000000000000000");
-    await apexToken.mint(treasury.address, "100000000000000000000");
+    await apexToken.mint(stakingPoolFactory.address, "100000000000000000000");
   });
 
   describe("createPool", function () {
@@ -105,13 +104,6 @@ describe("stakingPoolFactory contract", function () {
       let latestBlock = (await stakingPoolFactory.lastUpdateBlock()).toNumber();
       //(latestBlock-0) * 97
       expect(await stakingPoolFactory.calStakingPoolApeXReward(0, apexToken.address)).to.be.equal(latestBlock * 97);
-    });
-  });
-
-  describe("setTreasury", function () {
-    it("set treasury", async function () {
-      await stakingPoolFactory.setTreasury(treasury.address);
-      expect(await stakingPoolFactory.treasury()).to.be.equal(treasury.address);
     });
   });
 

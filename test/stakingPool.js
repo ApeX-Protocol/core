@@ -16,10 +16,9 @@ describe("stakingPool contract", function () {
   let slpStakingPool;
   let lockUntil = 0;
   let invalidLockUntil = 10;
-  let treasury;
 
   beforeEach(async function () {
-    [owner, treasury, addr1] = await ethers.getSigners();
+    [owner, addr1] = await ethers.getSigners();
 
     const MockToken = await ethers.getContractFactory("MockToken");
     const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
@@ -43,7 +42,7 @@ describe("stakingPool contract", function () {
 
     await apexToken.mint(owner.address, 100_0000);
     await apexToken.approve(apexStakingPool.address, 100_0000);
-    await apexToken.mint(treasury.address, 100_0000);
+    await apexToken.mint(stakingPoolFactory.address, 100_0000);
     await slpToken.mint(owner.address, 100_0000);
     await slpToken.approve(slpStakingPool.address, 100_0000);
   });
@@ -105,14 +104,12 @@ describe("stakingPool contract", function () {
     beforeEach(async function () {
       let oneYearLockUntil = await oneYearLater();
       await apexToken.approve(apexStakingPool.address, 20000);
-      await stakingPoolFactory.setTreasury(treasury.address);
       await stakingPoolFactory.setYieldLockTime(10);
-      await apexToken.connect(treasury).approve(stakingPoolFactory.address, 20000);
 
       await apexStakingPool.stake(10000, 0);
     });
 
-    it("stake, process reward, unstake, transfer apeX from treasury to _to", async function () {
+    it("stake, process reward, unstake, transfer apeX ", async function () {
       await network.provider.send("evm_mine");
       await apexStakingPool.processRewards();
       await network.provider.send("evm_mine");
@@ -128,9 +125,7 @@ describe("stakingPool contract", function () {
 
   describe("stakeAsPool", function () {
     beforeEach(async function () {
-      await stakingPoolFactory.setTreasury(treasury.address);
       await stakingPoolFactory.setYieldLockTime(10);
-      await apexToken.connect(treasury).approve(stakingPoolFactory.address, 20000);
 
       await slpStakingPool.stake(10000, 0);
     });
@@ -157,9 +152,7 @@ describe("stakingPool contract", function () {
 
   describe("pendingYieldRewards", function () {
     beforeEach(async function () {
-      await stakingPoolFactory.setTreasury(treasury.address);
       await stakingPoolFactory.setYieldLockTime(10);
-      await apexToken.connect(treasury).approve(stakingPoolFactory.address, 20000);
       await slpStakingPool.stake(10000, 0);
     });
 
