@@ -39,6 +39,8 @@ contract PCVTreasury is IPCVTreasury, Ownable {
         require(isLiquidityToken[lpToken], "PCVTreasury.deposit: NOT_LIQUIDITY_TOKEN");
         require(amountIn > 0, "PCVTreasury.deposit: ZERO_AMOUNT_IN");
         require(payout > 0, "PCVTreasury.deposit: ZERO_PAYOUT");
+        uint256 apeXBalance = IERC20(apeXToken).balanceOf(address(this));
+        require(payout <= apeXBalance, "PCVTreasury.deposit: NOT_ENOUGH_APEX");
         TransferHelper.safeTransferFrom(lpToken, msg.sender, address(this), amountIn);
         TransferHelper.safeTransfer(apeXToken, msg.sender, payout);
         emit Deposit(msg.sender, lpToken, amountIn, payout);
