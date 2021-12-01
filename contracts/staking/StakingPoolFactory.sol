@@ -76,7 +76,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, ApeXAware, Initiali
     function transferYieldTo(address _to, uint256 _amount) external override {
         require(poolTokenMap[msg.sender] != address(0), "cpf.transferYieldTo: ACCESS_DENIED");
 
-        transferApeX(treasury, _to, _amount);
+        transferTo(_to, _amount);
     }
 
     function changePoolWeight(address _pool, uint256 _weight) external override {
@@ -88,13 +88,6 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, ApeXAware, Initiali
         pools[poolToken].weight = _weight;
 
         emit WeightUpdated(msg.sender, _pool, _weight);
-    }
-
-    function setTreasury(address _treasury) external override onlyAdmin {
-        require(_treasury != address(0), "cpf.setTreasury: INVALID_TREASURY");
-        treasury = _treasury;
-
-        emit SetTreasury(_treasury);
     }
 
     function setYieldLockTime(uint256 _yieldLockTime) external onlyAdmin {

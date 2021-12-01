@@ -12,8 +12,6 @@ interface IStakingPoolFactory {
 
     event PoolRegistered(address indexed _by, address indexed poolToken, address indexed pool, uint256 weight);
 
-    event SetTreasury(address _treasury);
-
     event SetYieldLockTime(uint256 _yieldLockTime);
 
     /// @notice get the endBlock number to yield, after this, no yield reward
@@ -64,6 +62,4 @@ interface IStakingPoolFactory {
     /// @param poolAddr the pool.
     /// @param weight new weight.
     function changePoolWeight(address poolAddr, uint256 weight) external;
-
-    function setTreasury(address _treasury) external;
 }

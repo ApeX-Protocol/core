@@ -12,6 +12,10 @@ abstract contract ApeXAware is Reentrant {
         address _to,
         uint256 _value
     ) internal nonReentrant {
-        IMintableERC20(apeX).transferFrom(_from, _to, _value);
+        IERC20(apeX).transferFrom(_from, _to, _value);
+    }
+
+    function transferTo(address _to, uint256 _value) internal nonReentrant {
+        IERC20(apeX).transfer(_to, _value);
     }
 }
