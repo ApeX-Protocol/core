@@ -56,8 +56,7 @@ contract Invitation {
         return true;
     }
 
-
-        function getUpper1(address user) external view returns (address) {
+    function getUpper1(address user) external view returns (address) {
         return userInvitations[user].upper;
     }
 
@@ -108,10 +107,4 @@ contract Invitation {
 
         return (lowers1.length, lowers2Len);
     }
-
-
-    
-
-
-
 }
