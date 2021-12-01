@@ -124,15 +124,17 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
-        baseAmount = (liquidity * _baseReserve) / _totalSupply; // using balances ensures pro-rata distribution
-        quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
+        baseAmount = (liquidity * realBaseReserve) / _totalSupply; // using balances ensures pro-rata distribution
+       
+       // quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
+        quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
+        
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
         _burn(address(this), liquidity);
         _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
-        uint256 realBaseAmount = (liquidity * realBaseReserve) / _totalSupply;
-        IVault(margin).withdraw(msg.sender, to, realBaseAmount);
+        IVault(margin).withdraw(msg.sender, to, baseAmount);
         emit Burn(msg.sender, to, baseAmount, quoteAmount, liquidity);
     }
 
