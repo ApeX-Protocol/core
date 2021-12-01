@@ -3,13 +3,12 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IStakingPool.sol";
 import "./interfaces/IStakingPoolFactory.sol";
-import "../utils/ApeXAware.sol";
 import "../utils/Initializable.sol";
 import "../utils/Ownable.sol";
 import "./StakingPool.sol";
 
-contract StakingPoolFactory is IStakingPoolFactory, Ownable, ApeXAware, Initializable {
-    address public treasury;
+contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
+    address public apeX;
     uint256 public blocksPerUpdate;
     uint256 public apeXPerBlock;
     uint256 public totalWeight;
@@ -76,7 +75,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, ApeXAware, Initiali
     function transferYieldTo(address _to, uint256 _amount) external override {
         require(poolTokenMap[msg.sender] != address(0), "cpf.transferYieldTo: ACCESS_DENIED");
 
-        transferTo(_to, _amount);
+        IERC20(apeX).transfer(_to, _amount);
     }
 
     function changePoolWeight(address _pool, uint256 _weight) external override {

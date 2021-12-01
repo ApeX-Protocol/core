@@ -53,7 +53,7 @@ describe("stakingPoolFactory contract", function () {
 
     it("revert when create pool with invalid poolToken", async function () {
       await expect(stakingPoolFactory.createPool(constants.ZERO_ADDRESS, 10, 79)).to.be.revertedWith(
-        "ERC20Aware: INVALID_POOL_TOKEN"
+        "cp: INVALID_POOL_TOKEN"
       );
     });
   });

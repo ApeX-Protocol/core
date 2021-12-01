@@ -4,29 +4,20 @@ pragma solidity ^0.8.0;
 import "./interfaces/IStakingPool.sol";
 import "./interfaces/IStakingPoolFactory.sol";
 import "../core/interfaces/IERC20.sol";
-import "../utils/ERC20Aware.sol";
+import "../utils/Reentrant.sol";
 
-contract StakingPool is IStakingPool, ERC20Aware {
+contract StakingPool is IStakingPool, Reentrant {
     uint256 internal constant ONE_YEAR = 365 days;
-
     uint256 internal constant WEIGHT_MULTIPLIER = 1e6;
-
     uint256 internal constant YEAR_STAKE_WEIGHT_MULTIPLIER = 2 * WEIGHT_MULTIPLIER;
-
     uint256 internal constant REWARD_PER_WEIGHT_MULTIPLIER = 1e12;
 
     address public immutable apex;
-
     address public immutable override poolToken;
-
     IStakingPoolFactory public immutable factory;
-
     uint256 public lastYieldDistribution;
-
     uint256 public yieldRewardsPerWeight;
-
     uint256 public usersLockingWeight;
-
     mapping(address => User) public users;
 
     constructor(
@@ -34,10 +25,11 @@ contract StakingPool is IStakingPool, ERC20Aware {
         address _poolToken,
         address _apex,
         uint256 _initBlock
-    ) ERC20Aware(_poolToken) {
+    ) {
         require(_factory != address(0), "cp: INVALID_FACTORY");
         require(_apex != address(0), "cp: INVALID_APEX_TOKEN");
         require(_initBlock > 0, "cp: INVALID_INIT_BLOCK");
+        require(_poolToken != address(0), "cp: INVALID_POOL_TOKEN");
 
         apex = _apex;
         factory = IStakingPoolFactory(_factory);
@@ -45,19 +37,8 @@ contract StakingPool is IStakingPool, ERC20Aware {
         lastYieldDistribution = _initBlock;
     }
 
-    function stake(uint256 _amount, uint256 _lockUntil) external override {
-        _stake(msg.sender, _amount, _lockUntil);
-    }
-
-    function unstake(uint256 _depositId, uint256 _amount) external override {
-        _unstake(msg.sender, _depositId, _amount);
-    }
-
-    function _stake(
-        address _staker,
-        uint256 _amount,
-        uint256 _lockUntil
-    ) internal {
+    function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
+        address _staker = msg.sender;
         require(_amount > 0, "cp._stake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
         require(
@@ -69,7 +50,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
         _processRewards(_staker, user);
 
         uint256 previousBalance = IERC20(poolToken).balanceOf(address(this));
-        transferTokenFrom(msg.sender, address(this), _amount);
+        IERC20(poolToken).transferFrom(msg.sender, address(this), _amount);
         uint256 newBalance = IERC20(poolToken).balanceOf(address(this));
         uint256 addedAmount = newBalance - previousBalance;
         //if 0, not lock
@@ -94,11 +75,8 @@ contract StakingPool is IStakingPool, ERC20Aware {
         emit Staked(msg.sender, _staker, _amount);
     }
 
-    function _unstake(
-        address _staker,
-        uint256 _depositId,
-        uint256 _amount
-    ) internal {
+    function unstake(uint256 _depositId, uint256 _amount) external override {
+        address _staker = msg.sender;
         require(_amount > 0, "cp._unstake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
         User storage user = users[_staker];
@@ -128,7 +106,7 @@ contract StakingPool is IStakingPool, ERC20Aware {
         if (isYield) {
             factory.transferYieldTo(msg.sender, _amount);
         } else {
-            transferToken(msg.sender, _amount);
+            IERC20(poolToken).transfer(msg.sender, _amount);
         }
     }
 
