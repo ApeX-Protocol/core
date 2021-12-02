@@ -18,46 +18,46 @@ contract Config is IConfig, Ownable, Initializable {
 
     mapping(address => bool) public override routerMap;
 
-    function initialize(address _admin) public initializer {
-        admin = _admin;
+    function initialize(address owner_) public initializer {
+        owner = owner_;
     }
 
-    function setPriceOracle(address newOracle) external override onlyAdmin {
+    function setPriceOracle(address newOracle) external override onlyOwner {
         require(newOracle != address(0), "Config: ZERO_ADDRESS");
         emit PriceOracleChanged(priceOracle, newOracle);
         priceOracle = newOracle;
     }
 
-    function setRebasePriceGap(uint256 newGap) external override onlyAdmin {
+    function setRebasePriceGap(uint256 newGap) external override onlyOwner {
         require(newGap > 0, "Config: ZERO_GAP");
         emit RebasePriceGapChanged(rebasePriceGap, newGap);
         rebasePriceGap = newGap;
     }
 
-    function setInitMarginRatio(uint256 marginRatio) external override onlyAdmin {
+    function setInitMarginRatio(uint256 marginRatio) external override onlyOwner {
         require(marginRatio >= 500, "ratio >= 500");
         emit SetInitMarginRatio(initMarginRatio, marginRatio);
         initMarginRatio = marginRatio;
     }
 
-    function setLiquidateThreshold(uint256 threshold) external override onlyAdmin {
+    function setLiquidateThreshold(uint256 threshold) external override onlyOwner {
         require(threshold > 9000 && threshold <= 10000, "9000 < liquidateThreshold <= 10000");
         emit SetLiquidateThreshold(liquidateThreshold, threshold);
         liquidateThreshold = threshold;
     }
 
-    function setLiquidateFeeRatio(uint256 feeRatio) external override onlyAdmin {
+    function setLiquidateFeeRatio(uint256 feeRatio) external override onlyOwner {
         require(feeRatio > 0 && feeRatio <= 2000, "0 < liquidateFeeRatio <= 2000");
         emit SetLiquidateFeeRatio(liquidateFeeRatio, feeRatio);
         liquidateFeeRatio = feeRatio;
     }
 
-    function setBeta(uint8 newBeta) external override onlyAdmin {
+    function setBeta(uint8 newBeta) external override onlyOwner {
         emit SetBeta(beta, newBeta);
         beta = newBeta;
     }
 
-    function registerRouter(address router) external override onlyAdmin {
+    function registerRouter(address router) external override onlyOwner {
         require(router != address(0), "Config: ZERO_ADDRESS");
         require(!routerMap[router], "Config: REGISTERED");
         routerMap[router] = true;
@@ -65,7 +65,7 @@ contract Config is IConfig, Ownable, Initializable {
         emit RouterRegistered(router);
     }
 
-    function unregisterRouter(address router) external override onlyAdmin {
+    function unregisterRouter(address router) external override onlyOwner {
         require(router != address(0), "Config: ZERO_ADDRESS");
         require(routerMap[router], "Config: UNREGISTERED");
         delete routerMap[router];

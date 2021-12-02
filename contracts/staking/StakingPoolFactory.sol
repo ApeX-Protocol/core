@@ -31,7 +31,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         require(_initBlock > 0, "cpf.initialize: INVALID_INIT_BLOCK");
         require(_endBlock > _initBlock, "cpf.initialize: INVALID_ENDBLOCK");
 
-        admin = msg.sender;
+        owner = msg.sender;
         apeX = _apeX;
         apeXPerBlock = _apeXPerBlock;
         blocksPerUpdate = _blocksPerUpdate;
@@ -43,12 +43,12 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         address _poolToken,
         uint256 _initBlock,
         uint256 _weight
-    ) external override onlyAdmin {
+    ) external override onlyOwner {
         IStakingPool pool = new StakingPool(address(this), _poolToken, apeX, _initBlock);
         registerPool(address(pool), _weight);
     }
 
-    function registerPool(address _pool, uint256 _weight) public override onlyAdmin {
+    function registerPool(address _pool, uint256 _weight) public override onlyOwner {
         require(poolTokenMap[_pool] == address(0), "cpf.registerPool: POOL_REGISTERED");
         address poolToken = IStakingPool(_pool).poolToken();
         require(poolToken != address(0), "cpf.registerPool: ZERO_ADDRESS");
@@ -78,8 +78,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         IERC20(apeX).transfer(_to, _amount);
     }
 
-    function changePoolWeight(address _pool, uint256 _weight) external override {
-        require(msg.sender == admin, "cpf.changePoolWeight: NO_ACCESS");
+    function changePoolWeight(address _pool, uint256 _weight) external override onlyOwner {
         address poolToken = poolTokenMap[_pool];
         require(poolToken != address(0), "cpf.changePoolWeight: POOL_NOT_EXIST");
 
@@ -89,7 +88,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         emit WeightUpdated(msg.sender, _pool, _weight);
     }
 
-    function setYieldLockTime(uint256 _yieldLockTime) external onlyAdmin {
+    function setYieldLockTime(uint256 _yieldLockTime) external onlyOwner {
         require(_yieldLockTime > yieldLockTime, "cpf.setYieldLockTime: INVALID_YIELDLOCKTIME");
         yieldLockTime = _yieldLockTime;
 

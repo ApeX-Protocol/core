@@ -29,7 +29,6 @@ contract BondPool is IBondPool, Ownable {
         uint256 discount_,
         uint256 vestingTerm_
     ) {
-        admin = msg.sender;
         require(apeXToken_ != address(0), "BondPool: ZERO_ADDRESS");
         apeXToken = apeXToken_;
         require(treasury_ != address(0), "BondPool: ZERO_ADDRESS");
@@ -45,16 +44,16 @@ contract BondPool is IBondPool, Ownable {
         vestingTerm = vestingTerm_;
     }
 
-    function setMaxPayout(uint256 maxPayout_) external override onlyAdmin {
+    function setMaxPayout(uint256 maxPayout_) external override onlyOwner {
         maxPayout = maxPayout_;
     }
 
-    function setDiscount(uint256 discount_) external override onlyAdmin {
+    function setDiscount(uint256 discount_) external override onlyOwner {
         require(discount_ <= 10000, "BondPool.setDiscount: OVER_100%");
         discount = discount_;
     }
 
-    function setVestingTerm(uint256 vestingTerm_) external override onlyAdmin {
+    function setVestingTerm(uint256 vestingTerm_) external override onlyOwner {
         require(vestingTerm_ >= 129600, "BondPool.setVestingTerm: MUST_BE_LONGER_THAN_36_HOURS");
         vestingTerm = vestingTerm_;
     }

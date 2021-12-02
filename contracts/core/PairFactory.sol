@@ -11,11 +11,7 @@ contract PairFactory is IPairFactory, Ownable {
     address public override ammFactory;
     address public override marginFactory;
 
-    constructor() {
-        admin = msg.sender;
-    }
-
-    function init(address ammFactory_, address marginFactory_) external onlyAdmin {
+    function init(address ammFactory_, address marginFactory_) external onlyOwner {
         require(ammFactory == address(0) && marginFactory == address(0), "PairFactory: ALREADY_INITED");
         require(ammFactory_ != address(0) && marginFactory_ != address(0), "PairFactory: ZERO_ADDRESS");
         ammFactory = ammFactory_;

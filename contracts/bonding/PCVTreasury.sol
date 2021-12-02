@@ -12,18 +12,17 @@ contract PCVTreasury is IPCVTreasury, Ownable {
     mapping(address => bool) public override isBondPool;
 
     constructor(address apeXToken_) {
-        admin = msg.sender;
         apeXToken = apeXToken_;
     }
 
-    function addLiquidityToken(address lpToken) external override onlyAdmin {
+    function addLiquidityToken(address lpToken) external override onlyOwner {
         require(lpToken != address(0), "PCVTreasury.addLiquidityToken: ZERO_ADDRESS");
         require(!isLiquidityToken[lpToken], "PCVTreasury.addLiquidityToken: ALREADY_ADDED");
         isLiquidityToken[lpToken] = true;
         emit NewLiquidityToken(lpToken);
     }
 
-    function addBondPool(address pool) external override onlyAdmin {
+    function addBondPool(address pool) external override onlyOwner {
         require(pool != address(0), "PCVTreasury.addBondPool: ZERO_ADDRESS");
         require(!isBondPool[pool], "PCVTreasury.addBondPool: ALREADY_ADDED");
         isBondPool[pool] = true;
@@ -51,7 +50,7 @@ contract PCVTreasury is IPCVTreasury, Ownable {
         address policy,
         uint256 amount,
         bytes calldata data
-    ) external override onlyAdmin {
+    ) external override onlyOwner {
         require(isLiquidityToken[lpToken], "PCVTreasury.deposit: NOT_LIQUIDITY_TOKEN");
         require(policy != address(0), "PCVTreasury.deposit: ZERO_ADDRESS");
         require(amount > 0, "PCVTreasury.deposit: ZERO_AMOUNT");
@@ -62,7 +61,7 @@ contract PCVTreasury is IPCVTreasury, Ownable {
         emit Withdraw(lpToken, policy, amount);
     }
 
-    function grantApeX(address to, uint256 amount) external override onlyAdmin {
+    function grantApeX(address to, uint256 amount) external override onlyOwner {
         require(to != address(0), "PCVTreasury.grantApeX: ZERO_ADDRESS");
         require(amount > 0, "PCVTreasury.grantApeX: ZERO_AMOUNT");
         uint256 balance = IERC20(apeXToken).balanceOf(address(this));
