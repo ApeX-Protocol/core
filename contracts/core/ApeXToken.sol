@@ -8,7 +8,6 @@ contract ApeXToken is ERC20Votes, Ownable {
     using EnumerableSet for EnumerableSet.AddressSet;
     EnumerableSet.AddressSet private _minters;
     uint256 private constant preMineSupply = 1_000_000_000e18; // 1 billion
-    uint256 private constant maxSupply = 50_000_000_000e18; // total 50 billion
 
     // modifier for mint function
     modifier onlyMinter() {
@@ -20,9 +19,7 @@ contract ApeXToken is ERC20Votes, Ownable {
         _mint(msg.sender, preMineSupply);
     }
 
-    // mint with max supply
     function mint(address to_, uint256 amount_) external onlyMinter returns (bool) {
-        require(amount_ + totalSupply() <= maxSupply);
         _mint(to_, amount_);
         return true;
     }
