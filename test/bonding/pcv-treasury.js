@@ -107,7 +107,7 @@ describe("PCVTreasury contract", function () {
             await slpTokenAsBondPool.approve(pcvTreasury.address, 1000);
             
             let pcvTreasuryAsBondPool = pcvTreasury.connect(bondPool);
-            await expect(pcvTreasuryAsBondPool.deposit(slpToken.address, 1000, 1000)).to.be.revertedWith("TransferHelper::safeTransfer: transfer failed");
+            await expect(pcvTreasuryAsBondPool.deposit(slpToken.address, 1000, 1000)).to.be.revertedWith("PCVTreasury.deposit: NOT_ENOUGH_APEX");
         });
 
         it("deposit success", async function () {
