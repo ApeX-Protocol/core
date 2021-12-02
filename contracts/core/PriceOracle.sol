@@ -60,7 +60,7 @@ contract PriceOracle is IPriceOracle {
         return quoteAmount * (10**(18 - quoteDecimals));
     }
 
-    // the result price is scaled by 1e18
+    //@notice the price is transformed. example: 1eth = 2000usdt, price = 2000*1e18
     function getMarkPrice(address amm) public view override returns (uint256 price) {
         uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
         uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
@@ -69,7 +69,7 @@ contract PriceOracle is IPriceOracle {
         price = FullMath.mulDiv(exponent, lastPriceX112, 2**112);
     }
 
-    // get user's mark price, it's for checking if user's position can be liquiditied.
+    // get user's mark price, it's for checking if user's position can be liquidated.
     // markPriceAcc = markPrice * (1 +/- (2 * beta * quoteAmount)/quoteReserve)
     // the result price is scaled by 1e18.
     function getMarkPriceAcc(
@@ -80,11 +80,11 @@ contract PriceOracle is IPriceOracle {
     ) public view override returns (uint256 price) {
         (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
         uint256 markPrice = getMarkPrice(amm);
-        uint256 rvalue = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
+        uint256 delta = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
         if (negative) {
-            price = markPrice - rvalue;
+            price = markPrice - delta;
         } else {
-            price = markPrice + rvalue;
+            price = markPrice + delta;
         }
     }
 

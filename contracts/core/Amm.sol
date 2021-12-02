@@ -44,6 +44,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         factory = msg.sender;
     }
 
+
     function initialize(
         address baseToken_,
         address quoteToken_,
@@ -56,6 +57,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         config = IAmmFactory(factory).config();
     }
 
+    /// @notice add liquidity
+    /// @dev  calculate the liquidity according to the real baseReserve.
     function mint(address to)
         external
         override
@@ -103,6 +106,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Mint(msg.sender, to, baseAmount, quoteAmount, liquidity);
     }
 
+    /// @notice add liquidity
+    /// @dev  calculate the liquidity according to the real baseReserve.
     function burn(address to)
         external
         override
@@ -138,6 +143,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Burn(msg.sender, to, baseAmount, quoteAmount, liquidity);
     }
 
+    /// @notice   
     function swap(
         address inputToken,
         address outputToken,
@@ -150,6 +156,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Swap(inputToken, outputToken, amounts[0], amounts[1]);
     }
 
+    /// @notice  use in the situation  of forcing closing position 
     function forceSwap(
         address inputToken,
         address outputToken,
@@ -173,6 +180,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit ForceSwap(inputToken, outputToken, inputAmount, outputAmount);
     }
 
+    /// @notice  invoke when price gap is larger  than  "gap" percent;
+    /// @notice gap is in config contract
     function rebase() external override nonReentrant returns (uint256 quoteReserveAfter) {
         require(msg.sender == tx.origin, "Amm.rebase: ONLY_EOA");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -188,6 +197,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Rebase(_quoteReserve, quoteReserveAfter);
     }
 
+    /// notice view method for estimating swap
     function estimateSwap(
         address inputToken,
         address outputToken,

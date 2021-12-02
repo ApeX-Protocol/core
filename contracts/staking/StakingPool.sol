@@ -183,7 +183,7 @@ contract StakingPool is IStakingPool, Reentrant {
             lastYieldDistribution = blockNumber;
             return;
         }
-        //notice: if nobody sync this stakingPool for a long time, this stakingPool reward shrink
+        //@notice: if nobody sync this stakingPool for a long time, this stakingPool reward shrink
         uint256 apexReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
         yieldRewardsPerWeight += deltaWeightPrice(apexReward, usersLockingWeight);
         lastYieldDistribution = blockNumber > endBlock ? endBlock : blockNumber;

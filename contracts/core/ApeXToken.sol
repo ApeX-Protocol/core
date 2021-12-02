@@ -24,26 +24,26 @@ contract ApeXToken is ERC20Votes, Ownable {
         return true;
     }
 
-    function addMinter(address minter) public onlyOwner returns (bool) {
+    function addMinter(address minter) external onlyOwner returns (bool) {
         require(minter != address(0), "ApeXToken.addMinter: is the zero address");
         return EnumerableSet.add(_minters, minter);
     }
 
-    function delMinter(address minter) public onlyOwner returns (bool) {
+    function delMinter(address minter) external onlyOwner returns (bool) {
         require(minter != address(0), "BXHToken.delMinter is the zero address");
         return EnumerableSet.remove(_minters, minter);
-    }
-
-    function getMinterLength() public view returns (uint256) {
-        return EnumerableSet.length(_minters);
     }
 
     function isMinter(address account) public view returns (bool) {
         return EnumerableSet.contains(_minters, account);
     }
 
-    function getMinter(uint256 index) public view onlyOwner returns (address) {
-        require(index <= getMinterLength() - 1, "ApeXToken.getMinter: index out of bounds");
+    function getMinterLength() external view returns (uint256) {
+        return EnumerableSet.length(_minters);
+    }
+
+    function getMinter(uint256 index) external view onlyOwner returns (address) {
+        require(index <= EnumerableSet.length(_minters) - 1, "ApeXToken.getMinter: index out of bounds");
         return EnumerableSet.at(_minters, index);
     }
 }
