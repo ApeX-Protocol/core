@@ -1358,6 +1358,10 @@
   "resolved" "https://registry.npmjs.org/@uniswap/v2-core/-/v2-core-1.0.1.tgz"
   "version" "1.0.1"
 
+"@uniswap/v3-core@github:uniswap/v3-core":
+  "resolved" "git+ssh://git@github.com/uniswap/v3-core.git#62d65bf88c4fb23671104c28f5bcae566274cb15"
+  "version" "1.0.0"
+
 "@yarnpkg/lockfile@^1.1.0":
   "integrity" "sha512-GpSwvyXOcOOlV70vbnzjj4fW5xW/FdUF6nQEt1ENy7m4ZCczi1+/buVUPAqmGfqznsORNFzUMjctTIp8a9tuCQ=="
   "resolved" "https://registry.npmjs.org/@yarnpkg/lockfile/-/lockfile-1.1.0.tgz"

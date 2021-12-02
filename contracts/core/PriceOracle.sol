@@ -7,6 +7,7 @@ import "./interfaces/IPriceOracle.sol";
 import "./interfaces/uniswapV3/IUniswapV3Factory.sol";
 import "./interfaces/uniswapV3/IUniswapV3Pool.sol";
 import "../libraries/FullMath.sol";
+import "../libraries/UniswapV3TwapGetter.sol";
 
 contract PriceOracle is IPriceOracle {
     address public immutable uniswapV3Factory;
@@ -34,11 +35,11 @@ contract PriceOracle is IPriceOracle {
             liquidity = IUniswapV3Pool(pool).liquidity();
             if (liquidity > maxLiquidity) {
                 maxLiquidity = liquidity;
-                (sqrtPriceX96, , , , , , ) = IUniswapV3Pool(pool).slot0();
+                sqrtPriceX96 = UniswapV3TwapGetter.getSqrtTwapX96(pool, 60);
             }
         }
         require(sqrtPriceX96 > 0, "PriceOracle.quote: NO_PRICE");
-        uint256 price = uint256(sqrtPriceX96) * sqrtPriceX96; // price = token1/token0
+        uint256 price = UniswapV3TwapGetter.getPriceX96FromSqrtPriceX96(sqrtPriceX96); // price = token1/token0
         if (baseToken == IUniswapV3Pool(pool).token0()) {
             quoteAmount = baseAmount * price;
         } else {
