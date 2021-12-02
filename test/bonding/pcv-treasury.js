@@ -36,7 +36,7 @@ describe("PCVTreasury contract", function () {
 
         it("not admin add a lpToken", async function () {
             let pcvTreasuryAsOther = pcvTreasury.connect(other);
-            await expect(pcvTreasuryAsOther.addLiquidityToken(slpToken.address)).to.be.revertedWith("Ownable: REQUIRE_ADMIN");
+            await expect(pcvTreasuryAsOther.addLiquidityToken(slpToken.address)).to.be.revertedWith("Ownable: REQUIRE_OWNER");
         });
     });
 
@@ -53,7 +53,7 @@ describe("PCVTreasury contract", function () {
 
         it("not admin add a bondPool", async function () {
             let pcvTreasuryAsOther = pcvTreasury.connect(other);
-            await expect(pcvTreasuryAsOther.addBondPool(bondPool.address)).to.be.revertedWith("Ownable: REQUIRE_ADMIN");
+            await expect(pcvTreasuryAsOther.addBondPool(bondPool.address)).to.be.revertedWith("Ownable: REQUIRE_OWNER");
         });
     });
 
@@ -155,7 +155,7 @@ describe("PCVTreasury contract", function () {
             await pcvTreasury.addLiquidityToken(slpToken.address);
             await slpToken.mint(pcvTreasury.address, 2000);
             let pcvTreasuryAsOther = pcvTreasury.connect(other);
-            await expect(pcvTreasuryAsOther.withdraw(slpToken.address, policy.address, 1000, 0x0)).to.be.revertedWith("Ownable: REQUIRE_ADMIN");
+            await expect(pcvTreasuryAsOther.withdraw(slpToken.address, policy.address, 1000, 0x0)).to.be.revertedWith("Ownable: REQUIRE_OWNER");
         });
     });
 
@@ -164,7 +164,7 @@ describe("PCVTreasury contract", function () {
             await pcvTreasury.addLiquidityToken(slpToken.address);
             await slpToken.mint(pcvTreasury.address, 2000);
             let pcvTreasuryAsOther = pcvTreasury.connect(other);
-            await expect(pcvTreasuryAsOther.grantApeX(owner.address, 1000)).to.be.revertedWith("Ownable: REQUIRE_ADMIN");
+            await expect(pcvTreasuryAsOther.grantApeX(owner.address, 1000)).to.be.revertedWith("Ownable: REQUIRE_OWNER");
         });
 
         it("admin grantApeX", async function () {

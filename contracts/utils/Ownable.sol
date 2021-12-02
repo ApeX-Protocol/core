@@ -14,11 +14,6 @@ abstract contract Ownable {
         _;
     }
 
-    ///@notice if child contract is upgradable, need to reset owner from child contract
-    constructor() {
-        owner = msg.sender;
-    }
-
     function setPendingOwner(address newPendingOwner) external onlyOwner {
         require(pendingOwner != newPendingOwner, "Ownable: ALREADY_SET");
         emit NewPendingOwner(pendingOwner, newPendingOwner);

@@ -22,6 +22,7 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         uint256 discount_,
         uint256 vestingTerm_
     ) {
+        owner = msg.sender;
         apeXToken = apeXToken_;
         treasury = treasury_;
         priceOracle = priceOracle_;

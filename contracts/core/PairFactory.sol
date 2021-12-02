@@ -16,6 +16,7 @@ contract PairFactory is IPairFactory, Ownable {
         require(ammFactory_ != address(0) && marginFactory_ != address(0), "PairFactory: ZERO_ADDRESS");
         ammFactory = ammFactory_;
         marginFactory = marginFactory_;
+        owner = msg.sender;
     }
 
     function createPair(address baseToken, address quoteToken) external override returns (address amm, address margin) {

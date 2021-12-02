@@ -12,6 +12,7 @@ contract PCVTreasury is IPCVTreasury, Ownable {
     mapping(address => bool) public override isBondPool;
 
     constructor(address apeXToken_) {
+        owner = msg.sender;
         apeXToken = apeXToken_;
     }
 

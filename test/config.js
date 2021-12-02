@@ -31,7 +31,7 @@ describe("Config contract", function () {
     });
 
     it("reverted if addr1 set", async function () {
-      await expect(config.connect(addr1).setInitMarginRatio(9)).to.be.revertedWith("Ownable: REQUIRE_ADMIN");
+      await expect(config.connect(addr1).setInitMarginRatio(9)).to.be.revertedWith("Ownable: REQUIRE_OWNER");
     });
   });
 

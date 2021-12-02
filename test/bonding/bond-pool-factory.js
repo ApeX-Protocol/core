@@ -55,7 +55,7 @@ describe("BondPoolFactory contract", function () {
 
         it("updateParams with non-admin", async function () {
             let bondPoolFactoryAsOther = bondPoolFactory.connect(other);
-            await expect(bondPoolFactoryAsOther.updateParams(200000, 20, 129600)).to.be.revertedWith("Ownable: REQUIRE_ADMIN");
+            await expect(bondPoolFactoryAsOther.updateParams(200000, 20, 129600)).to.be.revertedWith("Ownable: REQUIRE_OWNER");
         });
     });
 
@@ -69,7 +69,7 @@ describe("BondPoolFactory contract", function () {
 
         it("createPool with non-admin", async function () {
             let bondPoolFactoryAsOther = bondPoolFactory.connect(other);
-            await expect(bondPoolFactoryAsOther.createPool(amm.address)).to.be.revertedWith("Ownable: REQUIRE_ADMIN");
+            await expect(bondPoolFactoryAsOther.createPool(amm.address)).to.be.revertedWith("Ownable: REQUIRE_OWNER");
         });
     });
 });
