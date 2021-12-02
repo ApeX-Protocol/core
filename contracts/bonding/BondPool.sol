@@ -84,7 +84,7 @@ contract BondPool is IBondPool, Ownable {
             lastBlockTime: block.timestamp,
             paidAmount: bondInfo[depositor].paidAmount + depositAmount
         });
-        emit BondCreated(depositAmount, payout, block.timestamp + vestingTerm);
+        emit BondCreated(depositor, depositAmount, payout, block.timestamp + vestingTerm);
     }
 
     function redeem(address depositor) external override returns (uint256 payout) {
@@ -119,6 +119,7 @@ contract BondPool is IBondPool, Ownable {
         return bondInfo[depositor];
     }
 
+    // calculate how many APEX out for input amount of base token
     function payoutFor(uint256 amount) public view override returns (uint256 payout) {
         address baseToken = IAmm(amm).baseToken();
         uint256 marketApeXAmount = IPriceOracle(priceOracle).quote(baseToken, apeXToken, amount);

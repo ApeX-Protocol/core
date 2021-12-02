@@ -4,11 +4,12 @@ import "./Amm.sol";
 import "./interfaces/IAmmFactory.sol";
 
 contract AmmFactory is IAmmFactory {
-    address public immutable override upperFactory;
+    address public immutable override upperFactory; // PairFactory
     address public immutable override config;
     address public override feeTo;
     address public override feeToSetter;
 
+    // baseToken => quoteToken => amm
     mapping(address => mapping(address => address)) public override getAmm;
 
     modifier onlyUpper() {

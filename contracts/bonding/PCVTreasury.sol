@@ -6,6 +6,8 @@ import "../core/interfaces/IERC20.sol";
 import "../libraries/TransferHelper.sol";
 import "../utils/Ownable.sol";
 
+///@notice PCVTreasury contract manager all PCV(Protocol Controlled Value) assets
+///@dev apeXToken for bonding is need to be transferred into this contract before bonding really setup
 contract PCVTreasury is IPCVTreasury, Ownable {
     address public immutable override apeXToken;
     mapping(address => bool) public override isLiquidityToken;
@@ -46,6 +48,11 @@ contract PCVTreasury is IPCVTreasury, Ownable {
         emit Deposit(msg.sender, lpToken, amountIn, payout);
     }
 
+    /// @notice Call this function can withdraw specified lp token to a policy contract
+    /// @param lpToken The lp token address want to be withdraw
+    /// @param policy The policy contract address to receive the lp token
+    /// @param amount Withdraw amount of lp token
+    /// @param data Other data want to send to the policy
     function withdraw(
         address lpToken,
         address policy,
@@ -62,6 +69,9 @@ contract PCVTreasury is IPCVTreasury, Ownable {
         emit Withdraw(lpToken, policy, amount);
     }
 
+    /// @notice left apeXToken in this contract can be granted out by owner
+    /// @param to the address receive the apeXToken
+    /// @param amount the amount want to be granted
     function grantApeX(address to, uint256 amount) external override onlyOwner {
         require(to != address(0), "PCVTreasury.grantApeX: ZERO_ADDRESS");
         require(amount > 0, "PCVTreasury.grantApeX: ZERO_AMOUNT");

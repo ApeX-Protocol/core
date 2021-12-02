@@ -1,10 +1,12 @@
 pragma solidity ^0.8.0;
 
-contract MockUniswapV3Pool {
-    address public immutable token0;
-    address public immutable token1;
+import "../core/interfaces/uniswapV3/IUniswapV3Pool.sol";
+
+contract MockUniswapV3Pool is IUniswapV3Pool {
+    address public immutable override token0;
+    address public immutable override token1;
     uint24 public immutable fee;
-    uint128 public liquidity;
+    uint128 public override liquidity;
 
     struct Slot0 {
         // the current price
@@ -23,7 +25,7 @@ contract MockUniswapV3Pool {
         // whether the pool is locked
         bool unlocked;
     }
-    Slot0 public slot0;
+    Slot0 public override slot0;
 
     constructor(
         address token0_,
@@ -46,6 +48,7 @@ contract MockUniswapV3Pool {
     function observe(uint32[] calldata secondsAgos)
         external
         view
+        override
         returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
     {}
 }

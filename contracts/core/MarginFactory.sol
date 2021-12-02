@@ -4,9 +4,10 @@ import "./Margin.sol";
 import "./interfaces/IMarginFactory.sol";
 
 contract MarginFactory is IMarginFactory {
-    address public immutable override upperFactory;
+    address public immutable override upperFactory; // PairFactory
     address public immutable override config;
 
+    // baseToken => quoteToken => margin
     mapping(address => mapping(address => address)) public override getMargin;
 
     modifier onlyUpper() {

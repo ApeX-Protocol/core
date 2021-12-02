@@ -1,5 +1,7 @@
 pragma solidity ^0.8.0;
 
+/// @title The interface for a bond pool factory
+/// @notice For create bond pool
 interface IBondPoolFactory {
     event BondPoolCreated(address indexed amm, address indexed pool);
 
