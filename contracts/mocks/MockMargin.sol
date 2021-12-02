@@ -28,6 +28,9 @@ contract MockMargin  {
         amm = amm_;
         config = config_ ;
     }
+    function netPosition() external view returns (int256 netBasePosition){
+        return 2 * 10**18;
+    }
 
 
     function deposit(address user, uint256 amount) external  {

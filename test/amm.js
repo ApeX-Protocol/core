@@ -30,8 +30,9 @@ describe("Amm", function () {
     //config
     config = await MockConfig.deploy();
     console.log("config: ", config.address);
-    await config.initialize(owner.address, 100);
-    let admin = await config.admin();
+    await config.initialize(owner.address);
+    let admin = await config.owner();
+    await config.setBeta(100);
     console.log("admin:", admin);
 
     //ammFactory
@@ -42,7 +43,7 @@ describe("Amm", function () {
     // oracle
     priceOracle = await PriceOracle.deploy();
     console.log("priceOracle: ", priceOracle.address);
-  //  console.log((await priceOracle.quote(owner.address, owner.address, 0)).toString);
+    //  console.log((await priceOracle.quote(owner.address, owner.address, 0)).toString);
 
     await config.setPriceOracle(priceOracle.address);
 
@@ -64,8 +65,9 @@ describe("Amm", function () {
       value: ethers.utils.parseEther("0.1"),
     };
 
-    await expect(owner.sendTransaction(tx1)).to.be.revertedWith("function selector was not recognized and there's no fallback nor receive function")
-   
+    await expect(owner.sendTransaction(tx1)).to.be.revertedWith(
+      "function selector was not recognized and there's no fallback nor receive function"
+    );
 
     // amm initialize
     //await amm.initialize(AAAToken.address, USDT.address, config.address);
@@ -77,9 +79,9 @@ describe("Amm", function () {
 
     amm = AMMContract.attach(ammAddress);
 
-     //mock margin
+    //mock margin
     margin = await MockMargin.deploy();
-    console.log("margin: ", margin.address );
+    console.log("margin: ", margin.address);
     await margin.initialize(AAAToken.address, USDT.address, amm.address, config.address);
     await ammFactory.initAmm(AAAToken.address, USDT.address, margin.address);
     expect(await amm.totalSupply()).to.equal(0);
@@ -150,6 +152,8 @@ describe("Amm", function () {
     const ammAlice = amm.connect(alice);
     // alice swap 1000000AAA to usdt
     //alice swap in
+    let previousPrice = await ammAlice.lastPrice();
+  
     let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0);
 
     const swapRes = await tx1.wait();
@@ -159,6 +163,9 @@ describe("Amm", function () {
     let iface1 = new ethers.utils.Interface(eventabi);
     let log1 = iface1.parseLog(swapRes.logs[1]);
     let args1 = log1["args"];
+
+    let price = await ammAlice.lastPrice();
+    expect(previousPrice).to.not.equal(price);
 
     expect(args1.outputAmount).to.equal(90900818926);
   });
@@ -186,6 +193,4 @@ describe("Amm", function () {
       ammAlice.swap(AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100000").mul(exp2))
     ).to.be.revertedWith("AMM._estimateSwap: INSUFFICIENT_LIQUIDITY");
   });
-
-  
 });

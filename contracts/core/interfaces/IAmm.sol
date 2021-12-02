@@ -65,6 +65,8 @@ interface IAmm {
 
     function price1CumulativeLast() external view returns (uint256);
 
+    function lastPrice() external view returns (uint256);
+
     function getReserves()
         external
         view
