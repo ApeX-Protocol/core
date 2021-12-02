@@ -83,7 +83,7 @@ describe("Margin contract", function () {
     it("add wrong margin", async function () {
       await expect(margin.addMargin(addr1.address, -10)).to.be.reverted;
       await expect(margin.addMargin(addr1.address, 0)).to.be.revertedWith("Margin.addMargin: ZERO_DEPOSIT_AMOUNT");
-      await expect(margin.addMargin(addr1.address, 10)).to.be.revertedWith("Margin.addMargin;: WRONG_DEPOSIT_AMOUNT");
+      await expect(margin.addMargin(addr1.address, 10)).to.be.revertedWith("Margin.addMargin: WRONG_DEPOSIT_AMOUNT");
     });
 
     describe("operate margin with old position", function () {
@@ -485,7 +485,7 @@ describe("Margin contract", function () {
       let latestUpdateCPF1 = await margin.lastUpdateCPF();
 
       await sleep(5000);
-      //notice: in hardhat, block.timestamp is former block timestamp, so time == 0
+      //@notice: in hardhat, block.timestamp is former block timestamp, so time == 0
       expect((await margin.calFundingFee(owner.address)).toNumber()).to.be.equal(-200);
 
       await margin.updateCPF();

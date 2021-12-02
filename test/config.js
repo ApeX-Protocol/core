@@ -27,7 +27,7 @@ describe("Config contract", function () {
     });
 
     it("revert when set wrong ratio", async function () {
-      await expect(config.setInitMarginRatio(9)).to.be.revertedWith("ratio >= 500");
+      await expect(config.setInitMarginRatio(9)).to.be.revertedWith("Config: INVALID_MARGIN_RATIO");
     });
 
     it("reverted if addr1 set", async function () {
@@ -42,7 +42,7 @@ describe("Config contract", function () {
     });
 
     it("revert when set wrong threshold", async function () {
-      await expect(config.setLiquidateThreshold(80)).to.be.revertedWith("9000 < liquidateThreshold <= 10000");
+      await expect(config.setLiquidateThreshold(80)).to.be.revertedWith("Config: INVALID_LIQUIDATE_THRESHOLD");
     });
   });
 
@@ -53,7 +53,7 @@ describe("Config contract", function () {
     });
 
     it("revert when set wrong fee ratio", async function () {
-      await expect(config.setLiquidateFeeRatio(3000)).to.be.revertedWith("0 < liquidateFeeRatio <= 2000");
+      await expect(config.setLiquidateFeeRatio(3000)).to.be.revertedWith("Config: INVALID_LIQUIDATE_FEE_RATIO");
     });
   });
 
