@@ -325,7 +325,7 @@ describe("Margin contract", function () {
       let position = await margin.traderPositionMap(owner.address);
       await margin.closePosition(owner.address, position.quoteSize.abs());
 
-      await expect(margin.closePosition(owner.address, 10)).to.be.revertedWith("Margin.closePosition: ZERO_POSITION");
+      await expect(margin.closePosition(owner.address, 10)).to.be.revertedWith("Margin.closePosition: ABOVE_POSITION");
     });
 
     it("close wrong position, reverted", async function () {

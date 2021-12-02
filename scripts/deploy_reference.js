@@ -18,7 +18,7 @@ async function createContracts() {
 
   apexToken = await MockToken.deploy("apex token", "at");
   await apexToken.deployed();
-  console.log("apxToken:", apexToken.address);
+  console.log("apeXToken:", apexToken.address);
 
   invitation = await InvitationPoolFactory.deploy();
   await invitation.deployed();
@@ -26,16 +26,15 @@ async function createContracts() {
 
   const MerkleDistributorPoolFactory = await ethers.getContractFactory("MerkleDistributor");
 
-  merkleDistributor = await MerkleDistributorPoolFactory.deploy(apexToken.address, '0xa178ba2590c5523af85c7529f032c66c6d86d6fbe1faf8b99fa5ee97a4e614be');
+  merkleDistributor = await MerkleDistributorPoolFactory.deploy(
+    apexToken.address,
+    "0xa178ba2590c5523af85c7529f032c66c6d86d6fbe1faf8b99fa5ee97a4e614be"
+  );
   await merkleDistributor.deployed();
-  
 
-  
- 
   console.log("merkleDistributor:", merkleDistributor.address);
 
   console.log(verifyStr, process.env.HARDHAT_NETWORK, apexToken.address, "'apex token' 'at'");
-
 }
 
 main()
@@ -44,4 +43,3 @@ main()
     console.error(error);
     process.exit(1);
   });
-
