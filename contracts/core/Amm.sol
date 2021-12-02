@@ -28,6 +28,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     uint256 public override price0CumulativeLast;
     uint256 public override price1CumulativeLast;
     uint256 public kLast;
+    uint256 public override lastPrice;
 
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transfer(address,uint256)")));
     uint112 private baseReserve; // uses single storage slot, accessible via getReserves
@@ -78,7 +79,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
-        // forward  baseAmount -> quoteAmount
         if (_totalSupply == 0) {
             quoteAmount = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, baseAmount);
 
@@ -125,10 +125,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
         baseAmount = (liquidity * realBaseReserve) / _totalSupply; // using balances ensures pro-rata distribution
-       
-       // quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
+
+        // quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
-        
+
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
         _burn(address(this), liquidity);
         _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve);
@@ -315,6 +315,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
         if (timeElapsed > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
             // * never overflows, and + overflow is desired
+            lastPrice = uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld));
             price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
         }

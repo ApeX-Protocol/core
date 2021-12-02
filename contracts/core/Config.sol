@@ -14,7 +14,7 @@ contract Config is IConfig, Ownable, Initializable {
     uint256 public override initMarginRatio; //if 1000, means margin ratio >= 10%
     uint256 public override liquidateThreshold; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio; //if 100, means liquidator bot get 1% as fee
-    uint8 public override beta; // 50-100
+    uint8 public override beta; // 50-200
 
     mapping(address => bool) public override routerMap;
 

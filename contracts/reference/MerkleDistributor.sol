@@ -51,11 +51,11 @@ contract MerkleDistributor is IMerkleDistributor {
         emit Claimed(index, account, amount);
     }
 
-    function claimRestTokens() public returns (bool) {
+    function claimRestTokens(address to ) public returns (bool) {
         // only owner
         require(msg.sender == owner);
         require(IERC20(token).balanceOf(address(this)) >= 0);
-        require(IERC20(token).transfer(owner, IERC20(token).balanceOf(address(this))));
+        require(IERC20(token).transfer(to, IERC20(token).balanceOf(address(this))));
         return true;
     }
 }
