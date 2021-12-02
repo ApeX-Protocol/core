@@ -35,28 +35,30 @@ contract Config is IConfig, Ownable, Initializable {
     }
 
     function setInitMarginRatio(uint256 marginRatio) external override onlyOwner {
-        require(marginRatio >= 500, "ratio >= 500");
+        require(marginRatio >= 500, "Config: INVALID_MARGIN_RATIO");
         emit SetInitMarginRatio(initMarginRatio, marginRatio);
         initMarginRatio = marginRatio;
     }
 
     function setLiquidateThreshold(uint256 threshold) external override onlyOwner {
-        require(threshold > 9000 && threshold <= 10000, "9000 < liquidateThreshold <= 10000");
+        require(threshold > 9000 && threshold <= 10000, "Config: INVALID_LIQUIDATE_THRESHOLD");
         emit SetLiquidateThreshold(liquidateThreshold, threshold);
         liquidateThreshold = threshold;
     }
 
     function setLiquidateFeeRatio(uint256 feeRatio) external override onlyOwner {
-        require(feeRatio > 0 && feeRatio <= 2000, "0 < liquidateFeeRatio <= 2000");
+        require(feeRatio > 0 && feeRatio <= 2000, "Config: INVALID_LIQUIDATE_FEE_RATIO");
         emit SetLiquidateFeeRatio(liquidateFeeRatio, feeRatio);
         liquidateFeeRatio = feeRatio;
     }
 
     function setBeta(uint8 newBeta) external override onlyOwner {
+        //tocheck need add limitation
         emit SetBeta(beta, newBeta);
         beta = newBeta;
     }
 
+    //must be careful, expose all traders's position
     function registerRouter(address router) external override onlyOwner {
         require(router != address(0), "Config: ZERO_ADDRESS");
         require(!routerMap[router], "Config: REGISTERED");
