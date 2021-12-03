@@ -4,8 +4,52 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
-contract MockVAmm is ERC20 {
+contract MockAmm is ERC20 {
+    address public baseToken;
+    address public quoteToken;
+    uint112 private baseReserve;
+    uint112 private quoteReserve;
+    uint32 private blockTimestampLast;
+
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
+
+    function initialize(address baseToken_, address quoteToken_) external {
+        baseToken = baseToken_;
+        quoteToken = quoteToken_;
+    }
+
+    function setReserves(uint112 reserveBase, uint112 reserveQuote) external {
+        baseReserve = reserveBase;
+        quoteReserve = reserveQuote;
+    }
+
+    function getReserves()
+        public
+        view
+        returns (
+            uint112 reserveBase,
+            uint112 reserveQuote,
+            uint32 blockTimestamp
+        )
+    {
+        reserveBase = baseReserve;
+        reserveQuote = quoteReserve;
+        blockTimestamp = blockTimestampLast;
+    }
+
+    function mint(address to)
+        external
+        returns (
+            uint256 baseAmount,
+            uint256 quoteAmount,
+            uint256 liquidity
+        )
+    {
+        baseAmount = 1000;
+        quoteAmount = 1000;
+        liquidity = 1000;
+        _mint(to, liquidity);
+    }
 
     function estimateSwap(
         address input,

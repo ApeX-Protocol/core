@@ -11,7 +11,9 @@
     "deploy_eth": "hardhat run scripts/deploy.js --network l1rinkeby",
     "deploy_arb": "hardhat run scripts/deploy.js --network l2rinkeby",
     "deploy_opt": "hardhat run scripts/deploy.js --network optimismKovan",
-    "deploy_core_pool": "hardhat run scripts/deploy_core_pool.js --network l2rinkeby",
+    "deploy_bonding": "hardhat run scripts/deploy_bonding.js --network l2rinkeby",
+    "deploy_reference": "hardhat run scripts/deploy_reference.js --network l2rinkeby",
+    "deploy_staking": "hardhat run scripts/deploy_staking.js --network l2rinkeby",
     "simulate_price": "hardhat run scripts/simulate_price.js"
   },
   "repository": {
@@ -39,6 +41,8 @@
     "hardhat": "^2.6.6",
     "hardhat-deploy": "^0.9.4",
     "hardhat-gas-reporter": "^1.0.4",
+    "keccak256": "^1.0.2",
+    "merkletreejs": "^0.2.13",
     "solidity-coverage": "^0.7.17"
   },
   "dependencies": {

@@ -7,3 +7,6 @@ package-lock.json
 .env
 bin
 .openzeppelin
+.DS_Store
+.history
+.VSCodeCounter

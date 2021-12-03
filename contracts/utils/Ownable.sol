@@ -3,30 +3,30 @@
 pragma solidity ^0.8.0;
 
 abstract contract Ownable {
-    address public admin;
-    address public pendingAdmin;
+    address public owner;
+    address public pendingOwner;
 
-    event NewAdmin(address indexed oldAdmin, address indexed newAdmin);
-    event NewPendingAdmin(address indexed oldPendingAdmin, address indexed newPendingAdmin);
+    event NewOwner(address indexed oldOwner, address indexed newOwner);
+    event NewPendingOwner(address indexed oldPendingOwner, address indexed newPendingOwner);
 
-    modifier onlyAdmin() {
-        require(msg.sender == admin, "Ownable: REQUIRE_ADMIN");
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Ownable: REQUIRE_OWNER");
         _;
     }
 
-    function setPendingAdmin(address newPendingAdmin) external onlyAdmin {
-        require(pendingAdmin != newPendingAdmin, "Ownable: ALREADY_SET");
-        emit NewPendingAdmin(pendingAdmin, newPendingAdmin);
-        pendingAdmin = newPendingAdmin;
+    function setPendingOwner(address newPendingOwner) external onlyOwner {
+        require(pendingOwner != newPendingOwner, "Ownable: ALREADY_SET");
+        emit NewPendingOwner(pendingOwner, newPendingOwner);
+        pendingOwner = newPendingOwner;
     }
 
-    function acceptAdmin() external {
-        require(msg.sender == pendingAdmin, "Ownable: REQUIRE_PENDING_ADMIN");
-        address oldAdmin = admin;
-        address oldPendingAdmin = pendingAdmin;
-        admin = pendingAdmin;
-        pendingAdmin = address(0);
-        emit NewAdmin(oldAdmin, admin);
-        emit NewPendingAdmin(oldPendingAdmin, pendingAdmin);
+    function acceptOwner() external {
+        require(msg.sender == pendingOwner, "Ownable: REQUIRE_PENDING_OWNER");
+        address oldOwner = owner;
+        address oldPendingOwner = pendingOwner;
+        owner = pendingOwner;
+        pendingOwner = address(0);
+        emit NewOwner(oldOwner, owner);
+        emit NewPendingOwner(oldPendingOwner, pendingOwner);
     }
 }

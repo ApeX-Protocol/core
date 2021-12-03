@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../interfaces/IMargin.sol";
+import "../core/interfaces/IMargin.sol";
 
 contract MockRouter {
     IMargin public margin;
@@ -23,6 +23,6 @@ contract MockRouter {
     }
 
     function removeMargin(uint256 _amount) external {
-        margin.removeMargin(_amount);
+        margin.removeMargin(msg.sender, _amount);
     }
 }
