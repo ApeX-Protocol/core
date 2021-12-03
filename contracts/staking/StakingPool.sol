@@ -75,38 +75,61 @@ contract StakingPool is IStakingPool, Reentrant {
         emit Staked(msg.sender, _staker, _amount);
     }
 
-    function unstake(uint256 _depositId, uint256 _amount) external override {
+    function unstakeBatch(uint256[] memory _depositIds, uint256[] memory _amounts) external override {
+        require(_depositIds.length == _amounts.length, "cp.unstakeBatch: INVALID_DEPOSITS_AMOUNTS");
         address _staker = msg.sender;
-        require(_amount > 0, "cp._unstake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
         User storage user = users[_staker];
-        Deposit storage stakeDeposit = user.deposits[_depositId];
-        require(stakeDeposit.lockFrom == 0 || now256 > stakeDeposit.lockUntil, "cp._unstake: DEPOSIT_LOCKED");
-        require(stakeDeposit.amount >= _amount, "cp._unstake: EXCEED_STAKED");
         _processRewards(_staker, user);
 
-        uint256 previousWeight = stakeDeposit.weight;
-        //tocheck if lockTime is not 1 year?
-        uint256 newWeight = (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
-            ONE_YEAR +
-            WEIGHT_MULTIPLIER) * (stakeDeposit.amount - _amount);
-        bool isYield = stakeDeposit.isYield;
-        if (stakeDeposit.amount - _amount == 0) {
-            delete user.deposits[_depositId];
-        } else {
-            stakeDeposit.amount -= _amount;
-            stakeDeposit.weight = newWeight;
+        uint256 yieldAmount;
+        uint256 stakeAmount;
+        uint256 _amount;
+        uint256 _depositId;
+        uint256 previousWeight;
+        uint256 newWeight;
+        uint256 deltaUsersLockingWeight;
+        Deposit memory stakeDeposit;
+        for (uint256 i = 0; i < _depositIds.length; i++) {
+            _amount = _amounts[i];
+            _depositId = _depositIds[i];
+            require(_amount > 0, "cp.unstakeBatch: INVALID_AMOUNT");
+            stakeDeposit = user.deposits[_depositId];
+            require(stakeDeposit.lockFrom == 0 || now256 > stakeDeposit.lockUntil, "cp.unstakeBatch: DEPOSIT_LOCKED");
+            require(stakeDeposit.amount >= _amount, "cp.unstakeBatch: EXCEED_STAKED");
+
+            previousWeight = stakeDeposit.weight;
+            //tocheck if lockTime is not 1 year?
+            newWeight =
+                (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
+                    ONE_YEAR +
+                    WEIGHT_MULTIPLIER) *
+                (stakeDeposit.amount - _amount);
+            if (stakeDeposit.isYield) {
+                yieldAmount += _amount;
+            } else {
+                stakeAmount += _amount;
+            }
+            if (stakeDeposit.amount == _amount) {
+                delete user.deposits[_depositId];
+            } else {
+                stakeDeposit.amount -= _amount;
+                stakeDeposit.weight = newWeight;
+            }
+
+            user.deposits[_depositId] = stakeDeposit;
+            user.tokenAmount -= _amount;
+            user.totalWeight -= (previousWeight - newWeight);
+            user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
+            deltaUsersLockingWeight += (previousWeight - newWeight);
         }
+        usersLockingWeight -= deltaUsersLockingWeight;
 
-        user.tokenAmount -= _amount;
-        user.totalWeight = user.totalWeight - previousWeight + newWeight;
-        user.subYieldRewards = weightToReward(user.totalWeight, yieldRewardsPerWeight);
-        usersLockingWeight = usersLockingWeight - previousWeight + newWeight;
-
-        if (isYield) {
-            factory.transferYieldTo(msg.sender, _amount);
-        } else {
-            IERC20(poolToken).transfer(msg.sender, _amount);
+        if (yieldAmount > 0) {
+            factory.transferYieldTo(msg.sender, yieldAmount);
+        }
+        if (stakeAmount > 0) {
+            IERC20(poolToken).transfer(msg.sender, stakeAmount);
         }
     }
 

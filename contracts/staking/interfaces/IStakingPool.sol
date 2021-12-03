@@ -37,10 +37,10 @@ interface IStakingPool {
     /// @param lockUntil time to lock.
     function stake(uint256 amount, uint256 lockUntil) external;
 
-    /// @notice Unstake poolToken
-    /// @param depositId the deposit index.
-    /// @param amount poolToken's amount to unstake.
-    function unstake(uint256 depositId, uint256 amount) external;
+    /// @notice UnstakeBatch poolToken
+    /// @param depositIds the deposit index.
+    /// @param amounts poolToken's amount to unstake.
+    function unstakeBatch(uint256[] memory depositIds, uint256[] memory amounts) external;
 
     /// @notice Not-apex stakingPool to stake their users' yield to apex stakingPool
     /// @param staker add yield to this staker in apex stakingPool.

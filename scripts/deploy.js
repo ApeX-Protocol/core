@@ -208,7 +208,7 @@ async function flowVerify(needAttach) {
   );
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
   console.log("close position...");
   tx = await l2Router.closePosition(
     l2BaseToken.address,
@@ -219,12 +219,13 @@ async function flowVerify(needAttach) {
   );
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
 
   console.log("withdraw...");
   tx = await l2Router.withdraw(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(positionItem[0]).abs());
   await tx.wait();
-
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
+  await printPosition(positionItem);
   //flow 2: open position with wallet
   console.log("open position with wallet...");
   tx = await l2Router.openPositionWithWallet(
@@ -238,7 +239,7 @@ async function flowVerify(needAttach) {
   );
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
 
   console.log("close position...");
   tx = await l2Router.closePosition(
@@ -250,7 +251,7 @@ async function flowVerify(needAttach) {
   );
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
 
   console.log("open short position with wallet...");
   tx = await l2Router.openPositionWithWallet(
@@ -264,7 +265,7 @@ async function flowVerify(needAttach) {
   );
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
 
   console.log("close position...");
   tx = await l2Router.closePosition(
@@ -276,7 +277,7 @@ async function flowVerify(needAttach) {
   );
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
 
   //flow 3: liquidate
   console.log("open position with wallet...");
@@ -291,13 +292,16 @@ async function flowVerify(needAttach) {
   );
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
 
+  console.log("withdraw withdrawable...");
   let withdrawable = await l2Margin.getWithdrawable(signer);
   tx = await l2Router.withdraw(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(withdrawable).abs());
   await tx.wait();
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
+  await printPosition(positionItem);
 
-  console.log("set price...");
+  console.log("set price to 200...");
   tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 1, 200);
   await tx.wait();
   console.log("rebase...");
@@ -305,13 +309,13 @@ async function flowVerify(needAttach) {
   await tx.wait();
 
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
-
+  await printPosition(positionItem);
+  await sleep();
   console.log("liquidate position...");
   tx = await l2Margin.liquidate(signer);
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
 
   //flow 4: close liquidatable position
   console.log("open short position with wallet...");
@@ -326,13 +330,16 @@ async function flowVerify(needAttach) {
   );
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
 
+  console.log("withdraw withdrawable...");
   withdrawable = await l2Margin.getWithdrawable(signer);
   tx = await l2Router.withdraw(l2BaseToken.address, l2QuoteToken.address, BigNumber.from(withdrawable).abs());
   await tx.wait();
+  positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
+  await printPosition(positionItem);
 
-  console.log("set price...");
+  console.log("set price to 2000...");
   tx = await priceOracleForTest.setReserve(l2BaseToken.address, l2QuoteToken.address, 1, 2000);
   await tx.wait();
   console.log("rebase...");
@@ -340,7 +347,7 @@ async function flowVerify(needAttach) {
   await tx.wait();
 
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
   console.log("close liquidatable position...");
   tx = await l2Router.closePosition(
     l2BaseToken.address,
@@ -351,19 +358,20 @@ async function flowVerify(needAttach) {
   );
   await tx.wait();
   positionItem = await l2Router.getPosition(l2BaseToken.address, l2QuoteToken.address, signer);
-  printPosition(positionItem);
+  await printPosition(positionItem);
 }
 
-function printPosition(positionItem) {
+async function printPosition(positionItem) {
   console.log(
-    "after open, current baseSize and quoteSize and tradeSize abs and realizedPnl: ",
+    "after operate, current baseSize and quoteSize and tradeSize abs and realizedPnl: ",
     BigNumber.from(positionItem[0]).toString(),
     BigNumber.from(positionItem[1]).toString(),
     BigNumber.from(positionItem[2]).toString()
   );
+  await sleep();
 }
 
-function sleep(ms) {
+function sleep(ms = 5000) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 

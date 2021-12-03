@@ -113,11 +113,11 @@ describe("stakingPool contract", function () {
       await network.provider.send("evm_mine");
       await apexStakingPool.processRewards();
       await network.provider.send("evm_mine");
-      await apexStakingPool.unstake(0, 10000);
-      await expect(apexStakingPool.unstake(1, 10000)).to.be.revertedWith("p._unstake: DEPOSIT_LOCKE");
+      await apexStakingPool.unstakeBatch([0], [10000]);
+      await expect(apexStakingPool.unstakeBatch([1], [10000])).to.be.revertedWith("p.unstakeBatch: DEPOSIT_LOCKE");
       await mineBlocks(100);
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      await apexStakingPool.unstake(1, 9);
+      await apexStakingPool.unstakeBatch([1], [9]);
       let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
       expect(oldBalance + 9).to.be.equal(newBalance);
     });
@@ -133,7 +133,7 @@ describe("stakingPool contract", function () {
     it("unlock too early", async function () {
       let oneYearLockUntil = await oneYearLater();
       await slpStakingPool.stake(10000, oneYearLockUntil);
-      await expect(slpStakingPool.unstake(1, 10000)).to.be.revertedWith("p._unstake: DEPOSIT_LOCKE");
+      await expect(slpStakingPool.unstakeBatch([1], [10000])).to.be.revertedWith("p.unstakeBatch: DEPOSIT_LOCKE");
     });
 
     it("stake, process reward to apeXPool, unstake from slpPool, unstake from apeXPool", async function () {
@@ -141,10 +141,10 @@ describe("stakingPool contract", function () {
       await slpStakingPool.processRewards();
 
       await network.provider.send("evm_mine");
-      await slpStakingPool.unstake(0, 10000);
+      await slpStakingPool.unstakeBatch([0], [10000]);
       await mineBlocks(100);
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      await apexStakingPool.unstake(0, 1);
+      await apexStakingPool.unstakeBatch([0], [1]);
       let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
       expect(oldBalance + 1).to.be.equal(newBalance);
     });
