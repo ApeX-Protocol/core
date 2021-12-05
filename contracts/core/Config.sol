@@ -7,6 +7,7 @@ import "./interfaces/IConfig.sol";
 import "../utils/Initializable.sol";
 import "../utils/Ownable.sol";
 
+//config is upgradable proxy, contains configurations of core contracts
 contract Config is IConfig, Ownable, Initializable {
     address public override priceOracle;
 

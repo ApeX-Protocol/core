@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 import "./Margin.sol";
 import "./interfaces/IMarginFactory.sol";
 
+//factory of margin, called by pairFactory
 contract MarginFactory is IMarginFactory {
     address public immutable override upperFactory; // PairFactory
     address public immutable override config;
@@ -16,7 +17,8 @@ contract MarginFactory is IMarginFactory {
     }
 
     constructor(address upperFactory_, address config_) {
-        require(config_ != address(0), "MarginFactory: ZERO_ADDRESS");
+        require(upperFactory_ != address(0), "MarginFactory: ZERO_UPPER");
+        require(config_ != address(0), "MarginFactory: ZERO_CONFIG");
         upperFactory = upperFactory_;
         config = config_;
     }
@@ -42,6 +44,6 @@ contract MarginFactory is IMarginFactory {
         require(amm != address(0), "MarginFactory.initMargin: ZERO_AMM");
         address margin = getMargin[baseToken][quoteToken];
         require(margin != address(0), "MarginFactory.initMargin: ZERO_MARGIN");
-        Margin(margin).initialize(baseToken, quoteToken, amm);
+        IMargin(margin).initialize(baseToken, quoteToken, amm);
     }
 }
