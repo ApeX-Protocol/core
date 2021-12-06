@@ -7,15 +7,14 @@ import "../core/interfaces/IERC20.sol";
 import "../utils/Reentrant.sol";
 
 contract StakingPool is IStakingPool, Reentrant {
-    uint256 internal constant ONE_YEAR = 365 days;
     uint256 internal constant WEIGHT_MULTIPLIER = 1e6;
-    uint256 internal constant YEAR_STAKE_WEIGHT_MULTIPLIER = 2 * WEIGHT_MULTIPLIER;
+    uint256 internal constant MAX_TIME_STAKE_WEIGHT_MULTIPLIER = 2 * WEIGHT_MULTIPLIER;
     uint256 internal constant REWARD_PER_WEIGHT_MULTIPLIER = 1e12;
 
     address public immutable apex;
     address public immutable override poolToken;
     IStakingPoolFactory public immutable factory;
-    uint256 public lastYieldDistribution;
+    uint256 public lastYieldDistribution; //blockNumber
     uint256 public yieldRewardsPerWeight;
     uint256 public usersLockingWeight;
     mapping(address => User) public users;
@@ -38,24 +37,25 @@ contract StakingPool is IStakingPool, Reentrant {
     }
 
     function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
-        address _staker = msg.sender;
         require(_amount > 0, "cp._stake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
+        uint256 yieldLockTime = factory.yieldLockTime();
         require(
-            _lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + ONE_YEAR),
+            _lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + yieldLockTime),
             "cp._stake: INVALID_LOCK_INTERVAL"
         );
 
+        address _staker = msg.sender;
         User storage user = users[_staker];
         _processRewards(_staker, user);
 
         uint256 previousBalance = IERC20(poolToken).balanceOf(address(this));
-        IERC20(poolToken).transferFrom(msg.sender, address(this), _amount);
+        IERC20(poolToken).transferFrom(_staker, address(this), _amount);
         uint256 newBalance = IERC20(poolToken).balanceOf(address(this));
         uint256 addedAmount = newBalance - previousBalance;
         //if 0, not lock
         uint256 lockFrom = _lockUntil > 0 ? now256 : 0;
-        uint256 stakeWeight = (((_lockUntil - lockFrom) * WEIGHT_MULTIPLIER) / ONE_YEAR + WEIGHT_MULTIPLIER) *
+        uint256 stakeWeight = (((_lockUntil - lockFrom) * WEIGHT_MULTIPLIER) / yieldLockTime + WEIGHT_MULTIPLIER) *
             addedAmount;
 
         Deposit memory deposit = Deposit({
@@ -69,7 +69,7 @@ contract StakingPool is IStakingPool, Reentrant {
         user.deposits.push(deposit);
         user.tokenAmount += addedAmount;
         user.totalWeight += stakeWeight;
-        user.subYieldRewards = weightToReward(user.totalWeight, yieldRewardsPerWeight);
+        user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight += stakeWeight;
 
         emit Staked(msg.sender, _staker, _amount);
@@ -81,6 +81,7 @@ contract StakingPool is IStakingPool, Reentrant {
         uint256 now256 = block.timestamp;
         User storage user = users[_staker];
         _processRewards(_staker, user);
+        uint256 yieldLockTime = factory.yieldLockTime();
 
         uint256 yieldAmount;
         uint256 stakeAmount;
@@ -102,7 +103,7 @@ contract StakingPool is IStakingPool, Reentrant {
             //tocheck if lockTime is not 1 year?
             newWeight =
                 (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
-                    ONE_YEAR +
+                    yieldLockTime +
                     WEIGHT_MULTIPLIER) *
                 (stakeDeposit.amount - _amount);
             if (stakeDeposit.isYield) {
@@ -120,28 +121,31 @@ contract StakingPool is IStakingPool, Reentrant {
             user.deposits[_depositId] = stakeDeposit;
             user.tokenAmount -= _amount;
             user.totalWeight -= (previousWeight - newWeight);
-            user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
             deltaUsersLockingWeight += (previousWeight - newWeight);
         }
+        user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight -= deltaUsersLockingWeight;
 
         if (yieldAmount > 0) {
-            factory.transferYieldTo(msg.sender, yieldAmount);
+            factory.transferYieldTo(_staker, yieldAmount);
         }
         if (stakeAmount > 0) {
-            IERC20(poolToken).transfer(msg.sender, stakeAmount);
+            IERC20(poolToken).transfer(_staker, stakeAmount);
         }
     }
 
+    //called by other staking pool to stake yield rewards into apeX pool
     function stakeAsPool(address _staker, uint256 _amount) external override {
         require(factory.poolTokenMap(msg.sender) != address(0), "cp.stakeAsPool: ACCESS_DENIED");
         syncWeightPrice(); //need sync apexStakingPool
 
         User storage user = users[_staker];
 
-        uint256 pendingYield = weightToReward(user.totalWeight, yieldRewardsPerWeight) - user.subYieldRewards;
+        uint256 pendingYield = (user.totalWeight * yieldRewardsPerWeight) /
+            REWARD_PER_WEIGHT_MULTIPLIER -
+            user.subYieldRewards;
         uint256 yieldAmount = _amount + pendingYield;
-        uint256 yieldWeight = yieldAmount * YEAR_STAKE_WEIGHT_MULTIPLIER;
+        uint256 yieldWeight = yieldAmount * MAX_TIME_STAKE_WEIGHT_MULTIPLIER;
         uint256 now256 = block.timestamp;
         Deposit memory newDeposit = Deposit({
             amount: yieldAmount,
@@ -155,28 +159,30 @@ contract StakingPool is IStakingPool, Reentrant {
         user.tokenAmount += yieldAmount;
         user.totalWeight += yieldWeight;
         usersLockingWeight += yieldWeight;
-        user.subYieldRewards = weightToReward(user.totalWeight, yieldRewardsPerWeight);
+        user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
     }
 
+    //only can extend lock time
     function updateStakeLock(uint256 _depositId, uint256 _lockUntil) external override {
         uint256 now256 = block.timestamp;
         require(_lockUntil > now256, "cp.updateStakeLock: INVALID_LOCK_UNTIL");
 
+        uint256 yieldLockTime = factory.yieldLockTime();
         address _staker = msg.sender;
         User storage user = users[_staker];
         Deposit storage stakeDeposit = user.deposits[_depositId];
         require(_lockUntil > stakeDeposit.lockUntil, "cp.updateStakeLock: INVALID_NEW_LOCK");
 
         if (stakeDeposit.lockFrom == 0) {
-            require(_lockUntil <= now256 + ONE_YEAR, "cp.updateStakeLock: EXCEED_MAX_LOCK_PERIOD");
+            require(_lockUntil <= now256 + yieldLockTime, "cp.updateStakeLock: EXCEED_MAX_LOCK_PERIOD");
             stakeDeposit.lockFrom = now256;
         } else {
-            require(_lockUntil <= stakeDeposit.lockFrom + ONE_YEAR, "cp.updateStakeLock: EXCEED_MAX_LOCK");
+            require(_lockUntil <= stakeDeposit.lockFrom + yieldLockTime, "cp.updateStakeLock: EXCEED_MAX_LOCK");
         }
 
         stakeDeposit.lockUntil = _lockUntil;
         uint256 newWeight = (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
-            ONE_YEAR +
+            yieldLockTime +
             WEIGHT_MULTIPLIER) * stakeDeposit.amount;
         uint256 previousWeight = stakeDeposit.weight;
         stakeDeposit.weight = newWeight;
@@ -186,10 +192,11 @@ contract StakingPool is IStakingPool, Reentrant {
     }
 
     function processRewards() external override {
-        User storage user = users[msg.sender];
+        address staker = msg.sender;
+        User storage user = users[staker];
 
-        _processRewards(msg.sender, user);
-        user.subYieldRewards = weightToReward(user.totalWeight, yieldRewardsPerWeight);
+        _processRewards(staker, user);
+        user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
     }
 
     function syncWeightPrice() public {
@@ -198,18 +205,18 @@ contract StakingPool is IStakingPool, Reentrant {
         }
 
         uint256 endBlock = factory.endBlock();
-        uint256 blockNumber = block.number;
-        if (lastYieldDistribution >= endBlock || lastYieldDistribution >= blockNumber) {
+        uint256 currentBlockNumber = block.number;
+        if (lastYieldDistribution >= endBlock || lastYieldDistribution >= currentBlockNumber) {
             return;
         }
         if (usersLockingWeight == 0) {
-            lastYieldDistribution = blockNumber;
+            lastYieldDistribution = currentBlockNumber;
             return;
         }
         //@notice: if nobody sync this stakingPool for a long time, this stakingPool reward shrink
         uint256 apexReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
-        yieldRewardsPerWeight += deltaWeightPrice(apexReward, usersLockingWeight);
-        lastYieldDistribution = blockNumber > endBlock ? endBlock : blockNumber;
+        yieldRewardsPerWeight += (apexReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
+        lastYieldDistribution = currentBlockNumber > endBlock ? endBlock : currentBlockNumber;
 
         emit Synchronized(msg.sender, yieldRewardsPerWeight, lastYieldDistribution);
     }
@@ -220,11 +227,14 @@ contract StakingPool is IStakingPool, Reentrant {
 
         //if no yield
         if (user.tokenAmount == 0) return;
-        uint256 yieldAmount = weightToReward(user.totalWeight, yieldRewardsPerWeight) - user.subYieldRewards;
+        uint256 yieldAmount = (user.totalWeight * yieldRewardsPerWeight) /
+            REWARD_PER_WEIGHT_MULTIPLIER -
+            user.subYieldRewards;
         if (yieldAmount == 0) return;
 
+        //if self is apeX pool, lock the yield reward; if not, stake the yield reward to apeX pool.
         if (poolToken == apex) {
-            uint256 yieldWeight = yieldAmount * YEAR_STAKE_WEIGHT_MULTIPLIER;
+            uint256 yieldWeight = yieldAmount * MAX_TIME_STAKE_WEIGHT_MULTIPLIER;
             uint256 now256 = block.timestamp;
             Deposit memory newDeposit = Deposit({
                 amount: yieldAmount,
@@ -242,22 +252,19 @@ contract StakingPool is IStakingPool, Reentrant {
             IStakingPool(apexStakingPool).stakeAsPool(_staker, yieldAmount);
         }
 
-        emit YieldClaimed(msg.sender, _staker, yieldAmount);
+        emit YieldClaimed(_staker, _staker, yieldAmount);
     }
 
     function pendingYieldRewards(address _staker) external view returns (uint256 pending) {
-        uint256 blockNumber = block.number;
-        uint256 newYieldRewardsPerWeight;
+        uint256 newYieldRewardsPerWeight = yieldRewardsPerWeight;
 
-        if (blockNumber > lastYieldDistribution && usersLockingWeight != 0) {
+        if (block.number > lastYieldDistribution && usersLockingWeight != 0) {
             uint256 apexReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
-            newYieldRewardsPerWeight = deltaWeightPrice(apexReward, usersLockingWeight) + yieldRewardsPerWeight;
-        } else {
-            newYieldRewardsPerWeight = yieldRewardsPerWeight;
+            newYieldRewardsPerWeight += (apexReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
         }
 
         User memory user = users[_staker];
-        pending = weightToReward(user.totalWeight, newYieldRewardsPerWeight) - user.subYieldRewards;
+        pending = (user.totalWeight * newYieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER - user.subYieldRewards;
     }
 
     function getDeposit(address _user, uint256 _depositId) external view returns (Deposit memory) {
@@ -266,13 +273,5 @@ contract StakingPool is IStakingPool, Reentrant {
 
     function getDepositsLength(address _user) external view returns (uint256) {
         return users[_user].deposits.length;
-    }
-
-    function weightToReward(uint256 _weight, uint256 _rewardPerWeight) public pure returns (uint256) {
-        return (_weight * _rewardPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
-    }
-
-    function deltaWeightPrice(uint256 _deltaReward, uint256 _usersLockingWeight) public pure returns (uint256) {
-        return (_deltaReward * REWARD_PER_WEIGHT_MULTIPLIER) / _usersLockingWeight;
     }
 }

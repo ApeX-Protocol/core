@@ -17,12 +17,6 @@ import "../libraries/SignedMath.sol";
 contract Margin is IMargin, IVault, Reentrant {
     using SignedMath for int256;
 
-    struct Position {
-        int256 quoteSize; //quote amount of position
-        int256 baseSize; //margin + fundingFee + unrealizedPnl
-        uint256 tradeSize; //base value gap between quoteSize and tradeSize, is unrealizedPnl
-    }
-
     uint256 constant MAXRATIO = 10000;
     uint256 constant fundingRatePrecision = 1e18;
     //fixme move to config.sol
@@ -63,11 +57,14 @@ contract Margin is IMargin, IVault, Reentrant {
 
         uint256 balance = IERC20(baseToken).balanceOf(address(this));
         require(depositAmount <= balance - reserve, "Margin.addMargin: WRONG_DEPOSIT_AMOUNT");
-        Position storage traderPosition = traderPositionMap[trader];
+        Position memory traderPosition = traderPositionMap[trader];
+        emit BeforeAddMargin(traderPosition);
+
         traderPosition.baseSize = traderPosition.baseSize.addU(depositAmount);
+        traderPositionMap[trader] = traderPosition;
         reserve = reserve + depositAmount;
 
-        emit AddMargin(trader, depositAmount);
+        emit AddMargin(trader, depositAmount, traderPosition);
     }
 
     function removeMargin(address trader, uint256 withdrawAmount) external override nonReentrant {
@@ -80,6 +77,7 @@ contract Margin is IMargin, IVault, Reentrant {
 
         //tocheck test carefully if withdraw margin more than withdrawable
         Position memory traderPosition = traderPositionMap[trader];
+        emit BeforeRemoveMargin(traderPosition);
         int256 fundingFee = _calFundingFee(traderPosition.quoteSize, _latestCPF - traderCPF[trader]);
         (uint256 withdrawableAmount, int256 unrealizedPnl) = _getWithdrawable(
             traderPosition.quoteSize,
@@ -117,7 +115,7 @@ contract Margin is IMargin, IVault, Reentrant {
         traderCPF[trader] = _latestCPF;
         _withdraw(trader, trader, withdrawAmount);
 
-        emit RemoveMargin(trader, withdrawAmountFromMargin);
+        emit RemoveMargin(trader, withdrawAmountFromMargin, traderPosition);
     }
 
     function openPosition(
@@ -133,6 +131,7 @@ contract Margin is IMargin, IVault, Reentrant {
         int256 _latestCPF = updateCPF();
 
         Position memory traderPosition = traderPositionMap[trader];
+        emit BeforeOpenPosition(traderPosition);
         bool isLong = side == 0;
         bool sameDir = traderPosition.quoteSize == 0 ||
             (traderPosition.quoteSize < 0 == isLong) ||
@@ -175,14 +174,14 @@ contract Margin is IMargin, IVault, Reentrant {
             netPosition = netPosition.subU(baseAmount);
         }
 
-        //tocheck 是否有必要做这个检查？
+        //tocheck need to check margin ratio?
         require(
             _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= IConfig(config).initMarginRatio(),
             "Margin.openPosition: INIT_MARGIN_RATIO"
         );
         traderCPF[trader] = _latestCPF;
         traderPositionMap[trader] = traderPosition;
-        emit OpenPosition(trader, side, baseAmount, quoteAmount);
+        emit OpenPosition(trader, side, baseAmount, quoteAmount, traderPosition);
     }
 
     function closePosition(address trader, uint256 quoteAmount)
@@ -199,6 +198,7 @@ contract Margin is IMargin, IVault, Reentrant {
         Position memory traderPosition = traderPositionMap[trader];
         require(quoteAmount != 0, "Margin.closePosition: ZERO_POSITION");
         require(quoteAmount <= traderPosition.quoteSize.abs(), "Margin.closePosition: ABOVE_POSITION");
+        emit BeforeClosePosition(traderPosition);
 
         bool isLong = traderPosition.quoteSize < 0;
         int256 fundingFee = _calFundingFee(traderPosition.quoteSize, _latestCPF - traderCPF[trader]);
@@ -273,7 +273,7 @@ contract Margin is IMargin, IVault, Reentrant {
         traderCPF[trader] = _latestCPF;
         traderPositionMap[trader] = traderPosition;
 
-        emit ClosePosition(trader, quoteAmount, baseAmount, quoteSizeAbs, isLong);
+        emit ClosePosition(trader, quoteAmount, baseAmount, fundingFee, traderPosition);
     }
 
     function liquidate(address trader)
@@ -288,6 +288,7 @@ contract Margin is IMargin, IVault, Reentrant {
     {
         int256 _latestCPF = updateCPF();
         Position memory traderPosition = traderPositionMap[trader];
+        emit BeforeLiquidate(traderPosition);
         int256 quoteSize = traderPosition.quoteSize;
         require(quoteSize != 0, "Margin.liquidate: ZERO_POSITION");
         int256 fundingFee = _calFundingFee(quoteSize, _latestCPF - traderCPF[trader]);
@@ -336,7 +337,7 @@ contract Margin is IMargin, IVault, Reentrant {
 
         delete traderPositionMap[trader];
 
-        emit Liquidate(msg.sender, trader, quoteAmount, baseAmount, bonus);
+        emit Liquidate(msg.sender, trader, quoteAmount, baseAmount, bonus, traderPosition);
     }
 
     function deposit(address user, uint256 amount) external override nonReentrant {

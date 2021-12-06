@@ -7,6 +7,7 @@ import "../utils/Initializable.sol";
 import "../utils/Ownable.sol";
 import "./StakingPool.sol";
 
+//this is a stakingPool factory to create and register stakingPool, distribute ApeX token according to pools' weight
 contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     address public apeX;
     uint256 public blocksPerUpdate;
@@ -18,6 +19,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     mapping(address => PoolInfo) public pools;
     mapping(address => address) public override poolTokenMap;
 
+    //upgradableProxy StakingPoolFactory only initialized once
     function initialize(
         address _apeX,
         uint256 _apeXPerBlock,

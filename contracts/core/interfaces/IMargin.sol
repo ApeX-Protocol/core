@@ -3,22 +3,34 @@
 pragma solidity ^0.8.0;
 
 interface IMargin {
-    event AddMargin(address indexed trader, uint256 depositAmount);
-    event RemoveMargin(address indexed trader, uint256 withdrawAmount);
-    event OpenPosition(address indexed trader, uint8 side, uint256 baseAmount, uint256 quoteAmount);
+    struct Position {
+        int256 quoteSize; //quote amount of position
+        int256 baseSize; //margin + fundingFee + unrealizedPnl
+        uint256 tradeSize; //base value gap between quoteSize and tradeSize, is unrealizedPnl
+    }
+
+    event BeforeAddMargin(Position position);
+    event AddMargin(address indexed trader, uint256 depositAmount, Position position);
+    event BeforeRemoveMargin(Position position);
+    event RemoveMargin(address indexed trader, uint256 withdrawAmount, Position position);
+    event BeforeOpenPosition(Position position);
+    event OpenPosition(address indexed trader, uint8 side, uint256 baseAmount, uint256 quoteAmount, Position position);
+    event BeforeClosePosition(Position position);
     event ClosePosition(
         address indexed trader,
         uint256 quoteAmount,
         uint256 baseAmount,
-        uint256 quoteSize,
-        bool isLong
+        int256 fundingFee,
+        Position position
     );
+    event BeforeLiquidate(Position position);
     event Liquidate(
         address indexed liquidator,
         address indexed trader,
         uint256 quoteAmount,
         uint256 baseAmount,
-        uint256 bonus
+        uint256 bonus,
+        Position position
     );
     event UpdateCPF(uint256 timeStamp, int256 cpf);
 

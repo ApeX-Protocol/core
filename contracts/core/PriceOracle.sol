@@ -89,7 +89,7 @@ contract PriceOracle is IPriceOracle {
     }
 
     //premiumFraction is (markPrice - indexPrice) / 8h / indexPrice, scale by 1e18
-    function getPremiumFraction(address amm) public view override returns (int256) {
+    function getPremiumFraction(address amm) external view override returns (int256) {
         int256 markPrice = int256(getMarkPrice(amm));
         int256 indexPrice = int256(getIndexPrice(amm));
         require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");

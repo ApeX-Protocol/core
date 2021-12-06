@@ -46,16 +46,19 @@ contract BondPool is IBondPool, Ownable {
     }
 
     function setMaxPayout(uint256 maxPayout_) external override onlyOwner {
+        emit MaxPayoutChanged(maxPayout, maxPayout_);
         maxPayout = maxPayout_;
     }
 
     function setDiscount(uint256 discount_) external override onlyOwner {
         require(discount_ <= 10000, "BondPool.setDiscount: OVER_100%");
+        emit DiscountChanged(discount, discount_);
         discount = discount_;
     }
 
     function setVestingTerm(uint256 vestingTerm_) external override onlyOwner {
         require(vestingTerm_ >= 129600, "BondPool.setVestingTerm: MUST_BE_LONGER_THAN_36_HOURS");
+        emit VestingTermChanged(vestingTerm, vestingTerm_);
         vestingTerm = vestingTerm_;
     }
 

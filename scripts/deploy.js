@@ -59,10 +59,10 @@ async function createContracts() {
   await l2Config.deployed();
   console.log("l2Config address: ", l2Config.address);
   //new mockToken base and quote
-  l2BaseToken = await MockToken.deploy("base token", "bt");
+  l2BaseToken = await MockToken.deploy("base token", "btc");
   await l2BaseToken.deployed();
   console.log(`l2BaseToken: ${l2BaseToken.address}`);
-  l2QuoteToken = await MockToken.deploy("quote token", "qt");
+  l2QuoteToken = await MockToken.deploy("quote token", "vusd");
   await l2QuoteToken.deployed();
   console.log(`l2QuoteToken: ${l2QuoteToken.address}`);
   l2Weth = await MockToken.deploy("weth token", "wt");
@@ -152,8 +152,8 @@ async function createContracts() {
     l2PcvTreasury.address,
     l2Weth.address
   );
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, l2BaseToken.address, "'base token' 'bt'");
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, l2QuoteToken.address, "'quote token' 'qt'");
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, l2BaseToken.address, "'base token' 'btc'");
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, l2QuoteToken.address, "'quote token' 'vusd'");
   console.log(verifyStr, process.env.HARDHAT_NETWORK, l2Weth.address, "'weth token' 'wt'");
   console.log(verifyStr, process.env.HARDHAT_NETWORK, priceOracleForTest.address);
 

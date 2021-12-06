@@ -41,10 +41,11 @@ contract Router is IRouter {
         uint256 deadline,
         bool pcv
     ) external override ensure(deadline) returns (uint256 quoteAmount, uint256 liquidity) {
-        if (IPairFactory(pairFactory).getAmm(baseToken, quoteToken) == address(0)) {
-            IPairFactory(pairFactory).createPair(baseToken, quoteToken);
-        }
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        if (amm == address(0)) {
+            (amm, ) = IPairFactory(pairFactory).createPair(baseToken, quoteToken);
+        }
+
         TransferHelper.safeTransferFrom(baseToken, msg.sender, amm, baseAmount);
         if (pcv) {
             (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
