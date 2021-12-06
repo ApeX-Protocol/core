@@ -5,6 +5,7 @@ const verifyStr = "npx hardhat verify --network";
 let apeXAddress = "";
 let priceOracleAddress = "";
 let uniswapV3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; //this is ethereum mainnet
+let ammAddress = "";
 let maxPayout = 100000000;
 let discount = 500;
 let vestingTerm = 129600;
@@ -45,6 +46,10 @@ async function createContracts() {
     vestingTerm
   );
   console.log("BondPoolFactory:", bondPoolFactory.address);
+
+  await bondPoolFactory.createPool(ammAddress);
+  let bondPool = await bondPoolFactory.allPools(0);
+  console.log("BondPool:", bondPool);
 }
 
 main()
