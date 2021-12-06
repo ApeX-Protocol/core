@@ -16,6 +16,10 @@ interface IBondPool {
     /// @param remaining The amount of apeX remaining in the bond
     event BondRedeemed(address depositor, uint256 payout, uint256 remaining);
 
+    event MaxPayoutChanged(uint256 oldMaxPayout, uint256 newMaxPayout);
+    event DiscountChanged(uint256 oldDiscount, uint256 newDiscount);
+    event VestingTermChanged(uint256 oldVestingTerm, uint256 newVestingTerm);
+
     // Info for bond depositor
     struct Bond {
         uint256 payout; // apeX token amount
