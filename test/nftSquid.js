@@ -19,10 +19,7 @@ describe("nftSquid contract", function () {
 
     const NftSquid = await ethers.getContractFactory("NftSquid");
     nftSquid = await NftSquid.deploy(erc20.address);
-    ct = currentTimestamp();
-    console.log("ct:", ct);
 
-    await nftSquid.setStartTime(ct + 500);
     await erc20.transfer(nftSquid.address, ethers.BigNumber.from("10000000").mul(exp1));
   });
 
@@ -30,29 +27,36 @@ describe("nftSquid contract", function () {
   //   let overrides = {
   //     value: ethers.utils.parseEther("0.01")
   //   }
+  //   ct = currentTimestamp();
+  //   console.log("ct:", ct);
+
+  //   await nftSquid.setStartTime(ct + 500);
   //    await nftSquid.claimApeXNFT(overrides);
 
   //   let oldRemainOwners = await nftSquid.remainOwners();
-  //   await network.provider.send("evm_increaseTime", [60])
+  //   await network.provider.send("evm_increaseTime", [600])
   //   await network.provider.send("evm_mine")
   //   await nftSquid.burn(0);
   //   expect(await nftSquid.remainOwners()).to.be.equal(oldRemainOwners - 1);
   // });
+
   // it("burn 456 in  0 month", async function () {
   //   let i =0;
   //   let overrides = {
   //     value: ethers.utils.parseEther("0.01")
   //   }
+  //   ct = currentTimestamp();
+  //   console.log("ct:", ct);
+  //   await nftSquid.setStartTime(ct + 1000);
   //   for( i =0 ;i< 456; i++) {
   //    await nftSquid.claimApeXNFT(overrides);
   //   }
-  //   await network.provider.send("evm_increaseTime", [600])
+  //   await network.provider.send("evm_increaseTime", [1000])
   //   await network.provider.send("evm_mine")
   //   console.log("mint successfully.");
   //    i =0;
 
   //   for( i =0 ;i< 456; i++) {
-
   //   let tx = await nftSquid.burn(i);
   //   let txReceipt = await tx.wait();
   //    args = txReceipt["events"][2].args;
@@ -62,12 +66,16 @@ describe("nftSquid contract", function () {
   //  // }
 
   //   }
-  //   expect(args[1].div(exp1).toString()).to.be.equal('165548');
+  //   expect(args[1].div(exp1).toString()).to.be.equal('165547');
   //   expect(args[0].toString()).to.be.equal('455');
   // });
 
-  it("burn 456 in  1 month", async function () {
+  it("burn 456 in  6 month", async function () {
     let i = 0;
+    ct = currentTimestamp();
+    console.log("ct:", ct);
+
+    await nftSquid.setStartTime(ct + 500);
     let overrides = {
       value: ethers.utils.parseEther("0.01"),
     };
