@@ -98,6 +98,8 @@ function currentTimestamp() {
   return Math.floor(dateTime / 1000);
 }
 
+//ms
 async function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
