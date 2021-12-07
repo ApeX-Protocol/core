@@ -45,6 +45,7 @@ describe("stakingPool contract", function () {
     await apexToken.mint(stakingPoolFactory.address, 100_0000);
     await slpToken.mint(owner.address, 100_0000);
     await slpToken.approve(slpStakingPool.address, 100_0000);
+    await stakingPoolFactory.setYieldLockTime(10);
   });
 
   describe("stake", function () {
@@ -84,15 +85,16 @@ describe("stakingPool contract", function () {
     });
 
     it("stake twice, with one year lock", async function () {
-      let oneYearLockUntil = await oneYearLater();
-      await apexStakingPool.stake(10000, oneYearLockUntil);
+      await stakingPoolFactory.setYieldLockTime(15768000);
+      let halfYearLockUntil = await halfYearLater();
+      await apexStakingPool.stake(10000, halfYearLockUntil);
       let user = await apexStakingPool.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(10000);
       expect(user.totalWeight.toNumber()).to.be.at.least(19999000000);
       expect(user.subYieldRewards.toNumber()).to.equal(0);
 
-      oneYearLockUntil = await oneYearLater();
-      await apexStakingPool.stake(20000, oneYearLockUntil);
+      halfYearLockUntil = await halfYearLater();
+      await apexStakingPool.stake(20000, halfYearLockUntil);
       user = await apexStakingPool.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(30019);
       expect(user.totalWeight.toNumber()).to.be.at.most(60037990000);
@@ -102,9 +104,7 @@ describe("stakingPool contract", function () {
 
   describe("unstake", function () {
     beforeEach(async function () {
-      let oneYearLockUntil = await oneYearLater();
       await apexToken.approve(apexStakingPool.address, 20000);
-      await stakingPoolFactory.setYieldLockTime(10);
 
       await apexStakingPool.stake(10000, 0);
     });
@@ -125,14 +125,13 @@ describe("stakingPool contract", function () {
 
   describe("stakeAsPool", function () {
     beforeEach(async function () {
-      await stakingPoolFactory.setYieldLockTime(10);
-
       await slpStakingPool.stake(10000, 0);
     });
 
     it("unlock too early", async function () {
-      let oneYearLockUntil = await oneYearLater();
-      await slpStakingPool.stake(10000, oneYearLockUntil);
+      await stakingPoolFactory.setYieldLockTime(15768000);
+      let halfYearLockUntil = await halfYearLater();
+      await slpStakingPool.stake(10000, halfYearLockUntil);
       await expect(slpStakingPool.unstakeBatch([1], [10000])).to.be.revertedWith("p.unstakeBatch: DEPOSIT_LOCKE");
     });
 
@@ -152,7 +151,6 @@ describe("stakingPool contract", function () {
 
   describe("pendingYieldRewards", function () {
     beforeEach(async function () {
-      await stakingPoolFactory.setYieldLockTime(10);
       await slpStakingPool.stake(10000, 0);
     });
 
@@ -182,6 +180,6 @@ async function currentBlockNumber() {
   return ethers.provider.getBlockNumber();
 }
 
-async function oneYearLater() {
-  return Math.floor(Date.now() / 1000) + 31536000;
+async function halfYearLater() {
+  return Math.floor(Date.now() / 1000) + 15768000;
 }
