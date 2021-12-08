@@ -2,41 +2,30 @@ const { ethers, upgrades } = require("hardhat");
 const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
-let apeXAddress = "";
-let priceOracleAddress = "";
-let uniswapV3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; //this is ethereum mainnet
+let apeXAddress = "0x94aD21Bf72F0f4ab545E59ea3d5C1F863d74C629";
+let priceOracleAddress = "0x3a62F3b224Dfe5E13dfa360D1E03aE32191bF091";
 let ammAddress = "";
 let maxPayout = 100000000;
 let discount = 500;
 let vestingTerm = 129600;
 let pcvTreasury;
 let bondPoolFactory;
-let apexToken;
-let priceOracle;
 
 const main = async () => {
-  await createContracts();
+  await createPCVTreasury();
+  await createBondPoolFactory();
+  await createBondPool();
 };
 
-async function createContracts() {
-  const MockToken = await ethers.getContractFactory("MockToken");
+async function createPCVTreasury() {
   const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
-  const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
-  const PriceOracle = await ethers.getContractFactory("PriceOracle");
-
-  apexToken = await MockToken.deploy("apex token", "at");
-  await apexToken.deployed();
-  apeXAddress = apexToken.address;
-  console.log("apeXToken:", apexToken.address);
-
-  priceOracle = await PriceOracle.deploy(uniswapV3FactoryAddress);
-  await priceOracle.deployed();
-  priceOracleAddress = priceOracle.address;
-  console.log(`priceOracle: ${priceOracle.address}`);
-
   pcvTreasury = await PCVTreasury.deploy(apeXAddress);
   console.log("PCVTreasury:", pcvTreasury.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, pcvTreasury.address, apeXAddress);
+}
 
+async function createBondPoolFactory() {
+  const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
   bondPoolFactory = await BondPoolFactory.deploy(
     apeXAddress,
     pcvTreasury.address,
@@ -46,10 +35,36 @@ async function createContracts() {
     vestingTerm
   );
   console.log("BondPoolFactory:", bondPoolFactory.address);
+  console.log(
+    verifyStr,
+    process.env.HARDHAT_NETWORK,
+    bondPoolFactory.address,
+    apeXAddress,
+    pcvTreasury.address,
+    priceOracleAddress,
+    maxPayout,
+    discount,
+    vestingTerm
+  );
+}
 
+async function createBondPool() {
   await bondPoolFactory.createPool(ammAddress);
-  let bondPool = await bondPoolFactory.allPools(0);
+  let poolsLength = await bondPoolFactory.allPoolsLength();
+  let bondPool = await bondPoolFactory.allPools(poolsLength.toNumber() - 1);
   console.log("BondPool:", bondPool);
+  console.log(
+    verifyStr,
+    process.env.HARDHAT_NETWORK,
+    bondPool.address,
+    apeXAddress,
+    pcvTreasury.address,
+    priceOracleAddress,
+    ammAddress,
+    maxPayout,
+    discount,
+    vestingTerm
+  );
 }
 
 main()
