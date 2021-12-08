@@ -33,7 +33,12 @@ describe("nftSquid contract", function () {
     await nftSquid.setStartTime(ct + 500);
     let balance = await ethers.provider.getBalance(owner.address);
     console.log("balance: ", balance.div(exp1).toString());
+
     let i = 0;
+    ct = currentTimestamp();
+    console.log("ct:", ct);
+
+    await nftSquid.setStartTime(ct + 500);
     let overrides = {
       value: ethers.utils.parseEther("2.5"),
     };
