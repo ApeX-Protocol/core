@@ -1,10 +1,11 @@
-const { ethers, upgrades } = require("hardhat");
-const { BigNumber } = require("@ethersproject/bignumber");
+const { ethers } = require("hardhat");
 const verifyStr = "npx hardhat verify --network";
 
 let apeXAddress = "0x94aD21Bf72F0f4ab545E59ea3d5C1F863d74C629";
 let priceOracleAddress = "0x3a62F3b224Dfe5E13dfa360D1E03aE32191bF091";
+let apeXAddress = "0x94aD21Bf72F0f4ab545E59ea3d5C1F863d74C629";
 let ammAddress = "";
+let apeXAmountForBonding = 1000000000;
 let maxPayout = 100000000;
 let discount = 500;
 let vestingTerm = 129600;
@@ -22,6 +23,11 @@ async function createPCVTreasury() {
   pcvTreasury = await PCVTreasury.deploy(apeXAddress);
   console.log("PCVTreasury:", pcvTreasury.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, pcvTreasury.address, apeXAddress);
+
+  // transfer apeX to pcvTreasury for bonding
+  const ApeXToken = await ethers.getContractFactory("ApeXToken");
+  let apeXToken = await ApeXToken.attach(apeXAddress);
+  await apeXToken.transfer(pcvTreasury.address, apeXAmountForBonding);
 }
 
 async function createBondPoolFactory() {
