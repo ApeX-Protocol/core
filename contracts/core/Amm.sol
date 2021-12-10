@@ -293,6 +293,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     }
 
     // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
+    //todo
     function _mintFee(uint112 reserve0, uint112 reserve1) private returns (bool feeOn) {
         address feeTo = IAmmFactory(factory).feeTo();
         feeOn = feeTo != address(0);

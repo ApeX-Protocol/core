@@ -1,19 +1,27 @@
 const { ethers, upgrades } = require("hardhat");
 const verifyStr = "npx hardhat verify --network";
 
-/// below variables may change in mainnet
+// for PriceOracle
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
 const v2FactoryAddress = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"; // SushiV2Factory address
 const wethAddress = "0xc778417E063141139Fce010982780140Aa0cD5Ab";
+// for Config
 const beta = 100;
 const initMarginRatio = 800;
 const liquidateThreshold = 10000;
 const liquidateFeeRatio = 100;
 const rebasePriceGap = 1;
+// transfer to pcvTreasury
 const apeXAmountForBonding = 1000000000;
+// for BondPoolFactory
 const maxPayout = 100000000;
 const discount = 500;
 const vestingTerm = 129600;
+// for StakingPoolFactory
+const apeXPerBlock = 100;
+const blocksPerUpdate = 2;
+const initBlock = 6690016;
+const endBlock = 7090016;
 
 let signer;
 let apeXToken;
@@ -77,8 +85,6 @@ async function createPriceOracle() {
 async function createConfig() {
   const Config = await ethers.getContractFactory("Config");
   config = await upgrades.deployProxy(Config, [signer]); // Sometimes would get timed out for deployProxy
-  // config = await Config.deploy();
-  // await config.initialize(signer);
   console.log("Config:", config.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, config.address);
 
@@ -159,9 +165,13 @@ async function createBondPoolFactory() {
 
 async function createStakingPoolFactory() {
   const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
-  stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [apeXToken.address, 100, 2, 6690016, 7090016]);
-  // stakingPoolFactory = await StakingPoolFactory.deploy();
-  // await stakingPoolFactory.initialize(apeXToken.address, 100, 2, 6690016, 7090016);
+  stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
+    apeXToken.address,
+    apeXPerBlock,
+    blocksPerUpdate,
+    initBlock,
+    endBlock,
+  ]);
 
   console.log("StakingPoolFactory:", stakingPoolFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
@@ -176,9 +186,18 @@ async function createMockTokens() {
 }
 
 async function createMockPair() {
-  await pairFactory.createPair(mockWBTC.address, mockUSDC.address);
-  ammAddress = await pairFactory.getAmm(mockWBTC.address, mockUSDC.address);
-  marginAddress = await pairFactory.getMargin(mockWBTC.address, mockUSDC.address);
+  let mWBTCAddress = "0x7aBF19CE8696A1D8945F9125758EbCe2F6F0Fd91";
+  let mUSDCAddress = "0x1b3631A99A69275bC7E3b539FeD4DaAFaDDfe1B0";
+
+  if (pairFactory == null) {
+    let pairFactoryAddress = "0x68a8eA940ce9609D814D5A600AEd615E86F7484D";
+    const PairFactory = await ethers.getContractFactory("PairFactory");
+    pairFactory = await PairFactory.attach(pairFactoryAddress);
+  }
+
+  // await pairFactory.createPair(mWBTCAddress, mUSDCAddress);
+  ammAddress = await pairFactory.getAmm(mWBTCAddress, mUSDCAddress);
+  marginAddress = await pairFactory.getMargin(mWBTCAddress, mUSDCAddress);
   console.log("Amm:", ammAddress);
   console.log("Margin:", marginAddress);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, ammAddress);
@@ -186,22 +205,28 @@ async function createMockPair() {
 }
 
 async function createMockBondPool() {
+  ammAddress = "0x0f983CDD6E009431785e9d1c713012097efEc55B";
+  if (bondPoolFactory == null) {
+    let bondPoolFactoryAddress = "0x328D33Eda5bd664B3345e7e1D235e78B5FF44354";
+    const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
+    bondPoolFactory = await BondPoolFactory.attach(bondPoolFactoryAddress);
+  }
   await bondPoolFactory.createPool(ammAddress);
   let poolsLength = await bondPoolFactory.allPoolsLength();
   bondPool = await bondPoolFactory.allPools(poolsLength.toNumber() - 1);
   console.log("BondPool:", bondPool);
-  console.log(
-    verifyStr,
-    process.env.HARDHAT_NETWORK,
-    bondPool.address,
-    apeXToken.address,
-    pcvTreasury.address,
-    priceOracle.address,
-    ammAddress,
-    maxPayout,
-    discount,
-    vestingTerm
-  );
+  // console.log(
+  //   verifyStr,
+  //   process.env.HARDHAT_NETWORK,
+  //   bondPool.address,
+  //   apeXToken.address,
+  //   pcvTreasury.address,
+  //   priceOracle.address,
+  //   ammAddress,
+  //   maxPayout,
+  //   discount,
+  //   vestingTerm
+  // );
 }
 
 async function createMockStakingPool() {
