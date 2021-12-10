@@ -68,12 +68,11 @@ describe("nftSquid contract", function () {
     }
     expect(args[1].div(exp1).toString()).to.be.equal("103864");
     expect(args[0].toString()).to.be.equal("455");
-    let balanceBefore = await ethers.provider.getBalance(owner.address);
-
+   
     await nftSquid.withdrawETH(owner.address);
     let balanceAfter = await ethers.provider.getBalance(owner.address);
-    console.log("balanceAfter: ", balanceAfter.div(exp1).toString());
+   // console.log("balanceAfter: ", balanceAfter.div(exp1).toString());
     let apexAmount = await erc20.balanceOf(nftSquid.address);
-    console.log("APEX token Amount: ", apexAmount);
+   // console.log("APEX token Amount: ", apexAmount);
   });
 });
