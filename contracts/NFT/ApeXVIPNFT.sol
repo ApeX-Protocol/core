@@ -31,15 +31,11 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
         uint256 _startTime,
         uint256 _cliff,
         uint256 _duration
-
     ) ERC721PresetMinterPauserAutoId(_name, _symbol, _baseTokenURI) {
-        
         token = _token;
         startTime = _startTime;
-        duration = _startTime+ _duration;
-        cliff = _startTime+_cliff;
-       
-       
+        duration = _startTime + _duration;
+        cliff = _startTime + _cliff;
     }
 
     function setTotalAmount(uint256 _totalAmount) external onlyOwner {
@@ -65,7 +61,7 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
         id++;
         remainOwners--;
         _removeFromWhitelist(msg.sender);
-        buyer[msg.sender] =  true;
+        buyer[msg.sender] = true;
     }
 
     function claimAPEX() public {
@@ -73,7 +69,7 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
         require(buyer[user], "ONLY_VIP_NFT_BUYER_CAN_CLAIM");
 
         uint256 unClaimed = claimableAmount(user);
-        require(unClaimed > 0,"unClaimed_AMOUNT_MUST_BIGGER_THAN_ZERO");
+        require(unClaimed > 0, "unClaimed_AMOUNT_MUST_BIGGER_THAN_ZERO");
 
         claimed[user] = claimed[user] + unClaimed;
 
@@ -92,14 +88,14 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
         } else if (block.timestamp >= duration) {
             return totalAmount;
         } else {
-            return totalAmount * (block.timestamp- cliff)/(duration - cliff);
+            return (totalAmount * (block.timestamp - cliff)) / (duration - cliff);
         }
     }
-
 
     function _removeFromWhitelist(address _beneficiary) internal {
         whitelist[_beneficiary] = false;
     }
+
     function withdrawETH(address to) public onlyOwner {
         payable(to).transfer(address(this).balance);
     }
