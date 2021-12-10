@@ -33,9 +33,8 @@ describe("VIPNFT contract", function () {
       cliff,
       duration
     );
-    console.log("vipNFT: ", vipNFT.address);
+
     let symbol = await vipNFT.symbol();
-    console.log("vipNFT symbol ", symbol);
   });
 
   it("claim", async function () {
