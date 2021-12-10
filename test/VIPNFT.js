@@ -10,20 +10,31 @@ describe("VIPNFT contract", function () {
   let vipNFT;
 
   let exp1 = ethers.BigNumber.from("10").pow(18);
-  let players = 20;
+  let players = 1;
+
   let ct;
 
   beforeEach(async function () {
     [owner, Alice, liquidator, ...addrs] = await ethers.getSigners();
+    erc20 = await deploy("MyToken", "AAA token", "AAA", 18, 100000000);
 
     const ApeXVIPNFT = await ethers.getContractFactory("ApeXVIPNFT");
     let dateTime = new Date();
     ct = Math.floor(dateTime / 1000);
     console.log("ct:", ct);
-    vipNFT = await ApeXVIPNFT.deploy("APEX NFT", "APEXNFT", "https://apexVIPNFT/", ct + 500);
-    console.log("vipNFT: ", vipNFT.address);
-    let symbol = await vipNFT.symbol();
-    console.log("vipNFT symbol ", symbol);
+
+    let startTime = ct + 3600;
+    let cliff = 3600 * 24 * 180;
+    let duration = 3600 * 24 * 360;
+    vipNFT = await ApeXVIPNFT.deploy(
+      "APEX NFT",
+      "APEXNFT",
+      "https://apexVIPNFT/",
+      erc20.address,
+      startTime,
+      cliff,
+      duration
+    );
   });
 
   it("claim", async function () {
@@ -40,10 +51,17 @@ describe("VIPNFT contract", function () {
     for (i = 0; i < players; i++) {
       await vipNFTAlice.claimApeXVIPNFT(overrides);
     }
+    await vipNFT.setTotalAmount(ethers.BigNumber.from(100000).mul(exp1));
 
-    console.log("mint nft successfully.");
+    await erc20.transfer(vipNFT.address, ethers.BigNumber.from(100000 * players).mul(exp1));
+    await ethers.provider.send("evm_setNextBlockTimestamp", [ct + 3600 * 24 * 200]);
+    await ethers.provider.send("evm_mine");
+
+    await vipNFTAlice.claimAPEX();
 
     let balanceAfter = await ethers.provider.getBalance(vipNFT.address);
-    console.log("balanceAfter: ", balanceAfter.div(exp1).toString());
+    expect(balanceAfter.div(exp1).toString()).to.be.equal("40");
+    let apexBalance = await erc20.balanceOf(Alice.address);
+    expect(apexBalance.div(exp1).toString()).to.be.equal("11087");
   });
 });
