@@ -11,6 +11,7 @@ describe("VIPNFT contract", function () {
 
   let exp1 = ethers.BigNumber.from("10").pow(18);
   let players = 1;
+
   let ct;
 
   beforeEach(async function () {
@@ -21,6 +22,7 @@ describe("VIPNFT contract", function () {
     let dateTime = new Date();
     ct = Math.floor(dateTime / 1000);
     console.log("ct:", ct);
+
     let startTime = ct + 3600;
     let cliff = 3600 * 24 * 180;
     let duration = 3600 * 24 * 360;
@@ -33,8 +35,6 @@ describe("VIPNFT contract", function () {
       cliff,
       duration
     );
-
-    let symbol = await vipNFT.symbol();
   });
 
   it("claim", async function () {
@@ -51,7 +51,6 @@ describe("VIPNFT contract", function () {
     for (i = 0; i < players; i++) {
       await vipNFTAlice.claimApeXVIPNFT(overrides);
     }
-
     await vipNFT.setTotalAmount(ethers.BigNumber.from(100000).mul(exp1));
 
     await erc20.transfer(vipNFT.address, ethers.BigNumber.from(100000 * players).mul(exp1));

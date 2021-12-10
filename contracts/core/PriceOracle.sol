@@ -32,21 +32,24 @@ contract PriceOracle is IPriceOracle {
         address quoteToken,
         uint256 baseAmount
     ) public view returns (uint256 quoteAmount) {
-        uint128 maxLiquidity;
-        uint160 sqrtPriceX96;
         address pool;
-        uint128 liquidity;
+        uint160 sqrtPriceX96;
+        address tempPool;
+        uint128 tempLiquidity;
+        uint128 maxLiquidity;
         for (uint256 i = 0; i < v3Fees.length; i++) {
-            pool = IUniswapV3Factory(v3Factory).getPool(baseToken, quoteToken, v3Fees[i]);
-            if (pool == address(0)) continue;
-            liquidity = IUniswapV3Pool(pool).liquidity();
-            // use the max liquidity pool as oracle price source
-            if (liquidity > maxLiquidity) {
-                maxLiquidity = liquidity;
+            tempPool = IUniswapV3Factory(v3Factory).getPool(baseToken, quoteToken, v3Fees[i]);
+            if (tempPool == address(0)) continue;
+            tempLiquidity = IUniswapV3Pool(tempPool).liquidity();
+            // use the max liquidity pool as index price source
+            if (tempLiquidity > maxLiquidity) {
+                maxLiquidity = tempLiquidity;
+                pool = tempPool;
+                // get sqrt twap in 60 seconds
                 sqrtPriceX96 = UniswapV3TwapGetter.getSqrtTwapX96(pool, 60);
             }
         }
-        if (sqrtPriceX96 == 0) return 0;
+        if (pool == address(0)) return 0;
         // priceX96 = token1/token0, this price is scaled by 2^96
         uint256 priceX96 = UniswapV3TwapGetter.getPriceX96FromSqrtPriceX96(sqrtPriceX96);
         if (baseToken == IUniswapV3Pool(pool).token0()) {
