@@ -35,8 +35,6 @@ describe("nftSquid contract", function () {
     console.log("balance: ", balance.div(exp1).toString());
 
     let i = 0;
-    ct = currentTimestamp();
-    console.log("ct:", ct);
 
     await nftSquid.setStartTime(ct + 500);
     let overrides = {
@@ -48,7 +46,7 @@ describe("nftSquid contract", function () {
     }
     let token0URI = await nftSquid.tokenURI(0);
 
-    console.log("***token0URI***: ", token0URI);
+    //console.log("***token0URI***: ", token0URI);
     await erc20.transfer(nftSquid.address, ethers.BigNumber.from(15000 * players).mul(exp1));
 
     // await ethers.provider.send('evm_setNextBlockTimestamp', [ct+600])
@@ -71,8 +69,9 @@ describe("nftSquid contract", function () {
    
     await nftSquid.withdrawETH(owner.address);
     let balanceAfter = await ethers.provider.getBalance(owner.address);
-   // console.log("balanceAfter: ", balanceAfter.div(exp1).toString());
+    expect(balanceAfter.div(exp1).toString()).to.be.equal("9999");
     let apexAmount = await erc20.balanceOf(nftSquid.address);
-   // console.log("APEX token Amount: ", apexAmount);
+    expect(apexAmount.div(exp1).toString()).to.be.equal("0");
+    
   });
 });
