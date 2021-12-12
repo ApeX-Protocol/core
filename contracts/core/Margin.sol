@@ -159,10 +159,7 @@ contract Margin is IMargin, IVault, Reentrant {
                     quoteSizeAbs;
             } else {
                 //after close all opposite position, create new position with new entry price
-                traderPosition.tradeSize =
-                    (quoteAmount * traderPosition.tradeSize) /
-                    quoteSizeAbs -
-                    traderPosition.tradeSize;
+                traderPosition.tradeSize = ((quoteAmount - quoteSizeAbs) * baseAmount) / quoteAmount;
             }
         }
 
@@ -179,7 +176,6 @@ contract Margin is IMargin, IVault, Reentrant {
             netPosition = netPosition.subU(baseAmount);
         }
 
-        //tocheck need to check margin ratio?
         require(
             _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= IConfig(config).initMarginRatio(),
             "Margin.openPosition: INIT_MARGIN_RATIO"

@@ -128,6 +128,8 @@ describe("Margin contract", function () {
     });
 
     it("no position and no baseToken, remove margin", async function () {
+      let withdrawable = (await margin.getWithdrawable(owner.address)).toNumber();
+      expect(withdrawable).to.be.equal(routerAllowance);
       await margin.removeMargin(owner.address, routerAllowance);
       await expect(margin.removeMargin(owner.address, 1)).to.be.revertedWith(
         "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE"
@@ -256,6 +258,13 @@ describe("Margin contract", function () {
       );
     });
 
+    it("open position with bad liquidity in amm", async function () {
+      await mockAmm.setPrice(10000);
+      await expect(margin.openPosition(owner.address, longSide, 1)).to.be.revertedWith(
+        "Margin.openPosition: TINY_QUOTE_AMOUNT"
+      );
+    });
+
     describe("open long first, then open long", async function () {
       beforeEach(async function () {
         let quoteAmount = 10;
@@ -293,28 +302,57 @@ describe("Margin contract", function () {
         let position = await margin.traderPositionMap(owner.address);
         expect(position[0]).to.equal(10);
         expect(position[1]).to.equal(-9);
+        //entry price not changed
         expect(position[2]).to.equal(10);
       });
 
-      it("old: quote 10, base -9; add long 5X position: quote -5, base +5; new: quote 5, base -4", async function () {
+      it("old: quote 10, base -9; add long 5X, delta position: quote -5, base +5; new: quote 5, base -4", async function () {
         let quoteAmount = 5;
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
         expect(position[0]).to.equal(5);
         expect(position[1]).to.equal(-4);
+        //entry price not changed
         expect(position[2]).to.equal(5);
       });
 
-      it("old: quote 10, base -9; add long 15X position: quote -15, base +15; new: quote -5, base 6", async function () {
+      it("old: quote 10, base -9; add long 15X, delta position: quote -15, base +15; new: quote -5, base 6", async function () {
         let quoteAmount = 15;
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
         expect(position[0]).to.equal(-5);
         expect(position[1]).to.equal(6);
+        //entry price not changed
         expect(position[2]).to.equal(5);
       });
 
-      it("old: quote 10, base -9; add long 21X position 1: quote -21, base +21; new: quote -11, base 12; reverted", async function () {
+      it("old: quote 10, base -9; new price=2 and add margin 10; add long 20X, delta position: quote -20, base +10; new: quote -10, base 11", async function () {
+        let quoteAmount = 20;
+        await mockAmm.setPrice(2);
+        await mockRouter.connect(addr1).addMargin(owner.address, 10);
+        await margin.openPosition(owner.address, longSide, quoteAmount);
+        position = await margin.traderPositionMap(owner.address);
+        expect(position[0]).to.equal(-10);
+        expect(position[1]).to.equal(11);
+        //entry price changed
+        expect(position[2]).to.equal(5);
+        expect((await margin.calUnrealizedPnl(owner.address)).toNumber()).to.be.equal(0);
+      });
+
+      it("old: quote 10, base -9; new price=3 and add margin 10; add long 20X, delta position: quote -20, base +6; new: quote -10, base 7", async function () {
+        let quoteAmount = 20;
+        await mockAmm.setPrice(3);
+        await mockRouter.connect(addr1).addMargin(owner.address, 10);
+        await margin.openPosition(owner.address, longSide, quoteAmount);
+        position = await margin.traderPositionMap(owner.address);
+        expect(position[0]).to.equal(-10);
+        expect(position[1]).to.equal(7);
+        //entry price changed
+        expect(position[2]).to.equal(3);
+        expect((await margin.calUnrealizedPnl(owner.address)).toNumber()).to.be.equal(0);
+      });
+
+      it("old: quote 10, base -9; add long 21X, delta position 1: quote -21, base +21; new: quote -11, base 12; reverted", async function () {
         let quoteAmount = 21;
         await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.reverted;
       });
