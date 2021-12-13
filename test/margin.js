@@ -59,6 +59,7 @@ describe("Margin contract", function () {
     await config.setLiquidateThreshold(10000);
     await config.setLiquidateFeeRatio(2000);
     await config.setPriceOracle(mockPriceOracle.address);
+    await config.setMaxCPFBoost(10);
   });
 
   describe("addMargin", function () {
