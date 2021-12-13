@@ -17,6 +17,7 @@ contract Config is IConfig, Ownable, Initializable {
     uint256 public override liquidateThreshold; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio; //if 100, means liquidator bot get 1% as fee
     uint8 public override beta; // 50-200
+    uint256 public override feeParameter = 150; // 100 * (1/fee -1)
 
     mapping(address => bool) public override routerMap;
 
@@ -58,11 +59,17 @@ contract Config is IConfig, Ownable, Initializable {
         liquidateFeeRatio = feeRatio;
     }
 
-    function setBeta(uint8 newBeta) external override onlyOwner {
-        //tocheck need add limitation
-        emit SetBeta(beta, newBeta);
-        beta = newBeta;
+    function setFeeParameter(uint256 newFeeParameter) external override onlyOwner {
+        emit SetFeeParameter(feeParameter, newFeeParameter);
+        feeParameter = newFeeParameter;
     }
+
+    function setBeta(uint8 newBeta) external override onlyOwner {
+            //tocheck need add limitation
+            emit SetBeta(beta, newBeta);
+            beta = newBeta;
+    }
+
 
     //must be careful, expose all traders's position
     function registerRouter(address router) external override onlyOwner {
@@ -80,4 +87,5 @@ contract Config is IConfig, Ownable, Initializable {
 
         emit RouterUnregistered(router);
     }
+
 }
