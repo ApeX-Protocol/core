@@ -39,6 +39,7 @@ contract StakingPool is IStakingPool, Reentrant {
     function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
         require(_amount > 0, "cp._stake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
+        //tocheck if must be 6 month, can hardcode
         uint256 yieldLockTime = factory.yieldLockTime();
         require(
             _lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + yieldLockTime),
@@ -49,17 +50,14 @@ contract StakingPool is IStakingPool, Reentrant {
         User storage user = users[_staker];
         _processRewards(_staker, user);
 
-        uint256 previousBalance = IERC20(poolToken).balanceOf(address(this));
         IERC20(poolToken).transferFrom(_staker, address(this), _amount);
-        uint256 newBalance = IERC20(poolToken).balanceOf(address(this));
-        uint256 addedAmount = newBalance - previousBalance;
         //if 0, not lock
         uint256 lockFrom = _lockUntil > 0 ? now256 : 0;
         uint256 stakeWeight = (((_lockUntil - lockFrom) * WEIGHT_MULTIPLIER) / yieldLockTime + WEIGHT_MULTIPLIER) *
-            addedAmount;
+            _amount;
 
         Deposit memory deposit = Deposit({
-            amount: addedAmount,
+            amount: _amount,
             weight: stakeWeight,
             lockFrom: lockFrom,
             lockUntil: _lockUntil,
@@ -67,7 +65,7 @@ contract StakingPool is IStakingPool, Reentrant {
         });
 
         user.deposits.push(deposit);
-        user.tokenAmount += addedAmount;
+        user.tokenAmount += _amount;
         user.totalWeight += stakeWeight;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight += stakeWeight;
@@ -94,7 +92,7 @@ contract StakingPool is IStakingPool, Reentrant {
         for (uint256 i = 0; i < _depositIds.length; i++) {
             _amount = _amounts[i];
             _depositId = _depositIds[i];
-            require(_amount > 0, "cp.unstakeBatch: INVALID_AMOUNT");
+            require(_amount != 0, "cp.unstakeBatch: INVALID_AMOUNT");
             stakeDeposit = user.deposits[_depositId];
             require(stakeDeposit.lockFrom == 0 || now256 > stakeDeposit.lockUntil, "cp.unstakeBatch: DEPOSIT_LOCKED");
             require(stakeDeposit.amount >= _amount, "cp.unstakeBatch: EXCEED_STAKED");

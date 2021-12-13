@@ -10,12 +10,17 @@ contract MockAmm is ERC20 {
     uint112 private baseReserve;
     uint112 private quoteReserve;
     uint32 private blockTimestampLast;
+    uint256 public price = 1;
 
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
 
     function initialize(address baseToken_, address quoteToken_) external {
         baseToken = baseToken_;
         quoteToken = quoteToken_;
+    }
+
+    function setPrice(uint256 _price) external {
+        price = _price;
     }
 
     function setReserves(uint112 reserveBase, uint112 reserveQuote) external {
@@ -52,17 +57,26 @@ contract MockAmm is ERC20 {
     }
 
     function estimateSwap(
-        address input,
-        address output,
+        address inputToken,
+        address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external pure returns (uint256[2] memory) {
-        input = input;
-        output = output;
-        if (inputAmount != 0) {
-            return [0, inputAmount];
+    ) external view returns (uint256[2] memory amounts) {
+        inputToken = inputToken;
+        outputToken = outputToken;
+        if (inputToken == baseToken) {
+            if (inputAmount != 0) {
+                amounts = [0, inputAmount * price];
+            } else {
+                amounts = [outputAmount / price, 0];
+            }
+        } else {
+            if (inputAmount != 0) {
+                amounts = [0, inputAmount / price];
+            } else {
+                amounts = [outputAmount * price, 0];
+            }
         }
-        return [outputAmount, 0];
     }
 
     function swap(
@@ -70,14 +84,22 @@ contract MockAmm is ERC20 {
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external pure returns (uint256[2] memory amounts) {
+    ) external view returns (uint256[2] memory amounts) {
         inputToken = inputToken;
         outputToken = outputToken;
 
-        if (inputAmount != 0) {
-            amounts = [0, inputAmount];
+        if (inputToken == baseToken) {
+            if (inputAmount != 0) {
+                amounts = [0, inputAmount * price];
+            } else {
+                amounts = [outputAmount / price, 0];
+            }
         } else {
-            amounts = [outputAmount, 0];
+            if (inputAmount != 0) {
+                amounts = [0, inputAmount / price];
+            } else {
+                amounts = [outputAmount * price, 0];
+            }
         }
     }
 
@@ -87,18 +109,4 @@ contract MockAmm is ERC20 {
         uint256 inputAmount,
         uint256 outputAmount
     ) external {}
-
-    function estimateSwapWithMarkPrice(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount
-    ) external pure returns (uint256[2] memory amounts) {
-        inputToken = inputToken;
-        outputToken = outputToken;
-        if (inputAmount != 0) {
-            return [0, inputAmount];
-        }
-        return [outputAmount, 0];
-    }
 }
