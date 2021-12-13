@@ -32,6 +32,8 @@ interface IConfig {
 
     function routerMap(address) external view returns (bool);
 
+    function maxCPFBoost() external view returns (uint256);
+
     function registerRouter(address router) external;
 
     function unregisterRouter(address router) external;
@@ -59,4 +61,6 @@ interface IConfig {
     /// @notice Set a new liquidate fee of margin
     /// @param feeRatio new liquidate fee of margin.
     function setLiquidateFeeRatio(uint256 feeRatio) external;
+
+    function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
 }

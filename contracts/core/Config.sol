@@ -11,6 +11,7 @@ import "../utils/Ownable.sol";
 contract Config is IConfig, Ownable, Initializable {
     address public override priceOracle;
 
+    uint256 public override maxCPFBoost;
     uint256 public override rebasePriceGap;
     uint256 public override initMarginRatio; //if 1000, means margin ratio >= 10%
     uint256 public override liquidateThreshold; //if 10000, means debt ratio < 100%
@@ -21,6 +22,10 @@ contract Config is IConfig, Ownable, Initializable {
 
     function initialize(address owner_) public initializer {
         owner = owner_;
+    }
+
+    function setMaxCPFBoost(uint256 newMaxCPFBoost) external override onlyOwner {
+        maxCPFBoost = newMaxCPFBoost;
     }
 
     function setPriceOracle(address newOracle) external override onlyOwner {
