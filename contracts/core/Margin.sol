@@ -106,16 +106,16 @@ contract Margin is IMargin, IVault, Reentrant {
 
         traderPosition.baseSize = traderPosition.baseSize - uncoverAfterFundingFee;
         //tocheck need check marginRatio?
-        require(
-            _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= IConfig(config).initMarginRatio(),
-            "initMarginRatio"
-        );
+        // require(
+        //     _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= IConfig(config).initMarginRatio(),
+        //     "initMarginRatio"
+        // );
 
         traderPositionMap[trader] = traderPosition;
         traderCPF[trader] = _latestCPF;
         _withdraw(trader, trader, withdrawAmount);
 
-        emit RemoveMargin(trader, withdrawAmountFromMargin, traderPosition);
+        emit RemoveMargin(trader, fundingFee, withdrawAmountFromMargin, traderPosition);
     }
 
     function openPosition(
@@ -436,6 +436,10 @@ contract Margin is IMargin, IVault, Reentrant {
             position.baseSize + (position.quoteSize * (_getNewLatestCPF() - traderCPF[trader])).divU(1e18),
             position.tradeSize
         );
+    }
+
+    function getNewLatestCPF() external view returns (int256) {
+        return _getNewLatestCPF();
     }
 
     function getMarginRatio(address trader) external view returns (uint256) {
