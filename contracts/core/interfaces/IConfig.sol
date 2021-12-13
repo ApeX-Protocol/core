@@ -11,12 +11,16 @@ interface IConfig {
     event SetLiquidateThreshold(uint256 oldLiquidateThreshold, uint256 liquidateThreshold);
     event SetInitMarginRatio(uint256 oldInitMarginRatio, uint256 initMarginRatio);
     event SetBeta(uint256 oldBeta, uint256 beta);
+    event SetFeeParameter(uint256 oldFeeParameter, uint256 feeParameter);
 
     /// @notice get price oracle address.
     function priceOracle() external view returns (address);
 
     /// @notice get beta of amm.
     function beta() external view returns (uint8);
+
+    /// @notice get feeParameter of amm.
+    function feeParameter() external view returns (uint256);
 
     /// @notice get init margin ratio of margin.
     function initMarginRatio() external view returns (uint256);
@@ -31,6 +35,8 @@ interface IConfig {
     function rebasePriceGap() external view returns (uint256);
 
     function routerMap(address) external view returns (bool);
+
+    function maxCPFBoost() external view returns (uint256);
 
     function registerRouter(address router) external;
 
@@ -59,4 +65,13 @@ interface IConfig {
     /// @notice Set a new liquidate fee of margin
     /// @param feeRatio new liquidate fee of margin.
     function setLiquidateFeeRatio(uint256 feeRatio) external;
+
+     /// @notice Set a new feeParameter. 
+    /// @param feeParameter new feeParameter get from AMM swap fee. 
+    /// @dev feeParameter = (1/fee -1 ) *100 where fee set by owner.
+    function setFeeParameter(uint256 feeParameter) external;
+
+    function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
+
 }
+

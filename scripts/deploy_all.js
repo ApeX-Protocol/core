@@ -4,7 +4,9 @@ const verifyStr = "npx hardhat verify --network";
 // for PriceOracle
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
 const v2FactoryAddress = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"; // SushiV2Factory address
-const wethAddress = "0xc778417E063141139Fce010982780140Aa0cD5Ab";
+
+const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mock WETH
+
 // for Config
 const beta = 100;
 const initMarginRatio = 800;
@@ -36,8 +38,10 @@ let bondPoolFactory;
 let stakingPoolFactory;
 
 /// below variables only for testnet
+let mockWETH;
 let mockWBTC;
 let mockUSDC;
+let mockSHIB;
 let ammAddress;
 let marginAddress;
 let bondPool;
@@ -113,6 +117,11 @@ async function createPairFactory() {
 }
 
 async function createPCVTreasury() {
+  if (apeXToken == null) {
+    let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+    const ApeXToken = await ethers.getContractFactory("ApeXToken");
+    apeXToken = await ApeXToken.attach(apeXTokenAddress);
+  }
   const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
   pcvTreasury = await PCVTreasury.deploy(apeXToken.address);
   console.log("PCVTreasury:", pcvTreasury.address);
@@ -178,26 +187,36 @@ async function createStakingPoolFactory() {
 }
 
 async function createMockTokens() {
+  const MockWETH = await ethers.getContractFactory("MockWETH");
+  mockWETH = await MockWETH.deploy();
+
   const MyToken = await ethers.getContractFactory("MyToken");
-  mockWBTC = await MyToken.deploy("Mock WBTC", "mWBTC", 8, 100000000);
-  mockUSDC = await MyToken.deploy("Mock USDC", "mUSDC", 6, 100000000);
+  mockWBTC = await MyToken.deploy("Mock WBTC", "mWBTC", 8, 21000000);
+  mockUSDC = await MyToken.deploy("Mock USDC", "mUSDC", 6, 10000000000);
+  mockSHIB = await MyToken.deploy("Mock SHIB", "mSHIB", 18, 999992012570472);
+  console.log("mockWETH:", mockWETH.address);
   console.log("mockWBTC:", mockWBTC.address);
   console.log("mockUSDC:", mockUSDC.address);
+  console.log("mockSHIB:", mockSHIB.address);
 }
 
 async function createMockPair() {
-  let mWBTCAddress = "0x7aBF19CE8696A1D8945F9125758EbCe2F6F0Fd91";
-  let mUSDCAddress = "0x1b3631A99A69275bC7E3b539FeD4DaAFaDDfe1B0";
+
+  let baseTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
+  let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526";
 
   if (pairFactory == null) {
-    let pairFactoryAddress = "0x68a8eA940ce9609D814D5A600AEd615E86F7484D";
+    let pairFactoryAddress = "0xa28e2370e2d7f6cf2cDe43734D78Ad477d7Afc68";
+
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }
 
-  // await pairFactory.createPair(mWBTCAddress, mUSDCAddress);
-  ammAddress = await pairFactory.getAmm(mWBTCAddress, mUSDCAddress);
-  marginAddress = await pairFactory.getMargin(mWBTCAddress, mUSDCAddress);
+
+  await pairFactory.createPair(baseTokenAddress, quoteTokenAddress);
+  ammAddress = await pairFactory.getAmm(baseTokenAddress, quoteTokenAddress);
+  marginAddress = await pairFactory.getMargin(baseTokenAddress, quoteTokenAddress);
+
   console.log("Amm:", ammAddress);
   console.log("Margin:", marginAddress);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, ammAddress);
@@ -205,9 +224,11 @@ async function createMockPair() {
 }
 
 async function createMockBondPool() {
-  ammAddress = "0x0f983CDD6E009431785e9d1c713012097efEc55B";
+
+  ammAddress = "0xBbc6a04cBdDC8675b9F63c7DE47D225656Efa5F4";
   if (bondPoolFactory == null) {
-    let bondPoolFactoryAddress = "0x328D33Eda5bd664B3345e7e1D235e78B5FF44354";
+    let bondPoolFactoryAddress = "0x03C295ff7f1Fe1085e9ceA827d5d7b7f8cA7c684";
+
     const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
     bondPoolFactory = await BondPoolFactory.attach(bondPoolFactoryAddress);
   }

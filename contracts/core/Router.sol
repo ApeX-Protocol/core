@@ -7,6 +7,7 @@ import "./interfaces/IPairFactory.sol";
 import "./interfaces/IAmm.sol";
 import "./interfaces/IMargin.sol";
 import "./interfaces/ILiquidityERC20.sol";
+import "./interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 
 contract Router is IRouter {
@@ -56,6 +57,29 @@ contract Router is IRouter {
         require(quoteAmount >= quoteAmountMin, "Router.addLiquidity: INSUFFICIENT_QUOTE_AMOUNT");
     }
 
+    function addLiquidityETH(
+        address quoteToken,
+        uint256 quoteAmountMin,
+        uint256 deadline,
+        bool pcv
+    ) external payable override ensure(deadline) returns (uint ethAmount, uint quoteAmount, uint liquidity) {
+        address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
+        if (amm == address(0)) {
+            (amm, ) = IPairFactory(pairFactory).createPair(WETH, quoteToken);
+        }
+
+        ethAmount = msg.value;
+        IWETH(WETH).deposit{value: ethAmount}();
+        TransferHelper.safeTransferETH(amm, ethAmount);
+        if (pcv) {
+            (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
+            TransferHelper.safeTransfer(amm, pcvTreasury, liquidity);
+        } else {
+            (, quoteAmount, liquidity) = IAmm(amm).mint(msg.sender);
+        }
+        require(quoteAmount >= quoteAmountMin, "Router.addLiquidityETH: INSUFFICIENT_QUOTE_AMOUNT");
+    }
+
     function removeLiquidity(
         address baseToken,
         address quoteToken,
@@ -67,6 +91,20 @@ contract Router is IRouter {
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
         (baseAmount, quoteAmount, ) = IAmm(amm).burn(msg.sender);
         require(baseAmount >= baseAmountMin, "Router.removeLiquidity: INSUFFICIENT_BASE_AMOUNT");
+    }
+
+    function removeLiquidityETH(
+        address quoteToken,
+        uint256 liquidity,
+        uint256 ethAmountMin,
+        uint256 deadline
+    ) external override ensure(deadline) returns (uint256 ethAmount, uint256 quoteAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
+        TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
+        (ethAmount, quoteAmount, ) = IAmm(amm).burn(address(this));
+        require(ethAmount >= ethAmountMin, "Router.removeLiquidityETH: INSUFFICIENT_ETH_AMOUNT");
+        IWETH(WETH).withdraw(ethAmount);
+        TransferHelper.safeTransferETH(msg.sender, ethAmount);
     }
 
     function deposit(
@@ -81,6 +119,18 @@ contract Router is IRouter {
         IMargin(margin).addMargin(holder, amount);
     }
 
+    function depositETH(
+        address quoteToken,
+        address holder
+    ) external payable override {
+        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
+        require(margin != address(0), "Router.depositETH: NOT_FOUND_MARGIN");
+        uint256 amount = msg.value;
+        IWETH(WETH).deposit{value: amount}();
+        TransferHelper.safeTransferETH(margin, amount);
+        IMargin(margin).addMargin(holder, amount);
+    }
+
     function withdraw(
         address baseToken,
         address quoteToken,
@@ -89,6 +139,17 @@ contract Router is IRouter {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
         IMargin(margin).removeMargin(msg.sender, amount);
+    }
+
+    function withdrawETH(
+        address quoteToken,
+        uint256 amount
+    ) external override {
+        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
+        require(margin != address(0), "Router.withdrawETH: NOT_FOUND_MARGIN");
+        IMargin(margin).removeMargin(address(this), amount);
+        IWETH(WETH).withdraw(amount);
+        TransferHelper.safeTransferETH(msg.sender, amount);
     }
 
     function openPositionWithWallet(
@@ -110,6 +171,28 @@ contract Router is IRouter {
             require(baseAmount >= baseAmountLimit, "Router.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
         } else {
             require(baseAmount <= baseAmountLimit, "Router.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
+        }
+    }
+
+    function openPositionETHWithWallet(
+        address quoteToken,
+        uint8 side,
+        uint256 quoteAmount,
+        uint256 baseAmountLimit,
+        uint256 deadline
+    ) external payable override ensure(deadline) returns (uint256 baseAmount) {
+        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
+        require(margin != address(0), "Router.openPositionETHWithWallet: NOT_FOUND_MARGIN");
+        require(side == 0 || side == 1, "Router.openPositionETHWithWallet: INSUFFICIENT_SIDE");
+        uint256 marginAmount = msg.value;
+        IWETH(WETH).deposit{value: marginAmount}();
+        TransferHelper.safeTransferETH(margin, marginAmount);
+        IMargin(margin).addMargin(msg.sender, marginAmount);
+        baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
+        if (side == 0) {
+            require(baseAmount >= baseAmountLimit, "Router.openPositionETHWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
+        } else {
+            require(baseAmount <= baseAmountLimit, "Router.openPositionETHWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
         }
     }
 
@@ -147,6 +230,23 @@ contract Router is IRouter {
             if (withdrawAmount > 0) {
                 IMargin(margin).removeMargin(msg.sender, withdrawAmount);
             }
+        }
+    }
+
+    function closePositionETH(
+        address quoteToken,
+        uint256 quoteAmount,
+        uint256 deadline
+    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
+        require(margin != address(0), "Router.closePositionETH: NOT_FOUND_MARGIN");
+        baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+
+        withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
+        if (withdrawAmount > 0) {
+            IMargin(margin).removeMargin(address(this), withdrawAmount);
+            IWETH(WETH).withdraw(withdrawAmount);
+            TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
         }
     }
 

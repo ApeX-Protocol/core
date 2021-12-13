@@ -304,8 +304,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 uint256 rootKLast = Math.sqrt(_kLast);
                 if (rootK > rootKLast) {
                     uint256 numerator = totalSupply * (rootK - rootKLast);
-                    //todo
-                    uint256 denominator = rootK * 5 + rootKLast;
+                    
+                    uint feeParameter = IConfig(config).feeParameter();
+                    uint256 denominator = rootK * feeParameter/100 + rootKLast;
                     uint256 liquidity = numerator / denominator;
                     if (liquidity > 0) _mint(feeTo, liquidity);
                 }
