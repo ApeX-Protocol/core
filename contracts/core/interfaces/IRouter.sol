@@ -18,6 +18,13 @@ interface IRouter {
         bool pcv
     ) external returns (uint256 quoteAmount, uint256 liquidity);
 
+    function addLiquidityETH(
+        address quoteToken,
+        uint256 quoteAmountMin,
+        uint256 deadline,
+        bool pcv
+    ) external payable returns (uint256 ethAmount, uint256 quoteAmount, uint256 liquidity);
+
     function removeLiquidity(
         address baseToken,
         address quoteToken,
@@ -26,6 +33,13 @@ interface IRouter {
         uint256 deadline
     ) external returns (uint256 baseAmount, uint256 quoteAmount);
 
+    function removeLiquidityETH(
+        address quoteToken,
+        uint256 liquidity,
+        uint256 ethAmountMin,
+        uint256 deadline
+    ) external returns (uint256 ethAmount, uint256 quoteAmount);
+
     function deposit(
         address baseToken,
         address quoteToken,
@@ -33,8 +47,18 @@ interface IRouter {
         uint256 amount
     ) external;
 
+    function depositETH(
+        address quoteToken,
+        address holder
+    ) external payable;
+
     function withdraw(
         address baseToken,
+        address quoteToken,
+        uint256 amount
+    ) external;
+
+    function withdrawETH(
         address quoteToken,
         uint256 amount
     ) external;
@@ -48,6 +72,14 @@ interface IRouter {
         uint256 baseAmountLimit,
         uint256 deadline
     ) external returns (uint256 baseAmount);
+
+    function openPositionETHWithWallet(
+        address quoteToken,
+        uint8 side,
+        uint256 quoteAmount,
+        uint256 baseAmountLimit,
+        uint256 deadline
+    ) external payable returns (uint256 baseAmount);
 
     function openPositionWithMargin(
         address baseToken,
@@ -64,6 +96,12 @@ interface IRouter {
         uint256 quoteAmount,
         uint256 deadline,
         bool autoWithdraw
+    ) external returns (uint256 baseAmount, uint256 withdrawAmount);
+
+    function closePositionETH(
+        address quoteToken,
+        uint256 quoteAmount,
+        uint256 deadline
     ) external returns (uint256 baseAmount, uint256 withdrawAmount);
 
     function getReserves(address baseToken, address quoteToken)
