@@ -12,6 +12,7 @@ interface IConfig {
     event SetInitMarginRatio(uint256 oldInitMarginRatio, uint256 initMarginRatio);
     event SetBeta(uint256 oldBeta, uint256 beta);
     event SetFeeParameter(uint256 oldFeeParameter, uint256 feeParameter);
+    event SetMaxCPFBoost(uint256 oldMaxCPFBoost, uint256 maxCPFBoost);
 
     /// @notice get price oracle address.
     function priceOracle() external view returns (address);

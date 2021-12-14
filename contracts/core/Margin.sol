@@ -428,6 +428,7 @@ contract Margin is IMargin, IVault, Reentrant {
         return (position.baseSize, position.quoteSize, position.tradeSize);
     }
 
+    //tocheck maybe need to subtract a little because of fundingFee
     function getWithdrawable(address trader) external view override returns (uint256 withdrawable) {
         Position memory position = traderPositionMap[trader];
 

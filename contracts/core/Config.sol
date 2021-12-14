@@ -26,6 +26,7 @@ contract Config is IConfig, Ownable, Initializable {
     }
 
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external override onlyOwner {
+        emit SetMaxCPFBoost(maxCPFBoost, newMaxCPFBoost);
         maxCPFBoost = newMaxCPFBoost;
     }
 
@@ -70,7 +71,6 @@ contract Config is IConfig, Ownable, Initializable {
         beta = newBeta;
     }
 
-
     //must be careful, expose all traders's position
     function registerRouter(address router) external override onlyOwner {
         require(router != address(0), "Config: ZERO_ADDRESS");
@@ -87,5 +87,4 @@ contract Config is IConfig, Ownable, Initializable {
 
         emit RouterUnregistered(router);
     }
-
 }
