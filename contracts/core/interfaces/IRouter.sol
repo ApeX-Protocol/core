@@ -58,11 +58,6 @@ interface IRouter {
         uint256 amount
     ) external;
 
-    function withdrawETH(
-        address quoteToken,
-        uint256 amount
-    ) external;
-
     function openPositionWithWallet(
         address baseToken,
         address quoteToken,
@@ -96,12 +91,6 @@ interface IRouter {
         uint256 quoteAmount,
         uint256 deadline,
         bool autoWithdraw
-    ) external returns (uint256 baseAmount, uint256 withdrawAmount);
-
-    function closePositionETH(
-        address quoteToken,
-        uint256 quoteAmount,
-        uint256 deadline
     ) external returns (uint256 baseAmount, uint256 withdrawAmount);
 
     function getReserves(address baseToken, address quoteToken)

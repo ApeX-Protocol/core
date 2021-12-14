@@ -70,7 +70,7 @@ contract Router is IRouter {
 
         ethAmount = msg.value;
         IWETH(WETH).deposit{value: ethAmount}();
-        TransferHelper.safeTransferETH(amm, ethAmount);
+        assert(IWETH(WETH).transfer(amm, ethAmount));
         if (pcv) {
             (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
             TransferHelper.safeTransfer(amm, pcvTreasury, liquidity);
@@ -127,7 +127,7 @@ contract Router is IRouter {
         require(margin != address(0), "Router.depositETH: NOT_FOUND_MARGIN");
         uint256 amount = msg.value;
         IWETH(WETH).deposit{value: amount}();
-        TransferHelper.safeTransferETH(margin, amount);
+        assert(IWETH(WETH).transfer(margin, amount));
         IMargin(margin).addMargin(holder, amount);
     }
 
@@ -139,17 +139,6 @@ contract Router is IRouter {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
         IMargin(margin).removeMargin(msg.sender, amount);
-    }
-
-    function withdrawETH(
-        address quoteToken,
-        uint256 amount
-    ) external override {
-        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
-        require(margin != address(0), "Router.withdrawETH: NOT_FOUND_MARGIN");
-        IMargin(margin).removeMargin(address(this), amount);
-        IWETH(WETH).withdraw(amount);
-        TransferHelper.safeTransferETH(msg.sender, amount);
     }
 
     function openPositionWithWallet(
@@ -186,7 +175,7 @@ contract Router is IRouter {
         require(side == 0 || side == 1, "Router.openPositionETHWithWallet: INSUFFICIENT_SIDE");
         uint256 marginAmount = msg.value;
         IWETH(WETH).deposit{value: marginAmount}();
-        TransferHelper.safeTransferETH(margin, marginAmount);
+        assert(IWETH(WETH).transfer(margin, marginAmount));
         IMargin(margin).addMargin(msg.sender, marginAmount);
         baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
@@ -230,23 +219,6 @@ contract Router is IRouter {
             if (withdrawAmount > 0) {
                 IMargin(margin).removeMargin(msg.sender, withdrawAmount);
             }
-        }
-    }
-
-    function closePositionETH(
-        address quoteToken,
-        uint256 quoteAmount,
-        uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
-        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
-        require(margin != address(0), "Router.closePositionETH: NOT_FOUND_MARGIN");
-        baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
-
-        withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
-        if (withdrawAmount > 0) {
-            IMargin(margin).removeMargin(address(this), withdrawAmount);
-            IWETH(WETH).withdraw(withdrawAmount);
-            TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
         }
     }
 

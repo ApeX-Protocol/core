@@ -11,13 +11,13 @@ import "../utils/Ownable.sol";
 contract Config is IConfig, Ownable, Initializable {
     address public override priceOracle;
 
+    uint8 public override beta; // 50-200
     uint256 public override maxCPFBoost;
     uint256 public override rebasePriceGap;
     uint256 public override initMarginRatio; //if 1000, means margin ratio >= 10%
     uint256 public override liquidateThreshold; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio; //if 100, means liquidator bot get 1% as fee
-    uint8 public override beta; // 50-200
-    uint256 public override feeParameter = 150; // 100 * (1/fee -1)
+    uint256 public override feeParameter; // 100 * (1/fee -1)
 
     mapping(address => bool) public override routerMap;
 
@@ -65,9 +65,9 @@ contract Config is IConfig, Ownable, Initializable {
     }
 
     function setBeta(uint8 newBeta) external override onlyOwner {
-            //tocheck need add limitation
-            emit SetBeta(beta, newBeta);
-            beta = newBeta;
+        //tocheck need add limitation
+        emit SetBeta(beta, newBeta);
+        beta = newBeta;
     }
 
 
