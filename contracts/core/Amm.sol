@@ -44,7 +44,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         factory = msg.sender;
     }
 
-
     function initialize(
         address baseToken_,
         address quoteToken_,
@@ -143,7 +142,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Burn(msg.sender, to, baseAmount, quoteAmount, liquidity);
     }
 
-    /// @notice   
+    /// @notice
     function swap(
         address inputToken,
         address outputToken,
@@ -156,7 +155,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Swap(inputToken, outputToken, amounts[0], amounts[1]);
     }
 
-    /// @notice  use in the situation  of forcing closing position 
+    /// @notice  use in the situation  of forcing closing position
     function forceSwap(
         address inputToken,
         address outputToken,
@@ -304,9 +303,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 uint256 rootKLast = Math.sqrt(_kLast);
                 if (rootK > rootKLast) {
                     uint256 numerator = totalSupply * (rootK - rootKLast);
-                    
-                    uint feeParameter = IConfig(config).feeParameter();
-                    uint256 denominator = rootK * feeParameter/100 + rootKLast;
+
+                    uint256 feeParameter = IConfig(config).feeParameter();
+                    uint256 denominator = (rootK * feeParameter) / 100 + rootKLast;
                     uint256 liquidity = numerator / denominator;
                     if (liquidity > 0) _mint(feeTo, liquidity);
                 }
@@ -325,11 +324,15 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
         uint32 blockTimestamp = uint32(block.timestamp % 2**32);
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
+
         if (timeElapsed > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
             // * never overflows, and + overflow is desired
             lastPrice = uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld));
             price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
+        }
+        if (lastPrice == 0 && baseReserveNew != 0) {
+            lastPrice = uint256(UQ112x112.encode(uint112(quoteReserveNew)).uqdiv(uint112(baseReserveNew)));
         }
         baseReserve = uint112(baseReserveNew);
         quoteReserve = uint112(quoteReserveNew);

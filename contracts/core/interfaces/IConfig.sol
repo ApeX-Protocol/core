@@ -67,10 +67,13 @@ interface IConfig {
     /// @param feeRatio new liquidate fee of margin.
     function setLiquidateFeeRatio(uint256 feeRatio) external;
 
+
     /// @notice Set a new feeParameter.
     /// @param feeParameter new feeParameter get from AMM swap fee.
     /// @dev feeParameter = (1/fee -1 ) *100 where fee set by owner.
     function setFeeParameter(uint256 feeParameter) external;
 
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
+
 }
+
