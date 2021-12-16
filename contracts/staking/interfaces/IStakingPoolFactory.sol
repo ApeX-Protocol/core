@@ -8,11 +8,15 @@ interface IStakingPoolFactory {
         uint256 weight;
     }
 
-    event WeightUpdated(address indexed _by, address indexed pool, uint256 weight);
+    event WeightUpdated(address indexed by, address indexed pool, uint256 weight);
 
-    event PoolRegistered(address indexed _by, address indexed poolToken, address indexed pool, uint256 weight);
+    event PoolRegistered(address indexed by, address indexed poolToken, address indexed pool, uint256 weight);
 
-    event SetYieldLockTime(uint256 _yieldLockTime);
+    event SetYieldLockTime(uint256 yieldLockTime);
+
+    event UpdateApeXPerBlock(uint256 apeXPerBlock);
+
+    event TransferYieldTo(address by, address to, uint256 amount);
 
     /// @notice get the endBlock number to yield, after this, no yield reward
     function endBlock() external view returns (uint256);

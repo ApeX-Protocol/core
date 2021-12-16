@@ -72,12 +72,15 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
 
         apeXPerBlock = (apeXPerBlock * 97) / 100;
         lastUpdateBlock = block.number;
+
+        emit UpdateApeXPerBlock(apeXPerBlock);
     }
 
     function transferYieldTo(address _to, uint256 _amount) external override {
         require(poolTokenMap[msg.sender] != address(0), "cpf.transferYieldTo: ACCESS_DENIED");
 
         IERC20(apeX).transfer(_to, _amount);
+        emit TransferYieldTo(msg.sender, _to, _amount);
     }
 
     function changePoolWeight(address _pool, uint256 _weight) external override onlyOwner {
