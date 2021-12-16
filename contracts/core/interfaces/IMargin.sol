@@ -9,13 +9,9 @@ interface IMargin {
         uint256 tradeSize; //if quoteSize>0 unrealizedPnl = baseValueOfQuoteSize - tradeSize; if quoteSize<0 unrealizedPnl = tradeSize - baseValueOfQuoteSize;
     }
 
-    event BeforeAddMargin(Position position);
     event AddMargin(address indexed trader, uint256 depositAmount, Position position);
-    event BeforeRemoveMargin(Position position);
     event RemoveMargin(address indexed trader, int256 fundingFee, uint256 withdrawAmountFromMargin, Position position);
-    event BeforeOpenPosition(Position position);
     event OpenPosition(address indexed trader, uint8 side, uint256 baseAmount, uint256 quoteAmount, Position position);
-    event BeforeClosePosition(Position position);
     event ClosePosition(
         address indexed trader,
         uint256 quoteAmount,
@@ -23,7 +19,6 @@ interface IMargin {
         int256 fundingFee,
         Position position
     );
-    event BeforeLiquidate(Position position);
     event Liquidate(
         address indexed liquidator,
         address indexed trader,
