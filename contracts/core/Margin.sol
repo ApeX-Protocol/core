@@ -654,26 +654,26 @@ contract Margin is IMargin, IVault, Reentrant {
         } else if (quoteSize > 0) {
             uint256 quoteAmount = quoteSize.abs();
             //calculate asset
-            uint256 price = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
                 quoteAmount,
                 false
             );
-            uint256 baseAmount = (quoteAmount * 1e18) / price;
+            // uint256 baseAmount = (quoteAmount * 1e18) / price;
             //tocheck debtRatio range?
             debtRatio = baseAmount == 0 ? 10000 : (baseSize.abs() * 10000) / baseAmount;
         } else {
             uint256 quoteAmount = quoteSize.abs();
             //calculate debt
-            uint256 price = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
                 quoteAmount,
                 true
             );
 
-            uint256 baseAmount = (quoteAmount * 1e18) / price;
+            // uint256 baseAmount = (quoteAmount * 1e18) / price;
             uint256 ratio = (baseAmount * 10000) / baseSize.abs();
             //tocheck debtRatio range?
             debtRatio = 10000 < ratio ? 10000 : ratio;

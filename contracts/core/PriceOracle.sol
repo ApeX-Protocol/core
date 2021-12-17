@@ -123,46 +123,66 @@ contract PriceOracle is IPriceOracle {
         price = FullMath.mulDiv(exponent, lastPriceX112, 2**112);
     }
 
-    // get user's mark price, it's for checking if user's position can be liquidated.
-    // the result price is scaled by 1e18.
+    // get user's mark price, return base amount, it's for checking if user's position can be liquidated.
+    // price = (sqrt(y/x) +/- beta * quoteAmount / sqrt(x*y))**2 = (y +/- beta * quoteAmount)**2 / x*y
+    // baseAmount = quoteAmount / price = quoteAmount * x * y / (y +/- beta * quoteAmount)**2
     function getMarkPriceAcc(
         address amm,
         uint8 beta,
         uint256 quoteAmount,
         bool negative
-    ) public view override returns (uint256 price) {
-        //// solution1: use simplified formula
-        // price = markPrice * (1 +/- (2 * beta * quoteAmount)/quoteReserve)
-        (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        uint256 markPrice = getMarkPrice(amm);
-        uint256 delta = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
+    ) public view override returns (uint256 baseAmount) {
+        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+        uint256 rvalue = quoteAmount * beta / 100;
+        uint256 denominator;
         if (negative) {
-            price = markPrice - delta;
+            denominator = quoteReserve - rvalue;
         } else {
-            price = markPrice + delta;
+            denominator = quoteReserve + rvalue;
         }
-
-        //// solution2: use origin formula
-        //// price = (sqrt(markPrice) +/- beta * quoteAmount/sqrt(baseReserve*quoteReserve))**2
-        // uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
-        // uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
-        // (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        // // after sqrt, the actual value max size is uint112, scaled by 10**((baseDecimals+quoteDecimals)/2),
-        // uint256 liquidity = Math.sqrt(uint256(baseReserve) * quoteReserve);
-        // // to make rvalue scaled by 1e9
-        // uint8 decimals = 9 + (baseDecimals + quoteDecimals) / 2 - quoteDecimals;
-        // uint256 rvalue = 10**decimals * beta * quoteAmount / 100 / liquidity;
-        // // after sqrt, the result price is scaled by 1e9
-        // uint256 lvalue = Math.sqrt(getMarkPrice(amm));
-        // uint256 baseValue;
-        // if (negative) {
-        //     baseValue = lvalue - rvalue;
-        // } else {
-        //     baseValue = lvalue + rvalue;
-        // }
-        // // result price is scaled by 1e18
-        // price = baseValue * baseValue;
+        denominator = denominator * denominator;
+        baseAmount = FullMath.mulDiv(quoteAmount, uint256(baseReserve) * quoteReserve, denominator);
     }
+
+    // get user's mark price, return base amount, it's for checking if user's position can be liquidated.
+    // function getMarkPriceAcc(
+    //     address amm,
+    //     uint8 beta,
+    //     uint256 quoteAmount,
+    //     bool negative
+    // ) public view override returns (uint256 price) {
+    //     //// solution1: use simplified formula
+    //     // price = markPrice * (1 +/- (2 * beta * quoteAmount)/quoteReserve)
+    //     (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+    //     uint256 markPrice = getMarkPrice(amm);
+    //     uint256 delta = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
+    //     if (negative) {
+    //         price = markPrice - delta;
+    //     } else {
+    //         price = markPrice + delta;
+    //     }
+
+    //     //// solution2: use origin formula
+    //     //// price = (sqrt(markPrice) +/- beta * quoteAmount/sqrt(baseReserve*quoteReserve))**2
+    //     // uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
+    //     // uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
+    //     // (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+    //     // // after sqrt, the actual value max size is uint112, scaled by 10**((baseDecimals+quoteDecimals)/2),
+    //     // uint256 liquidity = Math.sqrt(uint256(baseReserve) * quoteReserve);
+    //     // // to make rvalue scaled by 1e9
+    //     // uint8 decimals = 9 + (baseDecimals + quoteDecimals) / 2 - quoteDecimals;
+    //     // uint256 rvalue = 10**decimals * beta * quoteAmount / 100 / liquidity;
+    //     // // after sqrt, the result price is scaled by 1e9
+    //     // uint256 lvalue = Math.sqrt(getMarkPrice(amm));
+    //     // uint256 baseValue;
+    //     // if (negative) {
+    //     //     baseValue = lvalue - rvalue;
+    //     // } else {
+    //     //     baseValue = lvalue + rvalue;
+    //     // }
+    //     // // result price is scaled by 1e18
+    //     // price = baseValue * baseValue;
+    // }
 
     //premiumFraction is (markPrice - indexPrice) / 8h / indexPrice, scale by 1e18
     function getPremiumFraction(address amm) external view override returns (int256) {

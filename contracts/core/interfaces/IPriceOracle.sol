@@ -18,7 +18,7 @@ interface IPriceOracle {
         uint8 beta,
         uint256 quoteAmount,
         bool negative
-    ) external view returns (uint256 price);
+    ) external view returns (uint256 baseAmount);
 
     function getPremiumFraction(address amm) external view returns (int256);
 }
