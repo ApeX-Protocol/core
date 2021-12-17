@@ -13,7 +13,8 @@ contract Config is IConfig, Ownable, Initializable {
 
     uint8 public override beta; // 50-200
     uint256 public override maxCPFBoost;
-    uint256 public override rebasePriceGap;
+    uint256 public override rebasePriceGap; //0-100 , if 5 means 5%
+    uint256 public override tradingSlippage; //0-100, if 5 means 5%
     uint256 public override initMarginRatio; //if 1000, means margin ratio >= 10%
     uint256 public override liquidateThreshold; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio; //if 100, means liquidator bot get 1% as fee
@@ -42,6 +43,12 @@ contract Config is IConfig, Ownable, Initializable {
         rebasePriceGap = newGap;
     }
 
+    function setTradingSlippage(uint256 newTradingSlippage) external override onlyOwner {
+        require(newTradingSlippage > 0 && newTradingSlippage < 100, "Config: TRADING_SLIPPAGE_RANGE_ERROR");
+        emit TradingSlippageChanged(tradingSlippage, newTradingSlippage);
+        tradingSlippage = newTradingSlippage;
+    }
+
     function setInitMarginRatio(uint256 marginRatio) external override onlyOwner {
         require(marginRatio >= 500, "Config: INVALID_MARGIN_RATIO");
         emit SetInitMarginRatio(initMarginRatio, marginRatio);
@@ -66,7 +73,7 @@ contract Config is IConfig, Ownable, Initializable {
     }
 
     function setBeta(uint8 newBeta) external override onlyOwner {
-        //tocheck need add limitation
+        //t ocheck need add limitation
         emit SetBeta(beta, newBeta);
         beta = newBeta;
     }

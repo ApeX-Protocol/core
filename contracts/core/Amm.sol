@@ -184,6 +184,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     function rebase() external override nonReentrant returns (uint256 quoteReserveAfter) {
         require(msg.sender == tx.origin, "Amm.rebase: ONLY_EOA");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+
+         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
+
         // forward
         quoteReserveAfter = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, _baseReserve);
         uint256 gap = IConfig(config).rebasePriceGap();
@@ -193,6 +196,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve);
+        if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
+
         emit Rebase(_quoteReserve, quoteReserveAfter);
     }
 
@@ -330,10 +335,20 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             lastPrice = uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld));
             price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
+
+            uint256 numerator = quoteReserveNew * baseReserveOld * 100;
+            uint256 demominator = baseReserveNew * quoteReserveOld;
+            uint256 tradingSlippage = IConfig(config).tradingSlippage();
+            require(
+                (numerator < 100 + tradingSlippage) && (numerator > 100 - tradingSlippage),
+                "AMM._update:TRADINGSLIPPAGE_TOO_LARGE"
+            );
         }
+
         if (lastPrice == 0 && baseReserveNew != 0) {
             lastPrice = uint256(UQ112x112.encode(uint112(quoteReserveNew)).uqdiv(uint112(baseReserveNew)));
         }
+
         baseReserve = uint112(baseReserveNew);
         quoteReserve = uint112(quoteReserveNew);
         blockTimestampLast = blockTimestamp;
