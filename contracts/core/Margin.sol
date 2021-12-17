@@ -123,7 +123,7 @@ contract Margin is IMargin, IVault, Reentrant {
         traderCPF[trader] = _latestCPF;
         _withdraw(trader, trader, withdrawAmount);
 
-        emit RemoveMargin(trader, fundingFee, withdrawAmountFromMargin, traderPosition);
+        emit RemoveMargin(trader, withdrawAmount, fundingFee, withdrawAmountFromMargin, traderPosition);
     }
 
     function openPosition(
@@ -422,7 +422,7 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     //update global funding fee
-    function updateCPF() public returns (int256 newLatestCPF) {
+    function updateCPF() public override returns (int256 newLatestCPF) {
         uint256 currentTimeStamp = block.timestamp;
         newLatestCPF = _getNewLatestCPF();
 
@@ -432,7 +432,7 @@ contract Margin is IMargin, IVault, Reentrant {
         emit UpdateCPF(currentTimeStamp, newLatestCPF);
     }
 
-    function querySwapBaseWithAmm(bool isLong, uint256 quoteAmount) external view returns (uint256) {
+    function querySwapBaseWithAmm(bool isLong, uint256 quoteAmount) external view override returns (uint256) {
         return _querySwapBaseWithAmm(isLong, quoteAmount);
     }
 
@@ -470,11 +470,11 @@ contract Margin is IMargin, IVault, Reentrant {
         );
     }
 
-    function getNewLatestCPF() external view returns (int256) {
+    function getNewLatestCPF() external view override returns (int256) {
         return _getNewLatestCPF();
     }
 
-    function getMarginRatio(address trader) external view returns (uint256) {
+    function getMarginRatio(address trader) external view override returns (uint256) {
         Position memory position = traderPositionMap[trader];
 
         int256 baseAmountFunding;
@@ -546,7 +546,7 @@ contract Margin is IMargin, IVault, Reentrant {
             );
     }
 
-    function calUnrealizedPnl(address trader) external view returns (int256 unrealizedPnl) {
+    function calUnrealizedPnl(address trader) external view override returns (int256 unrealizedPnl) {
         Position memory position = traderPositionMap[trader];
         if (position.quoteSize < 0) {
             //borrowed - repay, earn when borrow more and repay less

@@ -10,7 +10,13 @@ interface IMargin {
     }
 
     event AddMargin(address indexed trader, uint256 depositAmount, Position position);
-    event RemoveMargin(address indexed trader, int256 fundingFee, uint256 withdrawAmountFromMargin, Position position);
+    event RemoveMargin(
+        address indexed trader,
+        uint256 withdrawAmount,
+        int256 fundingFee,
+        uint256 withdrawAmountFromMargin,
+        Position position
+    );
     event OpenPosition(address indexed trader, uint8 side, uint256 baseAmount, uint256 quoteAmount, Position position);
     event ClosePosition(
         address indexed trader,
@@ -70,6 +76,8 @@ interface IMargin {
             uint256 bonus
         );
 
+    function updateCPF() external returns (int256);
+
     /// @notice get factory address
     function factory() external view returns (address);
 
@@ -109,4 +117,12 @@ interface IMargin {
 
     /// @notice calculate the latest debt ratio with Pnl and funding fee
     function calDebtRatio(address trader) external view returns (uint256 debtRatio);
+
+    function calUnrealizedPnl(address trader) external view returns (int256);
+
+    function getMarginRatio(address trader) external view returns (uint256);
+
+    function getNewLatestCPF() external view returns (int256);
+
+    function querySwapBaseWithAmm(bool isLong, uint256 quoteAmount) external view returns (uint256);
 }
