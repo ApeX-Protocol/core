@@ -48,49 +48,49 @@ describe("PriceOracle contract", function () {
     oracle = await PriceOracle.deploy(v3FactoryAddress, v2FactoryAddress, wethAddress);
   });
 
-  describe("quote", function () {
-    it("quote small number", async function () {
-      let quoteAmount = await oracle.quote(baseToken.address, quoteToken.address, 10000);
-      console.log("quoteAmount:", BigNumber.from(quoteAmount).toString());
-    });
+  // describe("quote", function () {
+  //   it("quote small number", async function () {
+  //     let quoteAmount = await oracle.quote(baseToken.address, quoteToken.address, 10000);
+  //     console.log("quoteAmount:", BigNumber.from(quoteAmount).toString());
+  //   });
 
-    it("quote big number", async function () {
-      let quoteAmount = await oracle.quote(
-        baseToken.address,
-        quoteToken.address,
-        BigNumber.from("100000000000000000000")
-      );
-      console.log("quoteAmount:", BigNumber.from(quoteAmount).toString());
-    });
-  });
+  //   it("quote big number", async function () {
+  //     let quoteAmount = await oracle.quote(
+  //       baseToken.address,
+  //       quoteToken.address,
+  //       BigNumber.from("100000000000000000000")
+  //     );
+  //     console.log("quoteAmount:", BigNumber.from(quoteAmount).toString());
+  //   });
+  // });
 
-  describe("getIndexPrice", function () {
-    it("getIndexPrice: base < quote", async function () {
-      await amm.setReserves(1000, 2000);
-      let indexPrice = await oracle.getIndexPrice(amm.address);
-      console.log("indexPrice:", BigNumber.from(indexPrice).toString());
-    });
+  // describe("getIndexPrice", function () {
+  //   it("getIndexPrice: base < quote", async function () {
+  //     await amm.setReserves(1000, 2000);
+  //     let indexPrice = await oracle.getIndexPrice(amm.address);
+  //     console.log("indexPrice:", BigNumber.from(indexPrice).toString());
+  //   });
 
-    it("getIndexPrice: base > quote", async function () {
-      await amm.setReserves(200000000, 2000);
-      let indexPrice = await oracle.getIndexPrice(amm.address);
-      console.log("indexPrice:", BigNumber.from(indexPrice).toString());
-    });
-  });
+  //   it("getIndexPrice: base > quote", async function () {
+  //     await amm.setReserves(200000000, 2000);
+  //     let indexPrice = await oracle.getIndexPrice(amm.address);
+  //     console.log("indexPrice:", BigNumber.from(indexPrice).toString());
+  //   });
+  // });
 
-  describe("getMarkPrice", function () {
-    it("getMarkPrice: base < quote", async function () {
-      await amm.setReserves(1000, 200000000);
-      let markPrice = await oracle.getMarkPrice(amm.address);
-      console.log("markPrice:", BigNumber.from(markPrice).toString());
-    });
+  // describe("getMarkPrice", function () {
+  //   it("getMarkPrice: base < quote", async function () {
+  //     await amm.setReserves(1000, 200000000);
+  //     let markPrice = await oracle.getMarkPrice(amm.address);
+  //     console.log("markPrice:", BigNumber.from(markPrice).toString());
+  //   });
 
-    it("getMarkPrice: quote > base", async function () {
-      await amm.setReserves(2000000000, 1000);
-      let markPrice = await oracle.getMarkPrice(amm.address);
-      console.log("markPrice:", BigNumber.from(markPrice).toString());
-    });
-  });
+  //   it("getMarkPrice: quote > base", async function () {
+  //     await amm.setReserves(2000000000, 1000);
+  //     let markPrice = await oracle.getMarkPrice(amm.address);
+  //     console.log("markPrice:", BigNumber.from(markPrice).toString());
+  //   });
+  // });
 
   describe("getMarkPriceAcc", function () {
     it("getMarkPriceAcc: base < quote", async function () {
@@ -99,24 +99,24 @@ describe("PriceOracle contract", function () {
       console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString());
     });
 
-    it("getMarkPriceAcc: base > quote", async function () {
-      await amm.setReserves(2000000000, 2000);
-      let markPriceAcc = await oracle.getMarkPriceAcc(amm.address, 5, 1000, false);
-      console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString());
-    });
+    // it("getMarkPriceAcc: base > quote", async function () {
+    //   await amm.setReserves(2000000000, 2000);
+    //   let markPriceAcc = await oracle.getMarkPriceAcc(amm.address, 5, 1000, false);
+    //   console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString());
+    // });
   });
 
-  describe("getPremiumFraction", function () {
-    it("getPremiumFraction: base < quote", async function () {
-      await amm.setReserves(1000, 2000);
-      let premiumFraction = await oracle.getPremiumFraction(amm.address);
-      console.log("premiumFraction:", BigNumber.from(premiumFraction).toString());
-    });
+  // describe("getPremiumFraction", function () {
+  //   it("getPremiumFraction: base < quote", async function () {
+  //     await amm.setReserves(1000, 2000);
+  //     let premiumFraction = await oracle.getPremiumFraction(amm.address);
+  //     console.log("premiumFraction:", BigNumber.from(premiumFraction).toString());
+  //   });
 
-    it("getPremiumFraction: base > quote", async function () {
-      await amm.setReserves(2000000000, 2000);
-      let premiumFraction = await oracle.getPremiumFraction(amm.address);
-      console.log("premiumFraction:", BigNumber.from(premiumFraction).toString());
-    });
-  });
+  //   it("getPremiumFraction: base > quote", async function () {
+  //     await amm.setReserves(2000000000, 2000);
+  //     let premiumFraction = await oracle.getPremiumFraction(amm.address);
+  //     console.log("premiumFraction:", BigNumber.from(premiumFraction).toString());
+  //   });
+  // });
 });

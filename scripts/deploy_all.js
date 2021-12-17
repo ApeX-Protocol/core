@@ -1,4 +1,5 @@
 const { ethers, upgrades } = require("hardhat");
+const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
 // for PriceOracle
@@ -51,12 +52,12 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   // await createApeXToken();
-  // await createPriceOracle();
+  await createPriceOracle();
   // await createConfig();
   // await createPairFactory();
   // await createPCVTreasury();
   // await createRouter();
-  await createBondPoolFactory();
+  // await createBondPoolFactory();
   // await createStakingPoolFactory();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -73,17 +74,35 @@ async function createApeXToken() {
 }
 
 async function createPriceOracle() {
+  // const PriceOracle = await ethers.getContractFactory("PriceOracle");
+  // priceOracle = await PriceOracle.deploy(v3FactoryAddress, v2FactoryAddress, wethAddress);
+  // console.log("PriceOracle:", priceOracle.address);
+  // console.log(
+  //   verifyStr,
+  //   process.env.HARDHAT_NETWORK,
+  //   priceOracle.address,
+  //   v3FactoryAddress,
+  //   v2FactoryAddress,
+  //   wethAddress
+  // );
+
+  //test
+  ammAddress = "0x8FC37Ec7358EdeA83Bc79F8Bbf4c96Af4dbeB914";
+  let Amm = await ethers.getContractFactory("Amm");
+  let amm = Amm.attach(ammAddress);
+  let baseReserve;
+  let quoteReserve;
+  [baseReserve, quoteReserve] = await amm.getReserves();
+  console.log("baseReserve:", BigNumber.from(baseReserve).toString());
+  console.log("quoteReserve:", BigNumber.from(quoteReserve).toString());
+
+  let priceOracleAddress = "0xDc22D1fa94FE0dA0d3246F5F9A4273c64806d31C";
   const PriceOracle = await ethers.getContractFactory("PriceOracle");
-  priceOracle = await PriceOracle.deploy(v3FactoryAddress, v2FactoryAddress, wethAddress);
-  console.log("PriceOracle:", priceOracle.address);
-  console.log(
-    verifyStr,
-    process.env.HARDHAT_NETWORK,
-    priceOracle.address,
-    v3FactoryAddress,
-    v2FactoryAddress,
-    wethAddress
-  );
+  priceOracle = await PriceOracle.attach(priceOracleAddress);
+  let markPrice = await priceOracle.getMarkPrice(ammAddress);
+  let markPriceAcc = await priceOracle.getMarkPriceAcc(ammAddress, 100, BigNumber.from("1003670256235565"), false);
+  console.log("markPrice:", BigNumber.from(markPrice).toString());
+  console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString);
 }
 
 async function createConfig() {
@@ -220,8 +239,8 @@ async function createMockTokens() {
 }
 
 async function createMockPair() {
-  let baseTokenAddress = "0x3F12C33BDe6dE5B66F88D7a5d3CE8dE3C98b5FA7";
-  let quoteTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
+  let baseTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
+  let quoteTokenAddress = "0x3F12C33BDe6dE5B66F88D7a5d3CE8dE3C98b5FA7";
 
   if (pairFactory == null) {
     let pairFactoryAddress = "0xA21dE66283523CEC46BFd2BED87221fBcF0A5F19";
