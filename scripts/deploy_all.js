@@ -14,6 +14,7 @@ const liquidateThreshold = 10000;
 const liquidateFeeRatio = 100;
 const rebasePriceGap = 1;
 const feeParameter = 150;
+const maxCPFBoost = 50;
 // transfer to pcvTreasury
 const apeXAmountForBonding = 1000000000;
 // for BondPoolFactory
@@ -54,9 +55,9 @@ const main = async () => {
   // await createApeXToken();
   await createPriceOracle();
   // await createConfig();
-  // await createPairFactory();
+  await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createBondPoolFactory();
   // await createStakingPoolFactory();
   //// below only deploy for testnet
@@ -74,35 +75,17 @@ async function createApeXToken() {
 }
 
 async function createPriceOracle() {
-  // const PriceOracle = await ethers.getContractFactory("PriceOracle");
-  // priceOracle = await PriceOracle.deploy(v3FactoryAddress, v2FactoryAddress, wethAddress);
-  // console.log("PriceOracle:", priceOracle.address);
-  // console.log(
-  //   verifyStr,
-  //   process.env.HARDHAT_NETWORK,
-  //   priceOracle.address,
-  //   v3FactoryAddress,
-  //   v2FactoryAddress,
-  //   wethAddress
-  // );
-
-  //test
-  ammAddress = "0x8FC37Ec7358EdeA83Bc79F8Bbf4c96Af4dbeB914";
-  let Amm = await ethers.getContractFactory("Amm");
-  let amm = Amm.attach(ammAddress);
-  let baseReserve;
-  let quoteReserve;
-  [baseReserve, quoteReserve] = await amm.getReserves();
-  console.log("baseReserve:", BigNumber.from(baseReserve).toString());
-  console.log("quoteReserve:", BigNumber.from(quoteReserve).toString());
-
-  let priceOracleAddress = "0xDc22D1fa94FE0dA0d3246F5F9A4273c64806d31C";
   const PriceOracle = await ethers.getContractFactory("PriceOracle");
-  priceOracle = await PriceOracle.attach(priceOracleAddress);
-  let markPrice = await priceOracle.getMarkPrice(ammAddress);
-  let markPriceAcc = await priceOracle.getMarkPriceAcc(ammAddress, 100, BigNumber.from("1003670256235565"), false);
-  console.log("markPrice:", BigNumber.from(markPrice).toString());
-  console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString);
+  priceOracle = await PriceOracle.deploy(v3FactoryAddress, v2FactoryAddress, wethAddress);
+  console.log("PriceOracle:", priceOracle.address);
+  console.log(
+    verifyStr,
+    process.env.HARDHAT_NETWORK,
+    priceOracle.address,
+    v3FactoryAddress,
+    v2FactoryAddress,
+    wethAddress
+  );
 }
 
 async function createConfig() {
@@ -123,13 +106,15 @@ async function createConfig() {
   await config.setLiquidateFeeRatio(liquidateFeeRatio);
   await config.setRebasePriceGap(rebasePriceGap);
   await config.setFeeParameter(feeParameter);
+  await config.setMaxCPFBoost(maxCPFBoost);
 }
 
 async function createPairFactory() {
   if (config == null) {
-    let configAddress = "";
+    let configAddress = "0x2A992DE7c9fccfD45190F305eB7A7d3c5Fc6accd";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
+    await config.setPriceOracle(priceOracle.address);
   }
 
   const PairFactory = await ethers.getContractFactory("PairFactory");
