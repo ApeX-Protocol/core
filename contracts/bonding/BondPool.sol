@@ -80,6 +80,7 @@ contract BondPool is IBondPool, Ownable {
         uint256 depositAmount,
         uint256 minPayout
     ) external override returns (uint256 payout) {
+        require(!bondPaused, "BondPool.deposit: BOND_PAUSED");
         require(depositor != address(0), "BondPool.deposit: ZERO_ADDRESS");
         require(depositAmount > 0, "BondPool.deposit: ZERO_AMOUNT");
 
