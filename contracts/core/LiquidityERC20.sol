@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 import "./interfaces/ILiquidityERC20.sol";
@@ -64,7 +65,7 @@ contract LiquidityERC20 is ILiquidityERC20 {
         bytes32 r,
         bytes32 s
     ) external override {
-        require(deadline >= block.timestamp, "UniswapV2: EXPIRED");
+        require(deadline >= block.timestamp, "LiquidityERC20: EXPIRED");
         bytes32 digest = keccak256(
             abi.encodePacked(
                 "\x19\x01",
@@ -73,7 +74,7 @@ contract LiquidityERC20 is ILiquidityERC20 {
             )
         );
         address recoveredAddress = ecrecover(digest, v, r, s);
-        require(recoveredAddress != address(0) && recoveredAddress == owner, "UniswapV2: INVALID_SIGNATURE");
+        require(recoveredAddress != address(0) && recoveredAddress == owner, "LiquidityERC20: INVALID_SIGNATURE");
         _approve(owner, spender, value);
     }
 

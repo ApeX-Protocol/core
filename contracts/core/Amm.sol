@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 import "./LiquidityERC20.sol";
@@ -341,7 +342,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 tradingSlippage = IConfig(config).tradingSlippage();
             require(
                 (numerator < (100 + tradingSlippage)* demominator ) && (numerator > (100 - tradingSlippage)* demominator),
-                "AMM._update:TRADINGSLIPPAGE_TOO_LARGE"
+                "AMM._update: TRADINGSLIPPAGE_TOO_LARGE"
             );
         }
 

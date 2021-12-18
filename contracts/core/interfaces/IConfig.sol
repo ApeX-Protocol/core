@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: Unlicense
-
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 interface IConfig {
@@ -76,9 +75,9 @@ interface IConfig {
     function setLiquidateFeeRatio(uint256 feeRatio) external;
 
     /// @notice Set a new feeParameter.
-    /// @param feeParameter new feeParameter get from AMM swap fee.
+    /// @param newFeeParameter New feeParameter get from AMM swap fee.
     /// @dev feeParameter = (1/fee -1 ) *100 where fee set by owner.
-    function setFeeParameter(uint256 feeParameter) external;
+    function setFeeParameter(uint256 newFeeParameter) external;
 
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
 }
