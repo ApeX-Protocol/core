@@ -17,6 +17,8 @@ interface IBondPool {
     /// @param remaining The amount of apeX remaining in the bond
     event BondRedeemed(address depositor, uint256 payout, uint256 remaining);
 
+    event BondPaused(bool state);
+    event PriceOracleChanged(address indexed oldOracle, address indexed newOracle);
     event MaxPayoutChanged(uint256 oldMaxPayout, uint256 newMaxPayout);
     event DiscountChanged(uint256 oldDiscount, uint256 newDiscount);
     event VestingTermChanged(uint256 oldVestingTerm, uint256 newVestingTerm);
@@ -28,6 +30,12 @@ interface IBondPool {
         uint256 lastBlockTime; // last action time
         uint256 paidAmount; // base token paid
     }
+
+    /// @notice Set bond open or pause
+    function setBondPaused(bool state) external;
+
+    /// @notice Set a new price oracle
+    function setPriceOracle(address newOracle) external;
 
     /// @notice Only owner can set this
     function setMaxPayout(uint256 maxPayout_) external;
@@ -68,6 +76,9 @@ interface IBondPool {
 
     /// @notice Bonding term in seconds, at least 129600 = 36 hours
     function vestingTerm() external view returns (uint256);
+
+    /// @notice If is true, the bond is paused
+    function bondPaused() external view returns (bool);
 
     /// @notice Get depositor's bond info
     function bondInfoFor(address depositor) external view returns (Bond memory);
