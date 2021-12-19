@@ -389,7 +389,6 @@ describe("Margin contract", function () {
       let position = await margin.traderPositionMap(owner.address);
       await margin.closePosition(owner.address, position.quoteSize.abs() - 1);
       position = await margin.traderPositionMap(owner.address);
-
       expect(position[0]).to.equal(-1);
     });
 

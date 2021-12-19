@@ -23,6 +23,7 @@ contract Margin is IMargin, IVault, Reentrant {
     address public override quoteToken;
     mapping(address => Position) public traderPositionMap; //all users' position
     mapping(address => int256) public traderCPF; //one trader's latest cpf, to calculate funding fee
+    mapping(address => uint256) public traderLatestOperation; //to prevent flash loan attack
     uint256 public override reserve;
     uint256 public lastUpdateCPF; //last timestamp update cpf
     int256 public override netPosition; //base token
@@ -63,6 +64,8 @@ contract Margin is IMargin, IVault, Reentrant {
 
     //remove baseToken from trader's fundingFee+unrealizedPnl+margin, remain position need to meet the requirement of initMarginRatio
     function removeMargin(address trader, uint256 withdrawAmount) external override nonReentrant {
+        require(traderLatestOperation[trader] != block.number, "Margin.removeMargin: ONE_BLOCK_TWICE_OPERATION");
+        traderLatestOperation[trader] = block.number;
         //tocheck can remove this require?
         require(withdrawAmount > 0, "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT");
         if (msg.sender != trader) {
@@ -130,6 +133,8 @@ contract Margin is IMargin, IVault, Reentrant {
         uint8 side,
         uint256 quoteAmount
     ) external override nonReentrant returns (uint256 baseAmount) {
+        require(traderLatestOperation[trader] != block.number, "Margin.openPosition: ONE_BLOCK_TWICE_OPERATION");
+        traderLatestOperation[trader] = block.number;
         require(side == 0 || side == 1, "Margin.openPosition: INVALID_SIDE");
         require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
         if (msg.sender != trader) {
@@ -201,6 +206,8 @@ contract Margin is IMargin, IVault, Reentrant {
         nonReentrant
         returns (uint256 baseAmount)
     {
+        require(traderLatestOperation[trader] != block.number, "Margin.closePosition: ONE_BLOCK_TWICE_OPERATION");
+        traderLatestOperation[trader] = block.number;
         if (msg.sender != trader) {
             require(IConfig(config).routerMap(msg.sender), "Margin.closePosition: FORBIDDEN");
         }
@@ -300,6 +307,8 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 bonus
         )
     {
+        require(traderLatestOperation[msg.sender] != block.number, "Margin.liquidate: ONE_BLOCK_TWICE_OPERATION");
+
         int256 _latestCPF = updateCPF();
         Position memory traderPosition = traderPositionMap[trader];
         int256 quoteSize = traderPosition.quoteSize;
@@ -449,7 +458,6 @@ contract Margin is IMargin, IVault, Reentrant {
         return (position.baseSize, position.quoteSize, position.tradeSize);
     }
 
-    //tocheck maybe need to subtract a little because of fundingFee
     function getWithdrawable(address trader) external view override returns (uint256 withdrawable) {
         Position memory position = traderPositionMap[trader];
 

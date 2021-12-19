@@ -25,7 +25,7 @@ contract MockPriceOracle {
         uint256 quoteAmount,
         bool negative
     ) public view returns (uint256 price) {
-        return p * 1e18;
+        return quoteAmount / p;
     }
 
     function setMarkPrice(uint256 _p) external {
