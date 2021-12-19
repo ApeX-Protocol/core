@@ -64,8 +64,6 @@ contract Margin is IMargin, IVault, Reentrant {
 
     //remove baseToken from trader's fundingFee+unrealizedPnl+margin, remain position need to meet the requirement of initMarginRatio
     function removeMargin(address trader, uint256 withdrawAmount) external override nonReentrant {
-        require(traderLatestOperation[trader] != block.number, "Margin.removeMargin: ONE_BLOCK_TWICE_OPERATION");
-        traderLatestOperation[trader] = block.number;
         //tocheck can remove this require?
         require(withdrawAmount > 0, "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT");
         if (msg.sender != trader) {
