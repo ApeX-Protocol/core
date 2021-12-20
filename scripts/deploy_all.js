@@ -12,9 +12,10 @@ const beta = 100;
 const initMarginRatio = 800;
 const liquidateThreshold = 10000;
 const liquidateFeeRatio = 100;
-const rebasePriceGap = 1;
+const rebasePriceGap = 5;
 const feeParameter = 150;
-const maxCPFBoost = 50;
+const maxCPFBoost = 10;
+const tradingSlippage = 5;
 // transfer to pcvTreasury
 const apeXAmountForBonding = 1000000000;
 // for BondPoolFactory
@@ -54,11 +55,11 @@ const main = async () => {
   signer = accounts[0].address;
   // await createApeXToken();
   await createPriceOracle();
-  // await createConfig();
+  await createConfig();
   await createPairFactory();
-  // await createPCVTreasury();
+  await createPCVTreasury();
   await createRouter();
-  // await createBondPoolFactory();
+  await createBondPoolFactory();
   // await createStakingPoolFactory();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -94,11 +95,11 @@ async function createConfig() {
   console.log("Config:", config.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, config.address);
 
-  if (priceOracle == null) {
-    let priceOracleAddress = "0x6fbe1c378Df494b5F66dd03491aA504d963eaD14";
-    const PriceOracle = await ethers.getContractFactory("PriceOracle");
-    priceOracle = await PriceOracle.attach(priceOracleAddress);
-  }
+  // if (priceOracle == null) {
+  //   let priceOracleAddress = "0x6fbe1c378Df494b5F66dd03491aA504d963eaD14";
+  //   const PriceOracle = await ethers.getContractFactory("PriceOracle");
+  //   priceOracle = await PriceOracle.attach(priceOracleAddress);
+  // }
   await config.setPriceOracle(priceOracle.address);
   await config.setBeta(beta);
   await config.setInitMarginRatio(initMarginRatio);
@@ -107,14 +108,14 @@ async function createConfig() {
   await config.setRebasePriceGap(rebasePriceGap);
   await config.setFeeParameter(feeParameter);
   await config.setMaxCPFBoost(maxCPFBoost);
+  await config.setTradingSlippage(tradingSlippage);
 }
 
 async function createPairFactory() {
   if (config == null) {
-    let configAddress = "0x2A992DE7c9fccfD45190F305eB7A7d3c5Fc6accd";
+    let configAddress = "0x7c51aB9Fa824857B688286eB75C86259E9b26eD0";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
-    await config.setPriceOracle(priceOracle.address);
   }
 
   const PairFactory = await ethers.getContractFactory("PairFactory");
@@ -228,7 +229,7 @@ async function createMockPair() {
   let quoteTokenAddress = "0x3F12C33BDe6dE5B66F88D7a5d3CE8dE3C98b5FA7";
 
   if (pairFactory == null) {
-    let pairFactoryAddress = "0xA21dE66283523CEC46BFd2BED87221fBcF0A5F19";
+    let pairFactoryAddress = "0x0b1D5459fa5B4EDBDd58c919e911149aCa56034E";
 
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);

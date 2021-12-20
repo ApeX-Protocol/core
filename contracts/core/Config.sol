@@ -11,7 +11,7 @@ contract Config is IConfig, Ownable, Initializable {
     address public override priceOracle;
 
     uint8 public override beta; // 50-200
-    uint256 public override maxCPFBoost;
+    uint256 public override maxCPFBoost; // default 10
     uint256 public override rebasePriceGap; //0-100 , if 5 means 5%
     uint256 public override tradingSlippage; //0-100, if 5 means 5%
     uint256 public override initMarginRatio; //if 1000, means margin ratio >= 10%
@@ -37,7 +37,7 @@ contract Config is IConfig, Ownable, Initializable {
     }
 
     function setRebasePriceGap(uint256 newGap) external override onlyOwner {
-        require(newGap > 0, "Config: ZERO_GAP");
+        require(newGap > 0 && newGap < 100, "Config: ZERO_GAP");
         emit RebasePriceGapChanged(rebasePriceGap, newGap);
         rebasePriceGap = newGap;
     }
@@ -72,7 +72,7 @@ contract Config is IConfig, Ownable, Initializable {
     }
 
     function setBeta(uint8 newBeta) external override onlyOwner {
-        //t ocheck need add limitation
+        require(newBeta >= 50 && newBeta <= 200, "Config: INVALID_BETA");
         emit SetBeta(beta, newBeta);
         beta = newBeta;
     }
