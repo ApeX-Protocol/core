@@ -8,6 +8,7 @@ import "./interfaces/IConfig.sol";
 import "./interfaces/IMargin.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IPriceOracle.sol";
+import "./interfaces/IWETH.sol";
 import "../utils/Reentrant.sol";
 import "../libraries/SignedMath.sol";
 
@@ -63,7 +64,11 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     //remove baseToken from trader's fundingFee+unrealizedPnl+margin, remain position need to meet the requirement of initMarginRatio
-    function removeMargin(address trader, uint256 withdrawAmount) external override nonReentrant {
+    function removeMargin(
+        address trader,
+        uint256 withdrawAmount,
+        bool preferETH
+    ) external override nonReentrant {
         //tocheck can remove this require?
         require(withdrawAmount > 0, "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT");
         if (msg.sender != trader) {
@@ -113,15 +118,15 @@ contract Margin is IMargin, IVault, Reentrant {
         }
 
         traderPosition.baseSize = traderPosition.baseSize - uncoverAfterFundingFee;
-        //tocheck need check marginRatio?
-        // require(
-        //     _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= IConfig(config).initMarginRatio(),
-        //     "initMarginRatio"
-        // );
 
         traderPositionMap[trader] = traderPosition;
         traderCPF[trader] = _latestCPF;
-        _withdraw(trader, trader, withdrawAmount);
+        if (preferETH) {
+            require(baseToken == IConfig(config).WETH(), "Margin.removeMargin: INVALID_BASE_TOKEN");
+            _withdrawETH(trader, payable(trader), withdrawAmount);
+        } else {
+            _withdraw(trader, trader, withdrawAmount);
+        }
 
         emit RemoveMargin(trader, withdrawAmount, fundingFee, withdrawAmountFromMargin, traderPosition);
     }
@@ -397,6 +402,20 @@ contract Margin is IMargin, IVault, Reentrant {
         require(amount <= reserve, "Margin._withdraw: NOT_ENOUGH_RESERVE");
         reserve = reserve - amount;
         IERC20(baseToken).transfer(receiver, amount);
+
+        emit Withdraw(user, receiver, amount);
+    }
+
+    function _withdrawETH(
+        address user,
+        address payable receiver,
+        uint256 amount
+    ) internal {
+        //tocheck can remove this following two require?
+        require(amount > 0, "Margin._withdraw: AMOUNT_IS_ZERO");
+        require(amount <= reserve, "Margin._withdraw: NOT_ENOUGH_RESERVE");
+        reserve = reserve - amount;
+        IWETH(baseToken).withdrawTo(receiver, amount);
 
         emit Withdraw(user, receiver, amount);
     }
