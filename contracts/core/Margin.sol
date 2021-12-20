@@ -66,8 +66,8 @@ contract Margin is IMargin, IVault, Reentrant {
     //remove baseToken from trader's fundingFee+unrealizedPnl+margin, remain position need to meet the requirement of initMarginRatio
     function removeMargin(
         address trader,
-        uint256 withdrawAmount,
-        bool preferETH
+        address to,
+        uint256 withdrawAmount
     ) external override nonReentrant {
         //tocheck can remove this require?
         require(withdrawAmount > 0, "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT");
@@ -121,14 +121,9 @@ contract Margin is IMargin, IVault, Reentrant {
 
         traderPositionMap[trader] = traderPosition;
         traderCPF[trader] = _latestCPF;
-        if (preferETH) {
-            require(baseToken == IConfig(config).WETH(), "Margin.removeMargin: INVALID_BASE_TOKEN");
-            _withdrawETH(trader, payable(trader), withdrawAmount);
-        } else {
-            _withdraw(trader, trader, withdrawAmount);
-        }
+        _withdraw(trader, to, withdrawAmount);
 
-        emit RemoveMargin(trader, withdrawAmount, fundingFee, withdrawAmountFromMargin, traderPosition);
+        emit RemoveMargin(trader, to, withdrawAmount, fundingFee, withdrawAmountFromMargin, traderPosition);
     }
 
     function openPosition(
@@ -402,20 +397,6 @@ contract Margin is IMargin, IVault, Reentrant {
         require(amount <= reserve, "Margin._withdraw: NOT_ENOUGH_RESERVE");
         reserve = reserve - amount;
         IERC20(baseToken).transfer(receiver, amount);
-
-        emit Withdraw(user, receiver, amount);
-    }
-
-    function _withdrawETH(
-        address user,
-        address payable receiver,
-        uint256 amount
-    ) internal {
-        //tocheck can remove this following two require?
-        require(amount > 0, "Margin._withdraw: AMOUNT_IS_ZERO");
-        require(amount <= reserve, "Margin._withdraw: NOT_ENOUGH_RESERVE");
-        reserve = reserve - amount;
-        IWETH(baseToken).withdrawTo(receiver, amount);
 
         emit Withdraw(user, receiver, amount);
     }

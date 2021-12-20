@@ -26,12 +26,12 @@ contract MockRouter {
     }
 
     function removeMargin(uint256 _amount) external {
-        margin.removeMargin(msg.sender, _amount, false);
+        margin.removeMargin(msg.sender, msg.sender, _amount);
     }
 
     function withdrawETH(address quoteToken, uint256 amount) external {
-        margin.removeMargin(msg.sender, amount);
-        IWETH(WETH).withdrawTo(msg.sender, amount);
+        margin.removeMargin(msg.sender, msg.sender, amount);
+        IWETH(WETH).withdraw(amount);
     }
 
     function closePositionETH(
@@ -44,8 +44,8 @@ contract MockRouter {
         if (autoWithdraw) {
             withdrawAmount = margin.getWithdrawable(msg.sender);
             if (withdrawAmount > 0) {
-                margin.removeMargin(msg.sender, withdrawAmount);
-                IWETH(WETH).withdrawTo(msg.sender, withdrawAmount);
+                margin.removeMargin(msg.sender, msg.sender, withdrawAmount);
+                IWETH(WETH).withdraw(withdrawAmount);
             }
         }
     }

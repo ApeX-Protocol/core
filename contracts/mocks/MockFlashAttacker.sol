@@ -54,7 +54,7 @@ contract MockFlashAttacker is IERC3156FlashBorrower {
             IERC20(_token).transfer(address(margin), flashData.baseAmount);
             margin.addMargin(address(this), flashData.baseAmount);
             margin.openPosition(address(this), long, flashData.baseAmount * 2);
-            margin.removeMargin(address(this), 1, false);
+            margin.removeMargin(address(this), address(this), 1);
         }
 
         IERC20(_token).approve(address(_token), _amount + _fee);

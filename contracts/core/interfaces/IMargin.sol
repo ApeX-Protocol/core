@@ -11,6 +11,7 @@ interface IMargin {
     event AddMargin(address indexed trader, uint256 depositAmount, Position position);
     event RemoveMargin(
         address indexed trader,
+        address indexed to,
         uint256 withdrawAmount,
         int256 fundingFee,
         uint256 withdrawAmountFromMargin,
@@ -53,8 +54,8 @@ interface IMargin {
     /// @param withdrawAmount base amount to withdraw.
     function removeMargin(
         address trader,
-        uint256 withdrawAmount,
-        bool preferETH
+        address to,
+        uint256 withdrawAmount
     ) external;
 
     /// @notice open position with side and quoteAmount by msg.sender

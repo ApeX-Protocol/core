@@ -9,8 +9,6 @@ import "../utils/Ownable.sol";
 //config is upgradable proxy, contains configurations of core contracts
 contract Config is IConfig, Ownable, Initializable {
     address public override priceOracle;
-    //arbitrum mainnet 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1
-    address public override WETH;
 
     uint8 public override beta; // 50-200
     uint256 public override maxCPFBoost; // default 10
@@ -25,10 +23,6 @@ contract Config is IConfig, Ownable, Initializable {
 
     function initialize(address owner_) public initializer {
         owner = owner_;
-    }
-
-    function setWETH(address weth) external override onlyOwner {
-        WETH = weth;
     }
 
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external override onlyOwner {

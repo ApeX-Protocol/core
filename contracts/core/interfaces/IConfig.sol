@@ -17,8 +17,6 @@ interface IConfig {
     /// @notice get price oracle address.
     function priceOracle() external view returns (address);
 
-    function WETH() external view returns (address);
-
     /// @notice get beta of amm.
     function beta() external view returns (uint8);
 
@@ -82,6 +80,4 @@ interface IConfig {
     function setFeeParameter(uint256 newFeeParameter) external;
 
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
-
-    function setWETH(address weth) external;
 }
