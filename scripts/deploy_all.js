@@ -54,12 +54,12 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   // await createApeXToken();
-  await createPriceOracle();
+  // await createPriceOracle();
   await createConfig();
   await createPairFactory();
-  await createPCVTreasury();
+  // await createPCVTreasury();
   await createRouter();
-  await createBondPoolFactory();
+  // await createBondPoolFactory();
   // await createStakingPoolFactory();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -95,11 +95,11 @@ async function createConfig() {
   console.log("Config:", config.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, config.address);
 
-  // if (priceOracle == null) {
-  //   let priceOracleAddress = "0x6fbe1c378Df494b5F66dd03491aA504d963eaD14";
-  //   const PriceOracle = await ethers.getContractFactory("PriceOracle");
-  //   priceOracle = await PriceOracle.attach(priceOracleAddress);
-  // }
+  if (priceOracle == null) {
+    let priceOracleAddress = "0x15C20c6c673c3B2244b465FC7736eAA0E8bd6DF6";
+    const PriceOracle = await ethers.getContractFactory("PriceOracle");
+    priceOracle = await PriceOracle.attach(priceOracleAddress);
+  }
   await config.setPriceOracle(priceOracle.address);
   await config.setBeta(beta);
   await config.setInitMarginRatio(initMarginRatio);
@@ -112,11 +112,11 @@ async function createConfig() {
 }
 
 async function createPairFactory() {
-  if (config == null) {
-    let configAddress = "0x7c51aB9Fa824857B688286eB75C86259E9b26eD0";
-    const Config = await ethers.getContractFactory("Config");
-    config = await Config.attach(configAddress);
-  }
+  // if (config == null) {
+  //   let configAddress = "0x7c51aB9Fa824857B688286eB75C86259E9b26eD0";
+  //   const Config = await ethers.getContractFactory("Config");
+  //   config = await Config.attach(configAddress);
+  // }
 
   const PairFactory = await ethers.getContractFactory("PairFactory");
   const AmmFactory = await ethers.getContractFactory("AmmFactory");
