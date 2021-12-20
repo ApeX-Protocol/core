@@ -148,10 +148,9 @@ describe("Margin contract", function () {
     });
 
     it("remove correct margin eth", async function () {
-      await config.setWETH(mockBaseToken.address);
       await mockBaseToken.deposit({ value: 2000000000 });
       let oldEthBalance = await mockBaseToken.ethBalance();
-      await margin.removeMargin(owner.address, routerAllowance, true);
+      await mockRouter.withdrawETH(mockQuoteToken.address, routerAllowance);
       expect(await mockBaseToken.ethBalance()).to.be.equal(oldEthBalance - routerAllowance);
     });
 

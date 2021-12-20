@@ -118,11 +118,6 @@ contract Margin is IMargin, IVault, Reentrant {
         }
 
         traderPosition.baseSize = traderPosition.baseSize - uncoverAfterFundingFee;
-        //tocheck need check marginRatio?
-        // require(
-        //     _calMarginRatio(traderPosition.quoteSize, traderPosition.baseSize) >= IConfig(config).initMarginRatio(),
-        //     "initMarginRatio"
-        // );
 
         traderPositionMap[trader] = traderPosition;
         traderCPF[trader] = _latestCPF;
