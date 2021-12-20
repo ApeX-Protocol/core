@@ -13,7 +13,22 @@ contract MockToken is ERC20, ERC20FlashMint {
         return amount / 10;
     }
 
+    receive() external payable {}
+
+    function deposit() external payable {
+        _mint(msg.sender, msg.value);
+    }
+
+    function withdrawTo(address receiver, uint256 amount) external payable {
+        _burn(msg.sender, msg.value);
+        payable(receiver).transfer(amount);
+    }
+
     function mint(address account, uint256 amount) external {
         _mint(account, amount);
+    }
+
+    function ethBalance() external view returns (uint256) {
+        return address(this).balance;
     }
 }

@@ -22,7 +22,14 @@ interface IRouter {
         uint256 quoteAmountMin,
         uint256 deadline,
         bool pcv
-    ) external payable returns (uint256 ethAmount, uint256 quoteAmount, uint256 liquidity);
+    )
+        external
+        payable
+        returns (
+            uint256 ethAmount,
+            uint256 quoteAmount,
+            uint256 liquidity
+        );
 
     function removeLiquidity(
         address baseToken,
@@ -46,12 +53,15 @@ interface IRouter {
         uint256 amount
     ) external;
 
-    function depositETH(
-        address quoteToken,
-        address holder
-    ) external payable;
+    function depositETH(address quoteToken, address holder) external payable;
 
     function withdraw(
+        address baseToken,
+        address quoteToken,
+        uint256 amount
+    ) external;
+
+    function withdrawETH(
         address baseToken,
         address quoteToken,
         uint256 amount
@@ -85,6 +95,14 @@ interface IRouter {
     ) external returns (uint256 baseAmount);
 
     function closePosition(
+        address baseToken,
+        address quoteToken,
+        uint256 quoteAmount,
+        uint256 deadline,
+        bool autoWithdraw
+    ) external returns (uint256 baseAmount, uint256 withdrawAmount);
+
+    function closePositionETH(
         address baseToken,
         address quoteToken,
         uint256 quoteAmount,

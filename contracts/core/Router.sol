@@ -61,7 +61,17 @@ contract Router is IRouter {
         uint256 quoteAmountMin,
         uint256 deadline,
         bool pcv
-    ) external payable override ensure(deadline) returns (uint ethAmount, uint quoteAmount, uint liquidity) {
+    )
+        external
+        payable
+        override
+        ensure(deadline)
+        returns (
+            uint256 ethAmount,
+            uint256 quoteAmount,
+            uint256 liquidity
+        )
+    {
         address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(WETH, quoteToken);
@@ -118,10 +128,7 @@ contract Router is IRouter {
         IMargin(margin).addMargin(holder, amount);
     }
 
-    function depositETH(
-        address quoteToken,
-        address holder
-    ) external payable override {
+    function depositETH(address quoteToken, address holder) external payable override {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.depositETH: NOT_FOUND_MARGIN");
         uint256 amount = msg.value;
@@ -137,7 +144,17 @@ contract Router is IRouter {
     ) external override {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
-        IMargin(margin).removeMargin(msg.sender, amount);
+        IMargin(margin).removeMargin(msg.sender, amount, false);
+    }
+
+    function withdrawETH(
+        address baseToken,
+        address quoteToken,
+        uint256 amount
+    ) external override {
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
+        require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
+        IMargin(margin).removeMargin(msg.sender, amount, true);
     }
 
     function openPositionWithWallet(
@@ -216,7 +233,25 @@ contract Router is IRouter {
         if (autoWithdraw) {
             withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
             if (withdrawAmount > 0) {
-                IMargin(margin).removeMargin(msg.sender, withdrawAmount);
+                IMargin(margin).removeMargin(msg.sender, withdrawAmount, false);
+            }
+        }
+    }
+
+    function closePositionETH(
+        address baseToken,
+        address quoteToken,
+        uint256 quoteAmount,
+        uint256 deadline,
+        bool autoWithdraw
+    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
+        require(margin != address(0), "Router.closePositionETH: NOT_FOUND_MARGIN");
+        baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+        if (autoWithdraw) {
+            withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
+            if (withdrawAmount > 0) {
+                IMargin(margin).removeMargin(msg.sender, withdrawAmount, true);
             }
         }
     }

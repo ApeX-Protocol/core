@@ -51,7 +51,11 @@ interface IMargin {
 
     /// @notice remove margin to msg.sender
     /// @param withdrawAmount base amount to withdraw.
-    function removeMargin(address trader, uint256 withdrawAmount) external;
+    function removeMargin(
+        address trader,
+        uint256 withdrawAmount,
+        bool preferETH
+    ) external;
 
     /// @notice open position with side and quoteAmount by msg.sender
     /// @param side long or short.
