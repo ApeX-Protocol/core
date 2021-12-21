@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: Unlicense
-
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 interface IStakingPool {
@@ -18,9 +17,18 @@ interface IStakingPool {
         Deposit[] deposits;
     }
 
-    event Staked(address indexed by, address indexed from, uint256 amount);
+    event Staked(address indexed to, uint256 amount, uint256 lockFrom, uint256 lockUntil);
 
-    event YieldClaimed(address indexed by, address indexed to, uint256 amount);
+    event YieldClaimed(address indexed by, address indexed to, uint256 amount, uint256 lockFrom, uint256 lockUntil);
+
+    event StakeAsPool(
+        address indexed by,
+        address indexed to,
+        uint256 amountStakedAsPool,
+        uint256 yieldAmount,
+        uint256 lockFrom,
+        uint256 lockUntil
+    );
 
     event Synchronized(address indexed by, uint256 yieldRewardsPerWeight, uint256 lastYieldDistribution);
 

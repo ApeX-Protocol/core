@@ -1,9 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 /// @title The interface for a bond pool factory
 /// @notice For create bond pool
 interface IBondPoolFactory {
     event BondPoolCreated(address indexed amm, address indexed pool);
+
+    function setPriceOracle(address newOracle) external;
 
     function updateParams(
         uint256 maxPayout_,
@@ -24,6 +27,8 @@ interface IBondPoolFactory {
     function discount() external view returns (uint256);
 
     function vestingTerm() external view returns (uint256);
+
+    function getPool(address amm) external view returns (address);
 
     function allPools(uint256) external view returns (address);
 

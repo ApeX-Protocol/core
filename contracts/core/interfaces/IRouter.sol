@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: Unlicense
-
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 interface IRouter {
@@ -23,7 +22,14 @@ interface IRouter {
         uint256 quoteAmountMin,
         uint256 deadline,
         bool pcv
-    ) external payable returns (uint256 ethAmount, uint256 quoteAmount, uint256 liquidity);
+    )
+        external
+        payable
+        returns (
+            uint256 ethAmount,
+            uint256 quoteAmount,
+            uint256 liquidity
+        );
 
     function removeLiquidity(
         address baseToken,
@@ -47,10 +53,7 @@ interface IRouter {
         uint256 amount
     ) external;
 
-    function depositETH(
-        address quoteToken,
-        address holder
-    ) external payable;
+    function depositETH(address quoteToken, address holder) external payable;
 
     function withdraw(
         address baseToken,
@@ -58,10 +61,7 @@ interface IRouter {
         uint256 amount
     ) external;
 
-    function withdrawETH(
-        address quoteToken,
-        uint256 amount
-    ) external;
+    function withdrawETH(address quoteToken, uint256 amount) external;
 
     function openPositionWithWallet(
         address baseToken,

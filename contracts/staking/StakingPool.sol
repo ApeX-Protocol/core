@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 import "./interfaces/IStakingPool.sol";
@@ -70,7 +70,7 @@ contract StakingPool is IStakingPool, Reentrant {
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight += stakeWeight;
 
-        emit Staked(msg.sender, _staker, _amount);
+        emit Staked(_staker, _amount, lockFrom, _lockUntil);
     }
 
     function unstakeBatch(uint256[] memory _depositIds, uint256[] memory _amounts) external override {
@@ -145,19 +145,22 @@ contract StakingPool is IStakingPool, Reentrant {
         uint256 yieldAmount = _amount + pendingYield;
         uint256 yieldWeight = yieldAmount * MAX_TIME_STAKE_WEIGHT_MULTIPLIER;
         uint256 now256 = block.timestamp;
+        uint256 lockUntil = now256 + factory.yieldLockTime();
         Deposit memory newDeposit = Deposit({
             amount: yieldAmount,
             weight: yieldWeight,
             lockFrom: now256,
-            lockUntil: now256 + factory.yieldLockTime(),
+            lockUntil: lockUntil,
             isYield: true
         });
         user.deposits.push(newDeposit);
 
         user.tokenAmount += yieldAmount;
         user.totalWeight += yieldWeight;
-        usersLockingWeight += yieldWeight;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
+        usersLockingWeight += yieldWeight;
+
+        emit StakeAsPool(msg.sender, _staker, _amount, yieldAmount, now256, lockUntil);
     }
 
     //only can extend lock time
@@ -186,6 +189,7 @@ contract StakingPool is IStakingPool, Reentrant {
         stakeDeposit.weight = newWeight;
         user.totalWeight = user.totalWeight - previousWeight + newWeight;
         usersLockingWeight = usersLockingWeight - previousWeight + newWeight;
+
         emit UpdateStakeLock(_staker, _depositId, stakeDeposit.lockFrom, _lockUntil);
     }
 
@@ -234,23 +238,23 @@ contract StakingPool is IStakingPool, Reentrant {
         if (poolToken == apex) {
             uint256 yieldWeight = yieldAmount * MAX_TIME_STAKE_WEIGHT_MULTIPLIER;
             uint256 now256 = block.timestamp;
+            uint256 lockUntil = now256 + factory.yieldLockTime();
             Deposit memory newDeposit = Deposit({
                 amount: yieldAmount,
                 weight: yieldWeight,
                 lockFrom: now256,
-                lockUntil: now256 + factory.yieldLockTime(),
+                lockUntil: lockUntil,
                 isYield: true
             });
             user.deposits.push(newDeposit);
             user.tokenAmount += yieldAmount;
             user.totalWeight += yieldWeight;
             usersLockingWeight += yieldWeight;
+            emit YieldClaimed(_staker, _staker, yieldAmount, now256, lockUntil);
         } else {
             address apexStakingPool = factory.getPoolAddress(apex);
             IStakingPool(apexStakingPool).stakeAsPool(_staker, yieldAmount);
         }
-
-        emit YieldClaimed(_staker, _staker, yieldAmount);
     }
 
     function pendingYieldRewards(address _staker) external view returns (uint256 pending) {

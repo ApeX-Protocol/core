@@ -1,8 +1,10 @@
 const { expect } = require("chai");
+const { BigNumber } = require("@ethersproject/bignumber");
 
 describe("Router contract", function () {
   let owner;
   let treasury;
+  let weth;
   let router;
   let priceOracle;
   let apeXToken;
@@ -13,7 +15,7 @@ describe("Router contract", function () {
     [owner, treasury] = await ethers.getSigners();
 
     const MockWETH = await ethers.getContractFactory("MockWETH");
-    let weth = await MockWETH.deploy();
+    weth = await MockWETH.deploy();
 
     const MockToken = await ethers.getContractFactory("MockToken");
     apeXToken = await MockToken.deploy("ApeX Token", "APEX");
@@ -28,6 +30,7 @@ describe("Router contract", function () {
     priceOracle = await PriceOracle.deploy();
     await priceOracle.setReserve(baseToken.address, apeXToken.address, 10000000, 20000000);
     await priceOracle.setReserve(baseToken.address, quoteToken.address, 10000000, 20000000);
+    await priceOracle.setReserve(weth.address, quoteToken.address, 10000000, 20000000);
     await config.setPriceOracle(priceOracle.address);
 
     const PairFactory = await ethers.getContractFactory("PairFactory");
@@ -60,15 +63,17 @@ describe("Router contract", function () {
 
   describe("addLiquidityETH", function () {
     it("addLiquidityETH without pcv", async function () {
-      await baseToken.mint(owner.address, 1000000);
-      await baseToken.approve(router.address, 1000000);
-      expect(await router.addLiquidityETH(quoteToken.address, 1, 9999999999, false));
+      let overrides = {
+        value: ethers.utils.parseEther("1"),
+      };
+      expect(await router.addLiquidityETH(quoteToken.address, 1, 9999999999, false, overrides));
     });
 
     it("addLiquidity with pcv", async function () {
-      await baseToken.mint(owner.address, 1000000);
-      await baseToken.approve(router.address, 1000000);
-      expect(await router.addLiquidityETH(quoteToken.address, 1, 9999999999, true));
+      let overrides = {
+        value: ethers.utils.parseEther("1"),
+      };
+      expect(await router.addLiquidityETH(quoteToken.address, 1, 9999999999, true, overrides));
     });
   });
 
@@ -87,12 +92,38 @@ describe("Router contract", function () {
     });
   });
 
+  describe("removeLiquidityETH", function () {
+    it("removeLiquidityETH right", async function () {
+      let overrides = {
+        value: ethers.utils.parseEther("1"),
+      };
+      expect(await router.addLiquidityETH(quoteToken.address, 1, 9999999999, false, overrides));
+
+      let ammAddress = await pairFactory.getAmm(weth.address, quoteToken.address);
+      const Amm = await ethers.getContractFactory("Amm");
+      let amm = await Amm.attach(ammAddress);
+      let liquidity = await amm.balanceOf(owner.address);
+      await amm.approve(router.address, BigNumber.from(liquidity));
+      await router.removeLiquidityETH(quoteToken.address, BigNumber.from(liquidity), 1, 9999999999);
+    });
+  });
+
   describe("deposit", function () {
     it("deposit right", async function () {
       await baseToken.mint(owner.address, 1000000);
       await baseToken.approve(router.address, 1000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 1000, 1, 9999999999, false);
       await router.deposit(baseToken.address, quoteToken.address, owner.address, 1000);
+    });
+  });
+
+  describe("depositETH", function () {
+    it("depositETH right", async function () {
+      let overrides = {
+        value: ethers.utils.parseEther("1"),
+      };
+      expect(await router.addLiquidityETH(quoteToken.address, 1, 9999999999, false, overrides));
+      await router.depositETH(quoteToken.address, owner.address, overrides);
     });
   });
 
@@ -137,6 +168,24 @@ describe("Router contract", function () {
       await baseToken.approve(router.address, 1000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 10000, 1, 9999999999, false);
       await router.openPositionWithWallet(baseToken.address, quoteToken.address, 1, 1000, 10000, 10000000, 9999999999);
+    });
+  });
+
+  describe("openPositionETHWithWallet", function () {
+    it("openPositionETHWithWallet open long", async function () {
+      let overrides = {
+        value: ethers.utils.parseEther("1"),
+      };
+      expect(await router.addLiquidityETH(quoteToken.address, 1, 9999999999, false, overrides));
+      await router.openPositionETHWithWallet(quoteToken.address, 0, 10000, 1, 9999999999, overrides);
+    });
+
+    it("openPositionETHWithWallet open short", async function () {
+      let overrides = {
+        value: ethers.utils.parseEther("1"),
+      };
+      expect(await router.addLiquidityETH(quoteToken.address, 1, 9999999999, false, overrides));
+      await router.openPositionETHWithWallet(quoteToken.address, 1, 10000, 10000000, 9999999999, overrides);
     });
   });
 

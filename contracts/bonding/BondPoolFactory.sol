@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 import "./BondPool.sol";
@@ -7,12 +8,14 @@ import "../utils/Ownable.sol";
 contract BondPoolFactory is IBondPoolFactory, Ownable {
     address public immutable override apeXToken;
     address public immutable override treasury;
-    address public immutable override priceOracle;
+    address public override priceOracle;
     uint256 public override maxPayout;
     uint256 public override discount; // [0, 10000]
     uint256 public override vestingTerm;
 
     address[] public override allPools;
+    // amm => pool
+    mapping(address => address) public override getPool;
 
     constructor(
         address apeXToken_,
@@ -31,6 +34,11 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         vestingTerm = vestingTerm_;
     }
 
+    function setPriceOracle(address newOracle) external override {
+        require(newOracle != address(0), "BondPoolFactory.setPriceOracle: ZERO_ADDRESS");
+        priceOracle = newOracle;
+    }
+
     function updateParams(
         uint256 maxPayout_,
         uint256 discount_,
@@ -44,7 +52,9 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
     }
 
     function createPool(address amm) external override onlyOwner returns (address) {
+        require(getPool[amm] == address(0), "BondPoolFactory.createPool: POOL_EXIST");
         address pool = address(new BondPool(apeXToken, treasury, priceOracle, amm, maxPayout, discount, vestingTerm));
+        getPool[amm] = pool;
         allPools.push(pool);
         emit BondPoolCreated(amm, pool);
         return pool;

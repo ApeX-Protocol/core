@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 import "./interfaces/IERC20.sol";
@@ -115,30 +116,32 @@ contract PriceOracle is IPriceOracle {
 
     //@notice the price is transformed. example: 1eth = 2000usdt, price = 2000*1e18
     function getMarkPrice(address amm) public view override returns (uint256 price) {
+        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
         uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
         uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
         uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
-        uint256 lastPriceX112 = IAmm(amm).lastPrice();
-        price = FullMath.mulDiv(exponent, lastPriceX112, 2**112);
+        price = FullMath.mulDiv(exponent, quoteReserve, baseReserve);
     }
 
-    // get user's mark price, it's for checking if user's position can be liquidated.
-    // markPriceAcc = markPrice * (1 +/- (2 * beta * quoteAmount)/quoteReserve)
-    // the result price is scaled by 1e18.
+    // get user's mark price, return base amount, it's for checking if user's position can be liquidated.
+    // price = ( sqrt(y/x) +/- beta * quoteAmount / sqrt(x*y) )**2 = (y +/- beta * quoteAmount)**2 / x*y
+    // baseAmount = quoteAmount / price = quoteAmount * x * y / (y +/- beta * quoteAmount)**2
     function getMarkPriceAcc(
         address amm,
         uint8 beta,
         uint256 quoteAmount,
         bool negative
-    ) public view override returns (uint256 price) {
-        (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        uint256 markPrice = getMarkPrice(amm);
-        uint256 delta = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
+    ) public view override returns (uint256 baseAmount) {
+        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+        uint256 rvalue = quoteAmount * beta / 100;
+        uint256 denominator;
         if (negative) {
-            price = markPrice - delta;
+            denominator = quoteReserve - rvalue;
         } else {
-            price = markPrice + delta;
+            denominator = quoteReserve + rvalue;
         }
+        denominator = denominator * denominator;
+        baseAmount = FullMath.mulDiv(quoteAmount, uint256(baseReserve) * quoteReserve, denominator);
     }
 
     //premiumFraction is (markPrice - indexPrice) / 8h / indexPrice, scale by 1e18

@@ -1,5 +1,4 @@
-//SPDX-License-Identifier: UNLICENSED
-
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 import "./interfaces/IRouter.sol";
@@ -62,7 +61,17 @@ contract Router is IRouter {
         uint256 quoteAmountMin,
         uint256 deadline,
         bool pcv
-    ) external payable override ensure(deadline) returns (uint ethAmount, uint quoteAmount, uint liquidity) {
+    )
+        external
+        payable
+        override
+        ensure(deadline)
+        returns (
+            uint256 ethAmount,
+            uint256 quoteAmount,
+            uint256 liquidity
+        )
+    {
         address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(WETH, quoteToken);
@@ -70,7 +79,7 @@ contract Router is IRouter {
 
         ethAmount = msg.value;
         IWETH(WETH).deposit{value: ethAmount}();
-        TransferHelper.safeTransferETH(amm, ethAmount);
+        assert(IWETH(WETH).transfer(amm, ethAmount));
         if (pcv) {
             (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
             TransferHelper.safeTransfer(amm, pcvTreasury, liquidity);
@@ -119,15 +128,12 @@ contract Router is IRouter {
         IMargin(margin).addMargin(holder, amount);
     }
 
-    function depositETH(
-        address quoteToken,
-        address holder
-    ) external payable override {
+    function depositETH(address quoteToken, address holder) external payable override {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.depositETH: NOT_FOUND_MARGIN");
         uint256 amount = msg.value;
         IWETH(WETH).deposit{value: amount}();
-        TransferHelper.safeTransferETH(margin, amount);
+        assert(IWETH(WETH).transfer(margin, amount));
         IMargin(margin).addMargin(holder, amount);
     }
 
@@ -138,16 +144,13 @@ contract Router is IRouter {
     ) external override {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
-        IMargin(margin).removeMargin(msg.sender, amount);
+        IMargin(margin).removeMargin(msg.sender, msg.sender, amount);
     }
 
-    function withdrawETH(
-        address quoteToken,
-        uint256 amount
-    ) external override {
+    function withdrawETH(address quoteToken, uint256 amount) external override {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
-        require(margin != address(0), "Router.withdrawETH: NOT_FOUND_MARGIN");
-        IMargin(margin).removeMargin(address(this), amount);
+        require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
+        IMargin(margin).removeMargin(msg.sender, address(this), amount);
         IWETH(WETH).withdraw(amount);
         TransferHelper.safeTransferETH(msg.sender, amount);
     }
@@ -186,7 +189,7 @@ contract Router is IRouter {
         require(side == 0 || side == 1, "Router.openPositionETHWithWallet: INSUFFICIENT_SIDE");
         uint256 marginAmount = msg.value;
         IWETH(WETH).deposit{value: marginAmount}();
-        TransferHelper.safeTransferETH(margin, marginAmount);
+        assert(IWETH(WETH).transfer(margin, marginAmount));
         IMargin(margin).addMargin(msg.sender, marginAmount);
         baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
@@ -228,7 +231,7 @@ contract Router is IRouter {
         if (autoWithdraw) {
             withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
             if (withdrawAmount > 0) {
-                IMargin(margin).removeMargin(msg.sender, withdrawAmount);
+                IMargin(margin).removeMargin(msg.sender, msg.sender, withdrawAmount);
             }
         }
     }
@@ -241,10 +244,9 @@ contract Router is IRouter {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.closePositionETH: NOT_FOUND_MARGIN");
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
-
         withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
         if (withdrawAmount > 0) {
-            IMargin(margin).removeMargin(address(this), withdrawAmount);
+            IMargin(margin).removeMargin(msg.sender, address(this), withdrawAmount);
             IWETH(WETH).withdraw(withdrawAmount);
             TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
         }

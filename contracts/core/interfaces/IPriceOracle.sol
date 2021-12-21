@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: Unlicense
-
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 interface IPriceOracle {
@@ -18,7 +17,7 @@ interface IPriceOracle {
         uint8 beta,
         uint256 quoteAmount,
         bool negative
-    ) external view returns (uint256 price);
+    ) external view returns (uint256 baseAmount);
 
     function getPremiumFraction(address amm) external view returns (int256);
 }

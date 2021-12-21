@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
 import "./interfaces/IBondPool.sol";
@@ -12,11 +13,12 @@ import "../utils/Ownable.sol";
 contract BondPool is IBondPool, Ownable {
     address public immutable override apeXToken;
     address public immutable override treasury;
-    address public immutable override priceOracle;
     address public immutable override amm;
+    address public override priceOracle;
     uint256 public override maxPayout;
     uint256 public override discount; // [0, 10000]
     uint256 public override vestingTerm; // in seconds
+    bool public override bondPaused;
 
     mapping(address => Bond) private bondInfo; // stores bond information for depositor
 
@@ -45,6 +47,17 @@ contract BondPool is IBondPool, Ownable {
         vestingTerm = vestingTerm_;
     }
 
+    function setBondPaused(bool state) external override onlyOwner {
+        bondPaused = state;
+        emit BondPaused(state);
+    }
+
+    function setPriceOracle(address newOracle) external override onlyOwner {
+        require(newOracle != address(0), "BondPool.setPriceOracle: ZERO_ADDRESS");
+        emit PriceOracleChanged(priceOracle, newOracle);
+        priceOracle = newOracle;
+    }
+
     function setMaxPayout(uint256 maxPayout_) external override onlyOwner {
         emit MaxPayoutChanged(maxPayout, maxPayout_);
         maxPayout = maxPayout_;
@@ -67,6 +80,7 @@ contract BondPool is IBondPool, Ownable {
         uint256 depositAmount,
         uint256 minPayout
     ) external override returns (uint256 payout) {
+        require(!bondPaused, "BondPool.deposit: BOND_PAUSED");
         require(depositor != address(0), "BondPool.deposit: ZERO_ADDRESS");
         require(depositAmount > 0, "BondPool.deposit: ZERO_AMOUNT");
 
