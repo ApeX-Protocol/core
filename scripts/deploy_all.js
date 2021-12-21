@@ -7,15 +7,6 @@ const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // Uniswa
 const v2FactoryAddress = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"; // SushiV2Factory address
 const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mock WETH
 
-// for Config
-const beta = 100;
-const initMarginRatio = 800;
-const liquidateThreshold = 10000;
-const liquidateFeeRatio = 100;
-const rebasePriceGap = 5;
-const feeParameter = 150;
-const maxCPFBoost = 10;
-const tradingSlippage = 5;
 // transfer to pcvTreasury
 const apeXAmountForBonding = 1000000000;
 // for BondPoolFactory
@@ -91,7 +82,7 @@ async function createPriceOracle() {
 
 async function createConfig() {
   const Config = await ethers.getContractFactory("Config");
-  config = await upgrades.deployProxy(Config, [signer]);
+  config = await Config.deploy();
   console.log("Config:", config.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, config.address);
 
@@ -101,14 +92,6 @@ async function createConfig() {
     priceOracle = await PriceOracle.attach(priceOracleAddress);
   }
   await config.setPriceOracle(priceOracle.address);
-  await config.setBeta(beta);
-  await config.setInitMarginRatio(initMarginRatio);
-  await config.setLiquidateThreshold(liquidateThreshold);
-  await config.setLiquidateFeeRatio(liquidateFeeRatio);
-  await config.setRebasePriceGap(rebasePriceGap);
-  await config.setFeeParameter(feeParameter);
-  await config.setMaxCPFBoost(maxCPFBoost);
-  await config.setTradingSlippage(tradingSlippage);
 }
 
 async function createPairFactory() {

@@ -3,26 +3,25 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IERC20.sol";
 import "./interfaces/IConfig.sol";
-import "../utils/Initializable.sol";
 import "../utils/Ownable.sol";
 
 //config is upgradable proxy, contains configurations of core contracts
-contract Config is IConfig, Ownable, Initializable {
+contract Config is IConfig, Ownable {
     address public override priceOracle;
 
-    uint8 public override beta; // 50-200
-    uint256 public override maxCPFBoost; // default 10
-    uint256 public override rebasePriceGap; //0-100 , if 5 means 5%
-    uint256 public override tradingSlippage; //0-100, if 5 means 5%
-    uint256 public override initMarginRatio; //if 1000, means margin ratio >= 10%
-    uint256 public override liquidateThreshold; //if 10000, means debt ratio < 100%
-    uint256 public override liquidateFeeRatio; //if 100, means liquidator bot get 1% as fee
-    uint256 public override feeParameter; // 100 * (1/fee -1)
+    uint8 public override beta = 100; // 50-200
+    uint256 public override maxCPFBoost = 10; // default 10
+    uint256 public override rebasePriceGap = 5; //0-100 , if 5 means 5%
+    uint256 public override tradingSlippage = 5; //0-100, if 5 means 5%
+    uint256 public override initMarginRatio = 800; //if 1000, means margin ratio >= 10%
+    uint256 public override liquidateThreshold = 10000; //if 10000, means debt ratio < 100%
+    uint256 public override liquidateFeeRatio = 100; //if 100, means liquidator bot get 1% as fee
+    uint256 public override feeParameter = 150; // 100 * (1/fee -1)
 
     mapping(address => bool) public override routerMap;
 
-    function initialize(address owner_) public initializer {
-        owner = owner_;
+    constructor() {
+        owner = msg.sender;
     }
 
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external override onlyOwner {
