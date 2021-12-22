@@ -36,6 +36,7 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
 
     function setPriceOracle(address newOracle) external override {
         require(newOracle != address(0), "BondPoolFactory.setPriceOracle: ZERO_ADDRESS");
+        emit PriceOracleUpdated(priceOracle, newOracle);
         priceOracle = newOracle;
     }
 
