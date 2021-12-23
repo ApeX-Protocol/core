@@ -7,11 +7,11 @@ let slpToken;
 let stakingPoolFactory;
 let apexPool;
 let slpPool;
-let stakingPoolFactoryAddress = "0xDDA0Da554f315CBB700d1bdB7eE2a12BD259825c";
-let apexTokenAddress = "0x8d222C30b1d7Fa358C634116469254a7c47C2d86";
-let slpTokenAddress = "0x8590F91eAD712311cc315F1A13115974e3423615";
-let apexPoolAddress = "0xf38f57f43F8134ece3F007a05Eb733a68c5d04D8";
-let slpPoolAddress = "0x8F655495545171D434922D91a0c05E6A49D888df";
+let stakingPoolFactoryAddress = "0xd0741e5d5545810900EdE1226870b06DC3eB19b5";
+let apexTokenAddress = "0xa591d5Bd798424a982543B18b84EA1591d51D6bA";
+let slpTokenAddress = "0xF2707e5286f2204484f6151D3D13bEBEc09D846c";
+let apexPoolAddress = "0xC2873E9Aa78dC479Ba2d1f33dc99f159Facd4134";
+let slpPoolAddress = "0x26561489fc18f25C71fc25611B18F79c6E3E16b8";
 
 const main = async () => {
   // await createContracts();
@@ -64,9 +64,14 @@ async function flow() {
   slpPool = await StakingPool.attach(slpPoolAddress);
 
   apexToken = await MockToken.attach(apexTokenAddress);
+  slpToken = await MockToken.attach(slpTokenAddress);
 
-  // await stakingPoolFactory.changePoolWeight(apexPool.address, 22);
-  // await apexPool.stake(10000, 0);
+  await slpToken.mint(signer, 1000000000000);
+  await slpToken.approve(slpPool.address, 1000000000000);
+  await slpPool.stake(10000, 0);
+  await slpPool.processRewards();
+  await stakingPoolFactory.changePoolWeight(apexPool.address, 22);
+  await apexPool.stake(10000, 0);
   await apexPool.processRewards();
 }
 

@@ -16,6 +16,10 @@ contract MockRouter {
         WETH = IWETH(_baseToken);
     }
 
+    receive() external payable {
+        assert(msg.sender == address(WETH)); // only accept ETH via fallback from the WETH contract
+    }
+
     function setMarginContract(address _marginContract) external {
         margin = IMargin(_marginContract);
     }
