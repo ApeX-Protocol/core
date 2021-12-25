@@ -23,6 +23,7 @@ contract BondPool is IBondPool, Ownable {
     mapping(address => Bond) private bondInfo; // stores bond information for depositor
 
     constructor(
+        address owner_,
         address apeXToken_,
         address treasury_,
         address priceOracle_,
@@ -31,7 +32,7 @@ contract BondPool is IBondPool, Ownable {
         uint256 discount_,
         uint256 vestingTerm_
     ) {
-        owner = msg.sender;
+        owner = owner_;
         require(apeXToken_ != address(0), "BondPool: ZERO_ADDRESS");
         apeXToken = apeXToken_;
         require(treasury_ != address(0), "BondPool: ZERO_ADDRESS");
@@ -137,11 +138,13 @@ contract BondPool is IBondPool, Ownable {
     }
 
     // calculate how many APEX out for input amount of base token
+    // marketPrice = amount / marketApeXAmount
+    // bondPrice = marketPrice * (1 - discount) = amount * (1 - discount) / marketApeXAmount
+    // payout = amount / bondPrice = marketApeXAmount / (1 - discount))
     function payoutFor(uint256 amount) public view override returns (uint256 payout) {
         address baseToken = IAmm(amm).baseToken();
         uint256 marketApeXAmount = IPriceOracle(priceOracle).quote(baseToken, apeXToken, amount);
-        uint256 denominator = (marketApeXAmount * (10000 - discount)) / 10000;
-        payout = FullMath.mulDiv(amount, amount, denominator);
+        payout = marketApeXAmount * 10000 / (10000 - discount);
     }
 
     function percentVestedFor(address depositor) public view override returns (uint256 percentVested) {

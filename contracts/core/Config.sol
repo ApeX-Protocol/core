@@ -48,7 +48,7 @@ contract Config is IConfig, Ownable {
     }
 
     function setInitMarginRatio(uint256 marginRatio) external override onlyOwner {
-        require(marginRatio >= 500, "Config: INVALID_MARGIN_RATIO");
+        require(marginRatio >= 100, "Config: INVALID_MARGIN_RATIO");
         emit SetInitMarginRatio(initMarginRatio, marginRatio);
         initMarginRatio = marginRatio;
     }

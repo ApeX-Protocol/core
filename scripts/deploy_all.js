@@ -46,16 +46,16 @@ const main = async () => {
   signer = accounts[0].address;
   // await createApeXToken();
   // await createPriceOracle();
-  // await createConfig();
-  // await createPairFactory();
+  await createConfig();
+  await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createBondPoolFactory();
   // await createStakingPoolFactory();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createMockPair();
-  await createMockBondPool();
+  // await createMockBondPool();
   // await createMockStakingPool();
 };
 
@@ -95,11 +95,11 @@ async function createConfig() {
 }
 
 async function createPairFactory() {
-  // if (config == null) {
-  //   let configAddress = "0x7c51aB9Fa824857B688286eB75C86259E9b26eD0";
-  //   const Config = await ethers.getContractFactory("Config");
-  //   config = await Config.attach(configAddress);
-  // }
+  if (config == null) {
+    let configAddress = "0x7c51aB9Fa824857B688286eB75C86259E9b26eD0";
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach(configAddress);
+  }
 
   const PairFactory = await ethers.getContractFactory("PairFactory");
   const AmmFactory = await ethers.getContractFactory("AmmFactory");
@@ -133,6 +133,11 @@ async function createPCVTreasury() {
 }
 
 async function createRouter() {
+  if (pairFactory == null) {
+    let pairFactoryAddress = "0x0b1D5459fa5B4EDBDd58c919e911149aCa56034E";
+    const PairFactory = await ethers.getContractFactory("PairFactory");
+    pairFactory = await PairFactory.attach(pairFactoryAddress);
+  }
   if (pcvTreasury == null) {
     let pcvTreasuryAddress = "0xcb186F6bbB2Df145ff450ee0A4Ec6aF4baadEec7";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
@@ -152,6 +157,13 @@ async function createRouter() {
   );
 
   // need to regiter router in config
+  // if (config == null) {
+  //   let configAddress = "0x7c51aB9Fa824857B688286eB75C86259E9b26eD0";
+  //   const Config = await ethers.getContractFactory("Config");
+  //   config = await Config.attach(configAddress);
+  //   let registered = await config.routerMap("0xa0f24900160CB4Fb26752172F2f507989C6A0424");
+  //   console.log("registered:", registered);
+  // }
   await config.registerRouter(router.address);
 }
 
@@ -255,6 +267,13 @@ async function createMockBondPool() {
   //   discount,
   //   vestingTerm
   // );
+}
+
+async function bond() {
+  let bondPoolAddress = "";
+  const BondPool = await ethers.getContractFactory("BondPool");
+  let bondPool = await BondPool.attach(bondPoolAddress);
+  await bondPool.deposit()
 }
 
 async function createMockStakingPool() {
