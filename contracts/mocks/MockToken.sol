@@ -19,9 +19,9 @@ contract MockToken is ERC20, ERC20FlashMint {
         _mint(msg.sender, msg.value);
     }
 
-    function withdrawTo(address receiver, uint256 amount) external payable {
+    function withdraw(uint256 amount) external payable {
         _burn(msg.sender, msg.value);
-        payable(receiver).transfer(amount);
+        payable(msg.sender).transfer(amount);
     }
 
     function mint(address account, uint256 amount) external {
