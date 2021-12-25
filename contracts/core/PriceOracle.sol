@@ -59,6 +59,7 @@ contract PriceOracle is IPriceOracle {
         }
     }
 
+    // this mainly for ApeX Bonding to get APEX-XXX price
     function quoteFromV2(
         address baseToken,
         address quoteToken,
