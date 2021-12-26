@@ -1,7 +1,5 @@
 const { expect } = require("chai");
 
-// const MINIMUM_LIQUIDITY = bigNumberify(10).pow(3)
-
 describe("Amm", function () {
   let amm;
   let ammFactory;
@@ -30,7 +28,7 @@ describe("Amm", function () {
     //config
     config = await MockConfig.deploy();
     console.log("config: ", config.address);
-    await config.initialize(owner.address);
+    // await config.initialize(owner.address);
     let admin = await config.owner();
     await config.setBeta(100);
     console.log("admin:", admin);
@@ -139,6 +137,8 @@ describe("Amm", function () {
     await AAAToken.transfer(alice.address, ethers.BigNumber.from("10000000").mul(exp1));
     await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
 
+    let previousPrice1 = await amm.lastPrice();
+    // console.log("previousPrice1: ", previousPrice1);
     await expect(amm.mint(owner.address))
       .to.emit(amm, "Mint")
       .withArgs(
@@ -152,22 +152,30 @@ describe("Amm", function () {
     const ammAlice = amm.connect(alice);
     // alice swap 1000000AAA to usdt
     //alice swap in
-    let previousPrice = await ammAlice.lastPrice();
-  
-    let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0);
+    let previousPrice = await amm.lastPrice();
+    console.log("previousPrice: ", previousPrice.toString());
+    let reserver = await amm.getReserves();
+    console.log("reserve1: ", reserver[0].toString());
+    console.log("reserve2: ", reserver[1].toString());
 
+    await expect(
+      ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0)
+    ).to.be.revertedWith("AMM._update: TRADINGSLIPPAGE_TOO_LARGE");
+
+    let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
     const swapRes = await tx1.wait();
     let eventabi = [
       "event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
     ];
     let iface1 = new ethers.utils.Interface(eventabi);
     let log1 = iface1.parseLog(swapRes.logs[1]);
-    let args1 = log1["args"];
+    let args1 = log1.args;
+    // let tx2 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("100000").mul(exp1), 0);
+    // const swapRes2 = await tx2.wait();
+    let price = await amm.lastPrice();
+    //expect(previousPrice).to.not.equal(price);
 
-    let price = await ammAlice.lastPrice();
-    expect(previousPrice).to.not.equal(price);
-
-    expect(args1.outputAmount).to.equal(90900818926);
+    expect(args1.outputAmount).to.equal(989118704);
   });
 
   it("check swap output oversize  ", async function () {

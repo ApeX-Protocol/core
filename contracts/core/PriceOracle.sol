@@ -32,25 +32,24 @@ contract PriceOracle is IPriceOracle {
         address baseToken,
         address quoteToken,
         uint256 baseAmount
-    ) public view returns (uint256 quoteAmount) {
+    ) public view returns (uint256 quoteAmount, uint256 poolLiquidity) {
         address pool;
         uint160 sqrtPriceX96;
         address tempPool;
         uint128 tempLiquidity;
-        uint128 maxLiquidity;
         for (uint256 i = 0; i < v3Fees.length; i++) {
             tempPool = IUniswapV3Factory(v3Factory).getPool(baseToken, quoteToken, v3Fees[i]);
             if (tempPool == address(0)) continue;
             tempLiquidity = IUniswapV3Pool(tempPool).liquidity();
             // use the max liquidity pool as index price source
-            if (tempLiquidity > maxLiquidity) {
-                maxLiquidity = tempLiquidity;
+            if (tempLiquidity > poolLiquidity) {
+                poolLiquidity = tempLiquidity;
                 pool = tempPool;
                 // get sqrt twap in 60 seconds
                 sqrtPriceX96 = UniswapV3TwapGetter.getSqrtTwapX96(pool, 60);
             }
         }
-        if (pool == address(0)) return 0;
+        if (pool == address(0)) return (0, 0);
         // priceX96 = token1/token0, this price is scaled by 2^96
         uint256 priceX96 = UniswapV3TwapGetter.getPriceX96FromSqrtPriceX96(sqrtPriceX96);
         if (baseToken == IUniswapV3Pool(pool).token0()) {
@@ -60,13 +59,15 @@ contract PriceOracle is IPriceOracle {
         }
     }
 
+    // this mainly for ApeX Bonding to get APEX-XXX price
     function quoteFromV2(
         address baseToken,
         address quoteToken,
         uint256 baseAmount
-    ) public view returns (uint256 quoteAmount) {
+    ) public view returns (uint256 quoteAmount, uint256 poolLiquidity) {
         address pair = IUniswapV2Factory(v2Factory).getPair(baseToken, quoteToken);
-        if (pair == address(0)) return 0;
+        if (pair == address(0)) return (0, 0);
+        poolLiquidity = IUniswapV2Pair(pair).totalSupply();
         (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pair).getReserves();
         if (baseToken == IUniswapV2Pair(pair).token0()) {
             quoteAmount = FullMath.mulDiv(baseAmount, reserve1, reserve0);
@@ -80,13 +81,26 @@ contract PriceOracle is IPriceOracle {
         address quoteToken,
         uint256 baseAmount
     ) public view returns (uint256 quoteAmount) {
-        uint256 wethAmount = quoteFromV3(baseToken, WETH, baseAmount);
-        if (wethAmount == 0) {
-            wethAmount = quoteFromV2(baseToken, WETH, baseAmount);
+        uint256 wethAmount;
+        uint256 wethAmountV3;
+        uint256 wethAmountV2;
+        uint256 liquidityV3;
+        uint256 liquidityV2;
+        (wethAmountV3, liquidityV3) = quoteFromV3(baseToken, WETH, baseAmount);
+        (wethAmountV2, liquidityV2) = quoteFromV2(baseToken, WETH, baseAmount);
+        if (liquidityV3 >= liquidityV2) {
+            wethAmount = wethAmountV3;
+        } else {
+            wethAmount = wethAmountV2;
         }
-        quoteAmount = quoteFromV3(WETH, quoteToken, wethAmount);
-        if (quoteAmount == 0) {
-            quoteAmount = quoteFromV2(WETH, quoteToken, wethAmount);
+        uint256 quoteAmountV3;
+        uint256 quoteAmountV2;
+        (quoteAmountV3, liquidityV3) = quoteFromV3(WETH, quoteToken, wethAmount);
+        (quoteAmountV2, liquidityV2) = quoteFromV2(WETH, quoteToken, wethAmount);
+        if (liquidityV3 >= liquidityV2) {
+            quoteAmount = quoteAmountV3;
+        } else {
+            quoteAmount = quoteAmountV2;
         }
     }
 
@@ -95,10 +109,13 @@ contract PriceOracle is IPriceOracle {
         address quoteToken,
         uint256 baseAmount
     ) public view override returns (uint256 quoteAmount) {
-        quoteAmount = quoteFromV3(baseToken, quoteToken, baseAmount);
-        if (quoteAmount == 0) {
-            quoteAmount = quoteFromV2(baseToken, quoteToken, baseAmount);
-        } 
+        (uint256 quoteAmountV3, uint256 liquidityV3) = quoteFromV3(baseToken, quoteToken, baseAmount);
+        (uint256 quoteAmountV2, uint256 liquidityV2) = quoteFromV2(baseToken, quoteToken, baseAmount);
+        if (liquidityV3 >= liquidityV2) {
+            quoteAmount = quoteAmountV3;
+        } else {
+            quoteAmount = quoteAmountV2;
+        }
         if (quoteAmount == 0) {
             quoteAmount = quoteFromHybrid(baseToken, quoteToken, baseAmount);
         }
