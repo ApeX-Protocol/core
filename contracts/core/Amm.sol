@@ -370,7 +370,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 tradingSlippage = IConfig(config).tradingSlippage();
         require(
             (numerator < (100 + tradingSlippage) * demominator) && (numerator > (100 - tradingSlippage) * demominator),
-            "AMM._update: TRADINGSLIPPAGE_TOO_LARGE"
+            "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_TRANSACTION"
+        );
+        require(
+            (quoteReserveNew < ((100 + tradingSlippage) * baseReserveNew * lastPrice) / 2**112) &&
+                (quoteReserveNew > ((100 - tradingSlippage) * baseReserveNew * lastPrice) / 2**112),
+            "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_BLOCK"
         );
     }
 
