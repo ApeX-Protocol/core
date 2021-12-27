@@ -136,9 +136,7 @@ describe("Amm", function () {
     console.log("---------test begin---------");
     await AAAToken.transfer(alice.address, ethers.BigNumber.from("10000000").mul(exp1));
     await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
-
-    let previousPrice1 = await amm.lastPrice();
-    // console.log("previousPrice1: ", previousPrice1);
+   
     await expect(amm.mint(owner.address))
       .to.emit(amm, "Mint")
       .withArgs(
@@ -152,12 +150,10 @@ describe("Amm", function () {
     const ammAlice = amm.connect(alice);
     // alice swap 1000000AAA to usdt
     //alice swap in
-    let previousPrice = await amm.lastPrice();
-    console.log("previousPrice: ", previousPrice.toString());
-    let reserver = await amm.getReserves();
-    console.log("reserve1: ", reserver[0].toString());
-    console.log("reserve2: ", reserver[1].toString());
+    let price2 = await amm.lastPrice();
 
+  //  let reserver = await amm.getReserves();
+  
     await expect(
       ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0)
     ).to.be.revertedWith("AMM._update: TRADINGSLIPPAGE_TOO_LARGE");
@@ -170,12 +166,17 @@ describe("Amm", function () {
     let iface1 = new ethers.utils.Interface(eventabi);
     let log1 = iface1.parseLog(swapRes.logs[1]);
     let args1 = log1.args;
-    // let tx2 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("100000").mul(exp1), 0);
-    // const swapRes2 = await tx2.wait();
-    let price = await amm.lastPrice();
-    //expect(previousPrice).to.not.equal(price);
+    
+    let price3 = await amm.lastPrice();
+   
+    expect(price2).to.equal(price3);
 
     expect(args1.outputAmount).to.equal(989118704);
+    await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
+
+    let price4 = await amm.lastPrice();
+    
+    expect(price3).to.not.equal(price4);
   });
 
   it("check swap output oversize  ", async function () {
