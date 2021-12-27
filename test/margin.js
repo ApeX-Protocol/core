@@ -374,22 +374,25 @@ describe("Margin contract", function () {
         expect((await margin.calUnrealizedPnl(owner.address)).toNumber()).to.be.equal(0);
       });
 
-      it("old: quote 10, base -9; new price=3 and add margin 10; add long 20X, delta position: quote -20, base +6; new: quote -10, base 7", async function () {
+      it("old: quote 10, base -9; new price=2 and add margin 10; add long 20X, delta position: quote -20, base +30; new: quote -10, base 21", async function () {
+        await getPosition(margin, owner.address);
         let quoteAmount = 20;
-        await mockAmm.setPrice(3);
+        await mockPriceOracle.setMarkPrice(2);
         await mockRouter.connect(addr1).addMargin(owner.address, 10);
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
         expect(position[0]).to.equal(-10);
-        expect(position[1]).to.equal(7);
+        expect(position[1]).to.equal(21);
         //entry price changed
-        expect(position[2]).to.equal(3);
+        expect(position[2]).to.equal(10);
         expect((await margin.calUnrealizedPnl(owner.address)).toNumber()).to.be.equal(0);
       });
 
       it("old: quote 10, base -9; add long 21X, delta position 1: quote -21, base +21; new: quote -11, base 12; reverted", async function () {
         let quoteAmount = 21;
-        await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.reverted;
+        await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+          "Margin.openPosition: INIT_MARGIN_RATIO"
+        );
       });
     });
   });
