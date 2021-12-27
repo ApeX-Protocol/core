@@ -154,7 +154,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256[2] memory reserves;
         (reserves, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
         //check trade slippage
-        checkTradeSlippage(reserves[0], reserves[1], baseReserve, quoteReserve);
+        _checkTradeSlippage(reserves[0], reserves[1], baseReserve, quoteReserve);
         _update(reserves[0], reserves[1], baseReserve, quoteReserve);
 
         emit Swap(inputToken, outputToken, amounts[0], amounts[1]);
@@ -358,12 +358,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Sync(baseReserve, quoteReserve);
     }
 
-    function checkTradeSlippage(
+    function _checkTradeSlippage(
         uint256 baseReserveNew,
         uint256 quoteReserveNew,
         uint112 baseReserveOld,
         uint112 quoteReserveOld
-    ) internal {
+    ) internal view{
         // check trade slippage for every transaction
         uint256 numerator = quoteReserveNew * baseReserveOld * 100;
         uint256 demominator = baseReserveNew * quoteReserveOld;
