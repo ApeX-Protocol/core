@@ -251,8 +251,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_TRANSACTION"
         );
         require(
-            (quoteReserveNew < ((100 + tradingSlippage) * baseReserveNew * lastPrice) / 2**112) &&
-                (quoteReserveNew > ((100 - tradingSlippage) * baseReserveNew * lastPrice) / 2**112),
+            (quoteReserveNew * 100 < ((100 + tradingSlippage) * baseReserveNew * lastPrice) / 2**112) &&
+                (quoteReserveNew * 100 > ((100 - tradingSlippage) * baseReserveNew * lastPrice) / 2**112),
             "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_BLOCK"
         );
     }
@@ -378,6 +378,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         blockTimestampLast = blockTimestamp;
         emit Sync(baseReserve, quoteReserve);
     }
+
 
     function _safeTransfer(
         address token,
