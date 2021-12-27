@@ -651,6 +651,7 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     //debt*10000/asset
+    //tocheck if no repair the MarkPriceAcc equation, have chance to liquidate a little bit late when debtRatio triggered
     function _calDebtRatio(int256 quoteSize, int256 baseSize) internal view returns (uint256 debtRatio) {
         if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
             debtRatio = 0;
@@ -659,6 +660,7 @@ contract Margin is IMargin, IVault, Reentrant {
         } else if (quoteSize > 0) {
             uint256 quoteAmount = quoteSize.abs();
             //calculate asset
+            //平空，markPriceAcc偏大，资产被低估，负债率被高估
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
@@ -671,6 +673,7 @@ contract Margin is IMargin, IVault, Reentrant {
         } else {
             uint256 quoteAmount = quoteSize.abs();
             //calculate debt
+            //平多，markPriceAcc偏小，负债被高估，负债率被高估
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
@@ -692,29 +695,29 @@ contract Margin is IMargin, IVault, Reentrant {
         } else if (quoteSize < 0 && baseSize <= 0) {
             marginRatio = 0;
         } else if (quoteSize > 0) {
-            //short, calculate asset
-            uint256[2] memory result = IAmm(amm).estimateSwap(
-                address(quoteToken),
-                address(baseToken),
+            //close short, calculate asset
+            //价格比之前预估最大开仓量时要低，所以baseAmount偏大，算出的marginRatio比之前预估要大
+            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+                amm,
+                IConfig(config).beta(),
                 quoteSize.abs(),
-                0
+                false
             );
-            //asset
-            uint256 baseAmount = result[1];
+
             //tocheck marginRatio range?
             marginRatio = (baseSize.abs() >= baseAmount || baseAmount == 0)
                 ? 0
                 : baseSize.mulU(10000).divU(baseAmount).addU(10000).abs();
         } else {
-            //long, calculate debt
-            uint256[2] memory result = IAmm(amm).estimateSwap(
-                address(baseToken),
-                address(quoteToken),
-                0,
-                quoteSize.abs()
+            //close long, calculate debt
+            //价格比之前预估最大开仓量时要高，所以baseAmount偏小，算出的marginRatio比之前预估要大
+            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+                amm,
+                IConfig(config).beta(),
+                quoteSize.abs(),
+                true
             );
-            //debt
-            uint256 baseAmount = result[0];
+
             //tocheck marginRatio range?
             marginRatio = baseSize.abs() < baseAmount ? 0 : 10000 - ((baseAmount * 10000) / baseSize.abs());
         }
