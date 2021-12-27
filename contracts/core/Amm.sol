@@ -369,6 +369,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
         }
 
+        // keep lastprice not equal zero
         if (lastPrice == 0 && baseReserveNew != 0) {
             lastPrice = uint256(UQ112x112.encode(uint112(quoteReserveNew)).uqdiv(uint112(baseReserveNew)));
         }
