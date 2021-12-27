@@ -154,7 +154,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256[2] memory reserves;
         (reserves, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
         //check trade slippage
-        checkTradeSlippage(reserves[0], reserves[1], baseReserve, quoteReserve);
+        _checkTradeSlippage(reserves[0], reserves[1], baseReserve, quoteReserve);
         _update(reserves[0], reserves[1], baseReserve, quoteReserve);
 
         emit Swap(inputToken, outputToken, amounts[0], amounts[1]);
@@ -234,6 +234,27 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         reserveBase = baseReserve;
         reserveQuote = quoteReserve;
         blockTimestamp = blockTimestampLast;
+    }
+
+    function _checkTradeSlippage(
+        uint256 baseReserveNew,
+        uint256 quoteReserveNew,
+        uint112 baseReserveOld,
+        uint112 quoteReserveOld
+    ) internal view {
+        // check trade slippage for every transaction
+        uint256 numerator = quoteReserveNew * baseReserveOld * 100;
+        uint256 demominator = baseReserveNew * quoteReserveOld;
+        uint256 tradingSlippage = IConfig(config).tradingSlippage();
+        require(
+            (numerator < (100 + tradingSlippage) * demominator) && (numerator > (100 - tradingSlippage) * demominator),
+            "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_TRANSACTION"
+        );
+        require(
+            (quoteReserveNew < ((100 + tradingSlippage) * baseReserveNew * lastPrice) / 2**112) &&
+                (quoteReserveNew > ((100 - tradingSlippage) * baseReserveNew * lastPrice) / 2**112),
+            "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_BLOCK"
+        );
     }
 
     function _estimateSwap(
@@ -356,27 +377,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         quoteReserve = uint112(quoteReserveNew);
         blockTimestampLast = blockTimestamp;
         emit Sync(baseReserve, quoteReserve);
-    }
-
-    function checkTradeSlippage(
-        uint256 baseReserveNew,
-        uint256 quoteReserveNew,
-        uint112 baseReserveOld,
-        uint112 quoteReserveOld
-    ) internal {
-        // check trade slippage for every transaction
-        uint256 numerator = quoteReserveNew * baseReserveOld * 100;
-        uint256 demominator = baseReserveNew * quoteReserveOld;
-        uint256 tradingSlippage = IConfig(config).tradingSlippage();
-        require(
-            (numerator < (100 + tradingSlippage) * demominator) && (numerator > (100 - tradingSlippage) * demominator),
-            "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_TRANSACTION"
-        );
-        require(
-            (quoteReserveNew < ((100 + tradingSlippage) * baseReserveNew * lastPrice) / 2**112) &&
-                (quoteReserveNew > ((100 - tradingSlippage) * baseReserveNew * lastPrice) / 2**112),
-            "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_BLOCK"
-        );
     }
 
     function _safeTransfer(
