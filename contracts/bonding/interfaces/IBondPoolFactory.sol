@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 /// @notice For create bond pool
 interface IBondPoolFactory {
     event BondPoolCreated(address indexed amm, address indexed pool);
+    event PriceOracleUpdated(address indexed oldOracle, address indexed newOracle);
 
     function setPriceOracle(address newOracle) external;
 

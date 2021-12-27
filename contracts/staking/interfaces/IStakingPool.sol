@@ -17,13 +17,16 @@ interface IStakingPool {
         Deposit[] deposits;
     }
 
-    event Staked(address indexed to, uint256 amount, uint256 lockFrom, uint256 lockUntil);
+    event UnstakeBatch(address indexed by, uint256[] _depositIds, uint256[] _amounts);
 
-    event YieldClaimed(address indexed by, address indexed to, uint256 amount, uint256 lockFrom, uint256 lockUntil);
+    event Staked(address indexed to, uint256 depositId, uint256 amount, uint256 lockFrom, uint256 lockUntil);
+
+    event YieldClaimed(address indexed by, uint256 depositId, uint256 amount, uint256 lockFrom, uint256 lockUntil);
 
     event StakeAsPool(
         address indexed by,
         address indexed to,
+        uint256 depositId,
         uint256 amountStakedAsPool,
         uint256 yieldAmount,
         uint256 lockFrom,

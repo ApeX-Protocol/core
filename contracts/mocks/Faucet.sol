@@ -9,7 +9,7 @@ interface IERC20 {
 
 contract Faucet {
     // userAddress => token => timestamp
-    mapping(address => mapping(address => uint256)) lastWithdrawTime;
+    mapping(address => mapping(address => uint256)) public lastWithdrawTime;
 
     function withdraw(address token) external {
         uint256 withdrawableTime = lastWithdrawTime[msg.sender][token] + 24*60*60;

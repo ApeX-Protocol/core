@@ -8,6 +8,7 @@ import "./interfaces/IMargin.sol";
 import "./interfaces/ILiquidityERC20.sol";
 import "./interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
+import "../libraries/FullMath.sol";
 
 contract Router is IRouter {
     address public immutable override pairFactory;
@@ -227,10 +228,16 @@ contract Router is IRouter {
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
+        (, int256 quoteSize, ) = IMargin(margin).getPosition(msg.sender);
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
         if (autoWithdraw) {
-            withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
-            if (withdrawAmount > 0) {
+            uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
+            if (withdrawable > 0) {
+                if (quoteSize > 0) {
+                    withdrawAmount = FullMath.mulDiv(quoteAmount, withdrawable, uint256(quoteSize));
+                } else {
+                    withdrawAmount = FullMath.mulDiv(quoteAmount, withdrawable, uint256(0 - quoteSize));
+                }
                 IMargin(margin).removeMargin(msg.sender, msg.sender, withdrawAmount);
             }
         }
@@ -243,9 +250,15 @@ contract Router is IRouter {
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.closePositionETH: NOT_FOUND_MARGIN");
+        (, int256 quoteSize, ) = IMargin(margin).getPosition(msg.sender);
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
-        withdrawAmount = IMargin(margin).getWithdrawable(msg.sender);
-        if (withdrawAmount > 0) {
+        uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
+        if (withdrawable > 0) {
+            if (quoteSize > 0) {
+                withdrawAmount = FullMath.mulDiv(quoteAmount, withdrawable, uint256(quoteSize));
+            } else {
+                withdrawAmount = FullMath.mulDiv(quoteAmount, withdrawable, uint256(0 - quoteSize));
+            }
             IMargin(margin).removeMargin(msg.sender, address(this), withdrawAmount);
             IWETH(WETH).withdraw(withdrawAmount);
             TransferHelper.safeTransferETH(msg.sender, withdrawAmount);

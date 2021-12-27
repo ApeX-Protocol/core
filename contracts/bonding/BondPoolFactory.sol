@@ -34,8 +34,9 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         vestingTerm = vestingTerm_;
     }
 
-    function setPriceOracle(address newOracle) external override {
+    function setPriceOracle(address newOracle) external override onlyOwner {
         require(newOracle != address(0), "BondPoolFactory.setPriceOracle: ZERO_ADDRESS");
+        emit PriceOracleUpdated(priceOracle, newOracle);
         priceOracle = newOracle;
     }
 
@@ -53,7 +54,7 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
 
     function createPool(address amm) external override onlyOwner returns (address) {
         require(getPool[amm] == address(0), "BondPoolFactory.createPool: POOL_EXIST");
-        address pool = address(new BondPool(apeXToken, treasury, priceOracle, amm, maxPayout, discount, vestingTerm));
+        address pool = address(new BondPool(owner, apeXToken, treasury, priceOracle, amm, maxPayout, discount, vestingTerm));
         getPool[amm] = pool;
         allPools.push(pool);
         emit BondPoolCreated(amm, pool);
