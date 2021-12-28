@@ -660,7 +660,7 @@ contract Margin is IMargin, IVault, Reentrant {
         } else if (quoteSize > 0) {
             uint256 quoteAmount = quoteSize.abs();
             //calculate asset
-            //平空，markPriceAcc偏大，资产被低估，负债率被高估
+            //close short, markPriceAcc is rather large, asset is undervalued, debt ratio is overvalued
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
@@ -673,7 +673,7 @@ contract Margin is IMargin, IVault, Reentrant {
         } else {
             uint256 quoteAmount = quoteSize.abs();
             //calculate debt
-            //平多，markPriceAcc偏小，负债被高估，负债率被高估
+            //close long, markPriceAcc is rather small, debt is overvalued, debt ratio is overvalued
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
@@ -696,7 +696,7 @@ contract Margin is IMargin, IVault, Reentrant {
             marginRatio = 0;
         } else if (quoteSize > 0) {
             //close short, calculate asset
-            //价格比之前预估最大开仓量时要低，所以baseAmount偏大，算出的marginRatio比之前预估要大
+            //price is lower than estimated max open position, so baseAmount is rather large, result marginRatio is larger than estimated
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
@@ -710,7 +710,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 : baseSize.mulU(10000).divU(baseAmount).addU(10000).abs();
         } else {
             //close long, calculate debt
-            //价格比之前预估最大开仓量时要高，所以baseAmount偏小，算出的marginRatio比之前预估要大
+            //price is higher than estimated max open position, so baseAmount is rather small, result marginRatio is lager than estimated
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
