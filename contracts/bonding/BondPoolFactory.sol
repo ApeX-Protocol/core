@@ -58,8 +58,6 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         address pool = address(new BondPool(owner, apeXToken, treasury, priceOracle, amm, maxPayout, discount, vestingTerm));
         getPool[amm] = pool;
         allPools.push(pool);
-        IPCVTreasury(treasury).addLiquidityToken(amm);
-        IPCVTreasury(treasury).addBondPool(pool);
         emit BondPoolCreated(amm, pool);
         return pool;
     }
