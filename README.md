@@ -1,4 +1,4 @@
-# dex-protocol
+# ApeX Protocol
 
 Contracts for DEX.
 
