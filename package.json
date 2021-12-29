@@ -1,5 +1,5 @@
 {
-  "name": "dex-protocol",
+  "name": "apex-protocol",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -18,15 +18,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/davionlabs/dex-protocol.git"
+    "url": "git+https://github.com/ApeX-Protocol/apex-protocol.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/davionlabs/dex-protocol/issues"
+    "url": "https://github.com/ApeX-Protocol/apex-protocol/issues"
   },
-  "homepage": "https://github.com/davionlabs/dex-protocol#readme",
+  "homepage": "https://github.com/ApeX-Protocol/apex-protocol#readme",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^2.1.7",
@@ -38,7 +38,7 @@
     "chai": "^4.3.4",
     "ethereum-waffle": "^3.4.0",
     "ethers": "^5.4.7",
-    "hardhat": "^2.6.6",
+    "hardhat": "^2.8.0",
     "hardhat-deploy": "^0.9.4",
     "hardhat-gas-reporter": "^1.0.4",
     "keccak256": "^1.0.2",

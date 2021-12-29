@@ -9,7 +9,7 @@ const v2FactoryAddress = "0x0000000000000000000000000000000000000000";
 const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mock WETH
 
 // transfer to pcvTreasury
-const apeXAmountForBonding = 1000000000;
+const apeXAmountForBonding = BigNumber.from("1000000000000000000000000");
 // for BondPoolFactory
 const maxPayout = BigNumber.from("1000000000000000000000000");
 const discount = 500;
@@ -191,7 +191,7 @@ async function createBondPoolFactory() {
     apeXAddress,
     pcvTreasuryAddress,
     priceOracleAddress,
-    maxPayout,
+    maxPayout.toString(),
     discount,
     vestingTerm
   );
@@ -252,7 +252,7 @@ async function createMockPair() {
 }
 
 async function createMockBondPool() {
-  ammAddress = "0xFcee74cb656B9262d0092Bc4ee22E3f561C4f472";
+  ammAddress = "0x26BFd5Fc463A0B1A6c9146C092982894c0B5358C";
   if (bondPoolFactory == null) {
     let bondPoolFactoryAddress = "0xe73ab46B338Ea881779eeAf17100d4e54ADE08Cb";
 
@@ -279,7 +279,7 @@ async function createMockBondPool() {
 
 async function bond() {
   if (bondPool == null) {
-    let bondPoolAddress = "0xBB7f3bB83B7575fB51E969B5F3F01Db46da70517";
+    let bondPoolAddress = "0x0Cd2955C8A66D6e7d01Ffd606622d47ad7309ce0";
     const BondPool = await ethers.getContractFactory("BondPool"); 
     bondPool = await BondPool.attach(bondPoolAddress);
   }
@@ -288,14 +288,14 @@ async function bond() {
     let PCVTreasury = await ethers.getContractFactory("PCVTreasury");
     pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
   }
-  let ammAddress = "0xFcee74cb656B9262d0092Bc4ee22E3f561C4f472";
+  // let ammAddress = "0xFcee74cb656B9262d0092Bc4ee22E3f561C4f472";
   // await pcvTreasury.addLiquidityToken(ammAddress);
   // await pcvTreasury.addBondPool(bondPool.address);
   
-  const MockWETH = await ethers.getContractFactory("MockWETH");
-  const weth = await MockWETH.attach("0x655e2b2244934Aea3457E3C56a7438C271778D44");
-  await weth.approve(bondPool.address, BigNumber.from("10000000000000000000000000000000"));
-  await bondPool.deposit(signer, BigNumber.from('100000000000000000'), 1);
+  // const MockWETH = await ethers.getContractFactory("MockWETH");
+  // const weth = await MockWETH.attach("0x655e2b2244934Aea3457E3C56a7438C271778D44");
+  // await weth.approve(bondPool.address, BigNumber.from("10000000000000000000000000000000").toString());
+  await bondPool.deposit(signer, BigNumber.from('100000000000000000').toString(), 1);
 }
 
 async function createMockStakingPool() {
