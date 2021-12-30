@@ -227,64 +227,6 @@ contract Margin is IMargin, IVault, Reentrant {
         emit OpenPosition(trader, side, baseAmount, quoteAmount, traderPosition);
     }
 
-    //just for dev use
-    function queryMaxOpenPosition(address trader, uint256 quoteAmount)
-        external
-        view
-        returns (
-            int256 baseAmountFunding,
-            int256 fundingFee,
-            int256 marginAcc,
-            uint112 baseReserve,
-            uint112 quoteReserve,
-            uint256 quoteAmountMax
-        )
-    {
-        require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
-        int256 _latestCPF = _getNewLatestCPF();
-
-        Position memory traderPosition = traderPositionMap[trader];
-
-        uint256 quoteSizeAbs = traderPosition.quoteSize.abs();
-
-        if (traderPosition.quoteSize == 0) {
-            baseAmountFunding = 0;
-        } else {
-            baseAmountFunding = traderPosition.quoteSize < 0
-                ? int256(0).subU(_querySwapBaseWithAmm(true, quoteSizeAbs))
-                : int256(0).addU(_querySwapBaseWithAmm(false, quoteSizeAbs));
-        }
-
-        fundingFee = (baseAmountFunding * (_latestCPF - traderCPF[trader])).divU(1e18);
-
-        if (traderPosition.quoteSize == 0) {
-            marginAcc = traderPosition.baseSize + fundingFee;
-        } else if (traderPosition.quoteSize > 0) {
-            //close short
-            uint256[2] memory result = IAmm(amm).estimateSwap(
-                address(quoteToken),
-                address(baseToken),
-                traderPosition.quoteSize.abs(),
-                0
-            );
-            marginAcc = traderPosition.baseSize.addU(result[1]) + fundingFee;
-        } else {
-            //close long
-            uint256[2] memory result = IAmm(amm).estimateSwap(
-                address(baseToken),
-                address(quoteToken),
-                0,
-                traderPosition.quoteSize.abs()
-            );
-            marginAcc = traderPosition.baseSize.subU(result[0]) + fundingFee;
-        }
-        require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
-        (baseReserve, quoteReserve, ) = IAmm(amm).getReserves();
-        quoteAmountMax =
-            (quoteReserve * 10000) /
-            ((IConfig(config).initMarginRatio() * baseReserve) / marginAcc.abs() + (200 * IConfig(config).beta()));
-    }
-
     function closePosition(address trader, uint256 quoteAmount)
         external
         override
@@ -760,6 +702,155 @@ contract Margin is IMargin, IVault, Reentrant {
             inputToken = quoteToken;
             inputAmount = amount;
             outputToken = baseToken;
+        }
+    }
+
+    //just for dev use
+    function queryMaxOpenPosition(address trader, uint256 quoteAmount)
+        external
+        view
+        returns (
+            int256 baseAmountFunding,
+            int256 fundingFee,
+            int256 marginAcc,
+            uint112 baseReserve,
+            uint112 quoteReserve,
+            uint256 quoteAmountMax
+        )
+    {
+        require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
+        int256 _latestCPF = _getNewLatestCPF();
+
+        Position memory traderPosition = traderPositionMap[trader];
+
+        uint256 quoteSizeAbs = traderPosition.quoteSize.abs();
+
+        if (traderPosition.quoteSize == 0) {
+            baseAmountFunding = 0;
+        } else {
+            baseAmountFunding = traderPosition.quoteSize < 0
+                ? int256(0).subU(_querySwapBaseWithAmm(true, quoteSizeAbs))
+                : int256(0).addU(_querySwapBaseWithAmm(false, quoteSizeAbs));
+        }
+
+        fundingFee = (baseAmountFunding * (_latestCPF - traderCPF[trader])).divU(1e18);
+
+        if (traderPosition.quoteSize == 0) {
+            marginAcc = traderPosition.baseSize + fundingFee;
+        } else if (traderPosition.quoteSize > 0) {
+            //close short
+            uint256[2] memory result = IAmm(amm).estimateSwap(
+                address(quoteToken),
+                address(baseToken),
+                traderPosition.quoteSize.abs(),
+                0
+            );
+            marginAcc = traderPosition.baseSize.addU(result[1]) + fundingFee;
+        } else {
+            //close long
+            uint256[2] memory result = IAmm(amm).estimateSwap(
+                address(baseToken),
+                address(quoteToken),
+                0,
+                traderPosition.quoteSize.abs()
+            );
+            marginAcc = traderPosition.baseSize.subU(result[0]) + fundingFee;
+        }
+        require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
+        (baseReserve, quoteReserve, ) = IAmm(amm).getReserves();
+        quoteAmountMax =
+            (quoteReserve * 10000) /
+            ((IConfig(config).initMarginRatio() * baseReserve) / marginAcc.abs() + (200 * IConfig(config).beta()));
+    }
+
+    //just for dev use
+    function calDebtRatio(int256 quoteSize, int256 baseSize)
+        external
+        view
+        returns (uint256 baseAmount, uint256 debtRatio)
+    {
+        if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
+            debtRatio = 0;
+        } else if (quoteSize < 0 && baseSize <= 0) {
+            debtRatio = 10000;
+        } else if (quoteSize > 0) {
+            uint256 quoteAmount = quoteSize.abs();
+            //close short, markPriceAcc bigger, asset undervalue
+            baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+                amm,
+                IConfig(config).beta(),
+                quoteAmount,
+                false
+            );
+
+            //tocheck debtRatio range?
+            debtRatio = baseAmount == 0 ? 10000 : (baseSize.abs() * 10000) / baseAmount;
+        } else {
+            uint256 quoteAmount = quoteSize.abs();
+            //close long, markPriceAcc smaller, debt overvalue
+            baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+                amm,
+                IConfig(config).beta(),
+                quoteAmount,
+                true
+            );
+
+            uint256 ratio = (baseAmount * 10000) / baseSize.abs();
+            //tocheck debtRatio range?
+            debtRatio = 10000 < ratio ? 10000 : ratio;
+        }
+    }
+
+    //just for dev use
+    function queryWithdrawable(
+        int256 quoteSize,
+        int256 baseSize,
+        uint256 tradeSize
+    )
+        external
+        view
+        returns (
+            uint256 resultBase,
+            uint256 baseNeeded,
+            uint256 amount,
+            int256 unrealizedPnl
+        )
+    {
+        if (quoteSize == 0) {
+            amount = baseSize <= 0 ? 0 : baseSize.abs();
+        } else if (quoteSize < 0) {
+            uint256[2] memory result = IAmm(amm).estimateSwap(
+                address(baseToken),
+                address(quoteToken),
+                0,
+                quoteSize.abs()
+            );
+
+            resultBase = result[0];
+            uint256 a = result[0] * 10000;
+            uint256 b = (10000 - IConfig(config).initMarginRatio());
+            //calculate how many base needed to maintain current position
+            baseNeeded = a / b;
+            //tocheck need to consider this case
+            if (a % b != 0) {
+                baseNeeded += 1;
+            }
+            //borrowed - repay, earn when borrow more and repay less
+            unrealizedPnl = int256(1).mulU(tradeSize).subU(result[0]);
+            amount = baseSize.abs() <= baseNeeded ? 0 : baseSize.abs() - baseNeeded;
+        } else {
+            uint256[2] memory result = IAmm(amm).estimateSwap(
+                address(quoteToken),
+                address(baseToken),
+                quoteSize.abs(),
+                0
+            );
+            resultBase = result[1];
+            baseNeeded = (result[1] * (10000 - IConfig(config).initMarginRatio())) / 10000;
+            //repay - lent, earn when lent less and repay more
+            unrealizedPnl = int256(1).mulU(result[1]).subU(tradeSize);
+            int256 remainBase = baseSize.addU(baseNeeded);
+            amount = remainBase <= 0 ? 0 : remainBase.abs();
         }
     }
 }
