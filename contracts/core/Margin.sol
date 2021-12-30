@@ -180,10 +180,9 @@ contract Margin is IMargin, IVault, Reentrant {
             require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
             (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
             quoteAmountMax =
-                (quoteReserve * 10000) /
-                ((IConfig(config).initMarginRatio() * baseReserve) / marginAcc.abs() + (200 * IConfig(config).beta()));
+                (quoteReserve * 10000 * marginAcc.abs()) /
+                ((IConfig(config).initMarginRatio() * baseReserve) + (200 * marginAcc.abs() * IConfig(config).beta()));
         }
-        require(quoteAmount <= quoteAmountMax, "Margin.openPosition: INIT_MARGIN_RATIO");
 
         bool isLong = side == 0;
         baseAmount = _addPositionWithAmm(isLong, quoteAmount);
@@ -221,6 +220,7 @@ contract Margin is IMargin, IVault, Reentrant {
             totalQuoteShort = totalQuoteShort + quoteAmount;
             netPosition = netPosition.subU(baseAmount);
         }
+        require(traderPosition.quoteSize.abs() <= quoteAmountMax, "Margin.openPosition: INIT_MARGIN_RATIO");
 
         traderCPF[trader] = _latestCPF;
         traderPositionMap[trader] = traderPosition;
@@ -706,7 +706,7 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     //just for dev use
-    function queryMaxOpenPosition(address trader, uint256 quoteAmount)
+    function queryMaxOpenPosition(address trader)
         external
         view
         returns (
@@ -718,7 +718,6 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 quoteAmountMax
         )
     {
-        require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
         int256 _latestCPF = _getNewLatestCPF();
 
         Position memory traderPosition = traderPositionMap[trader];
@@ -759,8 +758,8 @@ contract Margin is IMargin, IVault, Reentrant {
         require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
         (baseReserve, quoteReserve, ) = IAmm(amm).getReserves();
         quoteAmountMax =
-            (quoteReserve * 10000) /
-            ((IConfig(config).initMarginRatio() * baseReserve) / marginAcc.abs() + (200 * IConfig(config).beta()));
+            (quoteReserve * 10000 * marginAcc.abs()) /
+            ((IConfig(config).initMarginRatio() * baseReserve) + (200 * marginAcc.abs() * IConfig(config).beta()));
     }
 
     //just for dev use

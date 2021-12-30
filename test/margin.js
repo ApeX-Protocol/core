@@ -46,6 +46,7 @@ describe("Margin contract", function () {
     await factory.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address);
     await mockRouter.setMarginContract(margin.address);
     await mockAmm.initialize(mockBaseToken.address, mockQuoteToken.address);
+    await mockAmm.setReserves(1000000000, 1000000000);
 
     await mockBaseToken.mint(owner.address, ownerInitBaseAmount);
     await mockBaseToken.mint(addr1.address, addr1InitBaseAmount);
@@ -351,14 +352,16 @@ describe("Margin contract", function () {
         expect(position[2]).to.equal(5);
       });
 
-      it("old: quote 10, base -9; add long 15X, delta position: quote -15, base +15; new: quote -5, base 6", async function () {
-        let quoteAmount = 15;
+      it("old: quote 10, base -9; add long 21X, delta position: quote -21, base +21; new: quote -11, base 12", async function () {
+        let quoteAmount = 21;
+        let result = await margin.queryMaxOpenPosition(owner.address);
+        expect(result[5].toNumber()).to.be.equal(11);
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-5);
-        expect(position[1]).to.equal(6);
+        expect(position[0]).to.equal(-11);
+        expect(position[1]).to.equal(12);
         //entry price not changed
-        expect(position[2]).to.equal(5);
+        expect(position[2]).to.equal(11);
       });
 
       it("old: quote 10, base -9; new price=2 and add margin 10; add long 20X, delta position: quote -20, base +10; new: quote -10, base 11", async function () {
@@ -388,11 +391,54 @@ describe("Margin contract", function () {
         expect((await margin.calUnrealizedPnl(owner.address)).toNumber()).to.be.equal(0);
       });
 
-      it("old: quote 10, base -9; add long 21X, delta position 1: quote -21, base +21; new: quote -11, base 12; reverted", async function () {
-        let quoteAmount = 21;
+      it("old: quote 10, base -9; add long 22X, delta position 1: quote -22, base +22; new: quote -12, base 13; reverted", async function () {
+        let quoteAmount = 22;
         await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
           "Margin.openPosition: INIT_MARGIN_RATIO"
         );
+      });
+    });
+
+    describe("set new initMarginRatio when open position", async function () {
+      beforeEach(async function () {
+        let quoteAmount = 10;
+        await margin.removeMargin(owner.address, owner.address, routerAllowance - 1);
+        await margin.openPosition(owner.address, shortSide, quoteAmount);
+        let position = await margin.traderPositionMap(owner.address);
+        expect(position[0]).to.equal(10);
+        expect(position[1]).to.equal(-9);
+        //entry price not changed
+        expect(position[2]).to.equal(10);
+      });
+
+      it("old: quote 10, base -9, set new initMarginRatio; add long 19X, delta position: quote -19, base +19; new: quote -9, base 10", async function () {
+        let quoteAmount = 19;
+        await config.setInitMarginRatio(1000);
+        let result = await margin.queryMaxOpenPosition(owner.address);
+        expect(result[5].toNumber()).to.be.equal(9);
+        await margin.openPosition(owner.address, longSide, quoteAmount);
+        position = await margin.traderPositionMap(owner.address);
+        expect(position[0]).to.equal(-9);
+        expect(position[1]).to.equal(10);
+        expect(position[2]).to.equal(9);
+      });
+
+      it("old: quote 10, base -9, set new initMarginRatio; add long 20X, reverted", async function () {
+        let quoteAmount = 20;
+        await config.setInitMarginRatio(1000);
+        let result = await margin.queryMaxOpenPosition(owner.address);
+        expect(result[5].toNumber()).to.be.equal(9);
+        await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+          "Margin.openPosition: INIT_MARGIN_RATIO"
+        );
+      });
+
+      it("old: quote 10, base -9, set new initMarginRatio; add long 109X, delta position: quote -109, base +109; new: quote 99, base 100", async function () {
+        let quoteAmount = 109;
+        await config.setInitMarginRatio(100);
+        let result = await margin.queryMaxOpenPosition(owner.address);
+        expect(result[5].toNumber()).to.be.equal(99);
+        await margin.openPosition(owner.address, longSide, quoteAmount);
       });
     });
   });
@@ -529,35 +575,6 @@ describe("Margin contract", function () {
       expect(result[0]).to.be.equal(0);
       expect(result[1]).to.be.equal(0);
       expect(result[2]).to.be.equal(0);
-    });
-  });
-
-  describe("get margin ratio", async function () {
-    beforeEach(async function () {
-      await mockRouter.addMargin(owner.address, 1);
-      let quoteAmount = 10;
-      await margin.openPosition(owner.address, longSide, quoteAmount);
-
-      await mockRouter.addMargin(addr1.address, 1);
-      await margin.connect(addr1).openPosition(addr1.address, shortSide, quoteAmount);
-    });
-
-    it("quote -10, base 11; 1/11, margin ratio is 9.09%", async function () {
-      expect(await margin.getMarginRatio(owner.address)).to.equal(910);
-    });
-
-    it("quote -10, base 12; 2/12, margin ratio is 16.66%", async function () {
-      await mockRouter.addMargin(owner.address, 1);
-      expect(await margin.getMarginRatio(owner.address)).to.equal(1667);
-    });
-
-    it("quote 10, base -9; 1/10, margin ratio is 10.00%", async function () {
-      expect(await margin.getMarginRatio(addr1.address)).to.equal(1000);
-    });
-
-    it("quote 10, base -8; 2/10, margin ratio is 20.00%", async function () {
-      await mockRouter.addMargin(addr1.address, 1);
-      expect(await margin.getMarginRatio(addr1.address)).to.equal(2000);
     });
   });
 
