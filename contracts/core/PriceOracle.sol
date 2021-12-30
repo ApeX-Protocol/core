@@ -65,6 +65,9 @@ contract PriceOracle is IPriceOracle {
         address quoteToken,
         uint256 baseAmount
     ) public view returns (uint256 quoteAmount, uint256 poolLiquidity) {
+        if (v2Factory == address(0)) {
+            return (0, 0);
+        }
         address pair = IUniswapV2Factory(v2Factory).getPair(baseToken, quoteToken);
         if (pair == address(0)) return (0, 0);
         poolLiquidity = IUniswapV2Pair(pair).totalSupply();

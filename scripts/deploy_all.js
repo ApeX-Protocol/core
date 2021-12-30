@@ -4,13 +4,14 @@ const verifyStr = "npx hardhat verify --network";
 
 // for PriceOracle
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
-const v2FactoryAddress = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"; // SushiV2Factory address
+// const v2FactoryAddress = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"; // SushiV2Factory address
+const v2FactoryAddress = "0x0000000000000000000000000000000000000000";
 const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mock WETH
 
 // transfer to pcvTreasury
 const apeXAmountForBonding = 1000000000;
 // for BondPoolFactory
-const maxPayout = 100000000;
+const maxPayout = BigNumber.from("1000000000000000000000000");
 const discount = 500;
 const vestingTerm = 129600;
 // for StakingPoolFactory
@@ -18,6 +19,8 @@ const apeXPerBlock = 100;
 const blocksPerUpdate = 2;
 const initBlock = 6690016;
 const endBlock = 7090016;
+// transfer for staking
+const apeXAmountForString = 1000000000;
 
 let signer;
 let apeXToken;
@@ -46,16 +49,17 @@ const main = async () => {
   signer = accounts[0].address;
   // await createApeXToken();
   // await createPriceOracle();
-  await createConfig();
-  await createPairFactory();
+  // await createConfig();
+  // await createPairFactory();
   // await createPCVTreasury();
-  await createRouter();
+  // await createRouter();
   // await createBondPoolFactory();
   // await createStakingPoolFactory();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createMockPair();
   // await createMockBondPool();
+  await bond();
   // await createMockStakingPool();
 };
 
@@ -96,7 +100,7 @@ async function createConfig() {
 
 async function createPairFactory() {
   if (config == null) {
-    let configAddress = "0x7c51aB9Fa824857B688286eB75C86259E9b26eD0";
+    let configAddress = "0x1e4298C82061FAdd05096Ff04487A28E41820a94";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
   }
@@ -157,20 +161,19 @@ async function createRouter() {
   );
 
   // need to regiter router in config
-  // if (config == null) {
-  //   let configAddress = "0x7c51aB9Fa824857B688286eB75C86259E9b26eD0";
-  //   const Config = await ethers.getContractFactory("Config");
-  //   config = await Config.attach(configAddress);
-  //   let registered = await config.routerMap("0xa0f24900160CB4Fb26752172F2f507989C6A0424");
-  //   console.log("registered:", registered);
-  // }
+  if (config == null) {
+    let configAddress = "0x1e4298C82061FAdd05096Ff04487A28E41820a94";
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach(configAddress);
+  }
   await config.registerRouter(router.address);
 }
 
 async function createBondPoolFactory() {
   let apeXAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
   let pcvTreasuryAddress = "0xcb186F6bbB2Df145ff450ee0A4Ec6aF4baadEec7";
-  let priceOracleAddress = "0x15C20c6c673c3B2244b465FC7736eAA0E8bd6DF6";
+  let priceOracleAddress = "0x6bd151B83DeF999dA7C250D1B5e8Ad48Ac150f5f";
+  // let priceOracleAddress = priceOracle.address;
   const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
   bondPoolFactory = await BondPoolFactory.deploy(
     apeXAddress,
@@ -195,6 +198,11 @@ async function createBondPoolFactory() {
 }
 
 async function createStakingPoolFactory() {
+  if (apeXToken == null) {
+    let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+    const ApeXToken = await ethers.getContractFactory("ApeXToken");
+    apeXToken = await ApeXToken.attach(apeXTokenAddress);
+  }
   const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
   stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
     apeXToken.address,
@@ -203,7 +211,7 @@ async function createStakingPoolFactory() {
     initBlock,
     endBlock,
   ]);
-
+  await apeXToken.transfer(stakingPoolFactory.address, apeXAmountForString);
   console.log("StakingPoolFactory:", stakingPoolFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
 }
@@ -227,7 +235,7 @@ async function createMockPair() {
   let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526";
 
   if (pairFactory == null) {
-    let pairFactoryAddress = "0x413A91Ca840bd6d19cCc3D66b22dA9028ab68ff0";
+    let pairFactoryAddress = "0x189a7EEd04cA42B46D7f54964D253793B9f58275";
 
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
@@ -244,9 +252,9 @@ async function createMockPair() {
 }
 
 async function createMockBondPool() {
-  ammAddress = "0x7D99c6F7E825E53A26737f6C92Dfb88150232182";
+  ammAddress = "0xFcee74cb656B9262d0092Bc4ee22E3f561C4f472";
   if (bondPoolFactory == null) {
-    let bondPoolFactoryAddress = "0x1Ac4E51B864059EfDAACD4327e07c75b4E999C2F";
+    let bondPoolFactoryAddress = "0xe73ab46B338Ea881779eeAf17100d4e54ADE08Cb";
 
     const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
     bondPoolFactory = await BondPoolFactory.attach(bondPoolFactoryAddress);
@@ -270,10 +278,24 @@ async function createMockBondPool() {
 }
 
 async function bond() {
-  let bondPoolAddress = "";
-  const BondPool = await ethers.getContractFactory("BondPool");
-  let bondPool = await BondPool.attach(bondPoolAddress);
-  await bondPool.deposit()
+  if (bondPool == null) {
+    let bondPoolAddress = "0xBB7f3bB83B7575fB51E969B5F3F01Db46da70517";
+    const BondPool = await ethers.getContractFactory("BondPool"); 
+    bondPool = await BondPool.attach(bondPoolAddress);
+  }
+  if (pcvTreasury == null) {
+    let pcvTreasuryAddress = "0xcb186F6bbB2Df145ff450ee0A4Ec6aF4baadEec7";
+    let PCVTreasury = await ethers.getContractFactory("PCVTreasury");
+    pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
+  }
+  let ammAddress = "0xFcee74cb656B9262d0092Bc4ee22E3f561C4f472";
+  // await pcvTreasury.addLiquidityToken(ammAddress);
+  // await pcvTreasury.addBondPool(bondPool.address);
+  
+  const MockWETH = await ethers.getContractFactory("MockWETH");
+  const weth = await MockWETH.attach("0x655e2b2244934Aea3457E3C56a7438C271778D44");
+  await weth.approve(bondPool.address, BigNumber.from("10000000000000000000000000000000"));
+  await bondPool.deposit(signer, BigNumber.from('100000000000000000'), 1);
 }
 
 async function createMockStakingPool() {

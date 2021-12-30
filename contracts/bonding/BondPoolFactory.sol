@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./BondPool.sol";
 import "./interfaces/IBondPoolFactory.sol";
+import "./interfaces/IPCVTreasury.sol";
 import "../utils/Ownable.sol";
 
 contract BondPoolFactory is IBondPoolFactory, Ownable {
