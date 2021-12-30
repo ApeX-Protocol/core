@@ -228,14 +228,25 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     //just for dev use
-    function queryMaxOpenPosition(address trader, uint256 quoteAmount) external view returns (uint256 quoteAmountMax) {
+    function queryMaxOpenPosition(address trader, uint256 quoteAmount)
+        external
+        view
+        returns (
+            int256 baseAmountFunding,
+            int256 fundingFee,
+            int256 marginAcc,
+            uint112 baseReserve,
+            uint112 quoteReserve,
+            uint256 quoteAmountMax
+        )
+    {
         require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
         int256 _latestCPF = _getNewLatestCPF();
 
         Position memory traderPosition = traderPositionMap[trader];
 
         uint256 quoteSizeAbs = traderPosition.quoteSize.abs();
-        int256 baseAmountFunding;
+
         if (traderPosition.quoteSize == 0) {
             baseAmountFunding = 0;
         } else {
@@ -244,9 +255,8 @@ contract Margin is IMargin, IVault, Reentrant {
                 : int256(0).addU(_querySwapBaseWithAmm(false, quoteSizeAbs));
         }
 
-        int256 fundingFee = (baseAmountFunding * (_latestCPF - traderCPF[trader])).divU(1e18);
+        fundingFee = (baseAmountFunding * (_latestCPF - traderCPF[trader])).divU(1e18);
 
-        int256 marginAcc;
         if (traderPosition.quoteSize == 0) {
             marginAcc = traderPosition.baseSize + fundingFee;
         } else if (traderPosition.quoteSize > 0) {
@@ -269,7 +279,7 @@ contract Margin is IMargin, IVault, Reentrant {
             marginAcc = traderPosition.baseSize.subU(result[0]) + fundingFee;
         }
         require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
-        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+        (baseReserve, quoteReserve, ) = IAmm(amm).getReserves();
         quoteAmountMax =
             (quoteReserve * 10000) /
             ((IConfig(config).initMarginRatio() * baseReserve) / marginAcc.abs() + (200 * IConfig(config).beta()));
