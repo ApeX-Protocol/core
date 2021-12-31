@@ -133,6 +133,54 @@ contract StakingPool is IStakingPool, Reentrant {
         emit UnstakeBatch(_staker, _depositIds, _amounts);
     }
 
+    function forceWithdraw(uint256[] memory _depositIds) external override {
+        require(poolToken == apex, "cp.forceWithdraw: INVALID_POOL_TOKEN");
+        uint256 minRemainRatio = factory.minRemainRatioAfterBurn();
+        address _staker = msg.sender;
+        uint256 now256 = block.timestamp;
+        syncWeightPrice();
+        User storage user = users[_staker];
+
+        uint256 deltaTotalAmount;
+        uint256 deltaTotalWeight;
+        uint256 yieldAmount;
+        uint256 depositId;
+        //force withdraw existing rewards
+        for (uint256 i = 0; i < _depositIds.length; i++) {
+            depositId = _depositIds[i];
+            require(user.deposits[depositId].isYield, "cp.forceWithdraw: MUST_YIELD");
+            deltaTotalAmount += user.deposits[depositId].amount;
+            deltaTotalWeight += user.deposits[depositId].weight;
+
+            if (now256 >= user.deposits[depositId].lockUntil) {
+                yieldAmount += user.deposits[depositId].amount;
+            } else {
+                yieldAmount +=
+                    (user.deposits[depositId].amount *
+                        (minRemainRatio +
+                            ((10000 - minRemainRatio) * (now256 - user.deposits[depositId].lockFrom)) /
+                            factory.yieldLockTime())) /
+                    10000;
+            }
+            delete user.deposits[depositId];
+        }
+        //force withdraw new reward
+        uint256 newYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
+        uint256 _newYieldAmount = newYieldRewards - user.subYieldRewards;
+        if (_newYieldAmount != 0) {
+            yieldAmount += (_newYieldAmount * minRemainRatio) / 10000;
+            user.subYieldRewards = newYieldRewards;
+        }
+
+        user.tokenAmount -= deltaTotalAmount;
+        user.totalWeight -= deltaTotalWeight;
+        usersLockingWeight -= deltaTotalWeight;
+
+        if (yieldAmount > 0) {
+            factory.transferYieldTo(_staker, yieldAmount);
+        }
+    }
+
     //called by other staking pool to stake yield rewards into apeX pool
     function stakeAsPool(address _staker, uint256 _amount) external override {
         require(factory.poolTokenMap(msg.sender) != address(0), "cp.stakeAsPool: ACCESS_DENIED");

@@ -165,6 +165,53 @@ describe("stakingPool contract", function () {
       expect(await slpStakingPool.pendingYieldRewards(owner.address)).to.be.equal(74);
     });
   });
+
+  describe("forceWithdraw", function () {
+    beforeEach(async function () {
+      await slpStakingPool.stake(10000, 0);
+      await apexToken.approve(apexStakingPool.address, 20000);
+
+      await stakingPoolFactory.setMinRemainRatioAfterBurn(5000);
+      await apexStakingPool.stake(10000, 0);
+    });
+
+    it("revert when force withdraw nonReward", async function () {
+      await network.provider.send("evm_mine");
+      await expect(apexStakingPool.forceWithdraw([0])).to.be.revertedWith("cp.forceWithdraw: MUST_YIELD");
+    });
+
+    it("revert when force withdraw from slp pool", async function () {
+      await network.provider.send("evm_mine");
+      await expect(slpStakingPool.forceWithdraw([0])).to.be.revertedWith("cp.forceWithdraw: INVALID_POOL_TOKEN");
+    });
+
+    it("revert when force withdraw invalid depositId", async function () {
+      await network.provider.send("evm_mine");
+      await expect(apexStakingPool.forceWithdraw([1])).to.be.reverted;
+    });
+
+    it("can withdraw", async function () {
+      await network.provider.send("evm_mine");
+      await network.provider.send("evm_mine");
+      await network.provider.send("evm_mine");
+      let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
+
+      await slpStakingPool.processRewards();
+      let oldUser = await apexStakingPool.users(owner.address);
+      let oldUsersLockingWeight = await apexStakingPool.usersLockingWeight();
+      expect(await apexStakingPool.getDepositsLength(owner.address)).to.be.equal(2);
+      await apexStakingPool.forceWithdraw([1]);
+      expect(await apexStakingPool.getDepositsLength(owner.address)).to.be.equal(2);
+
+      let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
+      expect(newBalance).to.be.equal(oldBalance + 327);
+      let newUser = await apexStakingPool.users(owner.address);
+      let newUsersLockingWeight = await apexStakingPool.usersLockingWeight();
+      expect(oldUser.tokenAmount.toNumber()).to.be.equal(newUser.tokenAmount.toNumber() + 579);
+      expect(oldUser.totalWeight.toNumber()).to.be.equal(newUser.totalWeight.toNumber() + 1158000000);
+      expect(oldUsersLockingWeight.toNumber()).to.be.equal(newUsersLockingWeight.toNumber() + 1158000000);
+    });
+  });
 });
 
 async function mineBlocks(blockNumber) {
