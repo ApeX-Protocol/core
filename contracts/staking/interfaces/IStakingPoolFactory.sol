@@ -22,6 +22,9 @@ interface IStakingPoolFactory {
 
     function yieldLockTime() external view returns (uint256);
 
+    /// @notice get minimum remain ratio after force withdraw
+    function minRemainRatioAfterBurn() external view returns (uint256);
+
     /// @notice get stakingPool's poolToken
     function poolTokenMap(address pool) external view returns (address);
 
@@ -29,6 +32,7 @@ interface IStakingPoolFactory {
     /// @param poolToken staked token.
     function getPoolAddress(address poolToken) external view returns (address);
 
+    /// @notice check if can update reward ratio
     function shouldUpdateRatio() external view returns (bool);
 
     /// @notice calculate yield reward of poolToken since lastYieldDistribution
@@ -65,4 +69,7 @@ interface IStakingPoolFactory {
     /// @param poolAddr the pool.
     /// @param weight new weight.
     function changePoolWeight(address poolAddr, uint256 weight) external;
+
+    /// @notice set minimum reward ratio when force withdraw locked rewards
+    function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external;
 }

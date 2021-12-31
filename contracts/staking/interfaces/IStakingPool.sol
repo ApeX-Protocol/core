@@ -53,6 +53,10 @@ interface IStakingPool {
     /// @param amounts poolToken's amount to unstake.
     function unstakeBatch(uint256[] memory depositIds, uint256[] memory amounts) external;
 
+    /// @notice force withdraw locked reward and new reward
+    /// @param depositIds the deposit index of locked reward.
+    function forceWithdraw(uint256[] memory depositIds) external;
+
     /// @notice Not-apex stakingPool to stake their users' yield to apex stakingPool
     /// @param staker add yield to this staker in apex stakingPool.
     /// @param amount yield apex amount to stake.
