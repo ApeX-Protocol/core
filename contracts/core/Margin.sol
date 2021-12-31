@@ -9,6 +9,7 @@ import "./interfaces/IMargin.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IPriceOracle.sol";
 import "./interfaces/IWETH.sol";
+import "./interfaces/IArbSys.sol";
 import "../utils/Reentrant.sol";
 import "../libraries/SignedMath.sol";
 
@@ -21,6 +22,7 @@ contract Margin is IMargin, IVault, Reentrant {
     address public override amm;
     address public override baseToken;
     address public override quoteToken;
+    address public arbSys = address(100); //fixme use hardcode address(100)
     mapping(address => Position) public traderPositionMap; //all users' position
     mapping(address => int256) public traderCPF; //one trader's latest cpf, to calculate funding fee
     mapping(address => uint256) public traderLatestOperation; //to prevent flash loan attack
@@ -130,8 +132,9 @@ contract Margin is IMargin, IVault, Reentrant {
         uint8 side,
         uint256 quoteAmount
     ) external override nonReentrant returns (uint256 baseAmount) {
-        require(traderLatestOperation[trader] != block.number, "Margin.openPosition: ONE_BLOCK_TWICE_OPERATION");
-        traderLatestOperation[trader] = block.number;
+        uint256 arbBlockNumber = IArbSys(arbSys).arbBlockNumber();
+        require(traderLatestOperation[trader] != arbBlockNumber, "Margin.openPosition: ONE_BLOCK_TWICE_OPERATION");
+        traderLatestOperation[trader] = arbBlockNumber;
         require(side == 0 || side == 1, "Margin.openPosition: INVALID_SIDE");
         require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
         if (msg.sender != trader) {
@@ -233,8 +236,9 @@ contract Margin is IMargin, IVault, Reentrant {
         nonReentrant
         returns (uint256 baseAmount)
     {
-        require(traderLatestOperation[trader] != block.number, "Margin.closePosition: ONE_BLOCK_TWICE_OPERATION");
-        traderLatestOperation[trader] = block.number;
+        uint256 arbBlockNumber = IArbSys(arbSys).arbBlockNumber();
+        require(traderLatestOperation[trader] != arbBlockNumber, "Margin.closePosition: ONE_BLOCK_TWICE_OPERATION");
+        traderLatestOperation[trader] = arbBlockNumber;
         if (msg.sender != trader) {
             require(IConfig(config).routerMap(msg.sender), "Margin.closePosition: FORBIDDEN");
         }
@@ -331,7 +335,10 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 bonus
         )
     {
-        require(traderLatestOperation[msg.sender] != block.number, "Margin.liquidate: ONE_BLOCK_TWICE_OPERATION");
+        require(
+            traderLatestOperation[msg.sender] != IArbSys(arbSys).arbBlockNumber(),
+            "Margin.liquidate: ONE_BLOCK_TWICE_OPERATION"
+        );
 
         int256 _latestCPF = updateCPF();
         Position memory traderPosition = traderPositionMap[trader];
@@ -851,5 +858,10 @@ contract Margin is IMargin, IVault, Reentrant {
             int256 remainBase = baseSize.addU(baseNeeded);
             amount = remainBase <= 0 ? 0 : remainBase.abs();
         }
+    }
+
+    //just for dev use
+    function setArbSys(address _arbSys) external {
+        arbSys = _arbSys;
     }
 }
