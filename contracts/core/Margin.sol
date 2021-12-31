@@ -22,7 +22,7 @@ contract Margin is IMargin, IVault, Reentrant {
     address public override amm;
     address public override baseToken;
     address public override quoteToken;
-    address public arbSys; //fixme use hardcode address(100)
+    address public arbSys = address(100); //fixme use hardcode address(100)
     mapping(address => Position) public traderPositionMap; //all users' position
     mapping(address => int256) public traderCPF; //one trader's latest cpf, to calculate funding fee
     mapping(address => uint256) public traderLatestOperation; //to prevent flash loan attack
