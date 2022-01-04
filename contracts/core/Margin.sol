@@ -9,9 +9,9 @@ import "./interfaces/IMargin.sol";
 import "./interfaces/IVault.sol";
 import "./interfaces/IPriceOracle.sol";
 import "./interfaces/IWETH.sol";
-import "./interfaces/IArbSys.sol";
 import "../utils/Reentrant.sol";
 import "../libraries/SignedMath.sol";
+import "../libraries/ChainAdapter.sol";
 
 //@notice cpf means cumulative premium fraction
 contract Margin is IMargin, IVault, Reentrant {
@@ -22,7 +22,6 @@ contract Margin is IMargin, IVault, Reentrant {
     address public override amm;
     address public override baseToken;
     address public override quoteToken;
-    address public arbSys = address(100); //fixme use hardcode address(100)
     mapping(address => Position) public traderPositionMap; //all users' position
     mapping(address => int256) public traderCPF; //one trader's latest cpf, to calculate funding fee
     mapping(address => uint256) public traderLatestOperation; //to prevent flash loan attack
@@ -132,7 +131,7 @@ contract Margin is IMargin, IVault, Reentrant {
         uint8 side,
         uint256 quoteAmount
     ) external override nonReentrant returns (uint256 baseAmount) {
-        uint256 arbBlockNumber = IArbSys(arbSys).arbBlockNumber();
+        uint256 arbBlockNumber = ChainAdapter.blockNumber();
         require(traderLatestOperation[trader] != arbBlockNumber, "Margin.openPosition: ONE_BLOCK_TWICE_OPERATION");
         traderLatestOperation[trader] = arbBlockNumber;
         require(side == 0 || side == 1, "Margin.openPosition: INVALID_SIDE");
@@ -236,7 +235,7 @@ contract Margin is IMargin, IVault, Reentrant {
         nonReentrant
         returns (uint256 baseAmount)
     {
-        uint256 arbBlockNumber = IArbSys(arbSys).arbBlockNumber();
+        uint256 arbBlockNumber = ChainAdapter.blockNumber();
         require(traderLatestOperation[trader] != arbBlockNumber, "Margin.closePosition: ONE_BLOCK_TWICE_OPERATION");
         traderLatestOperation[trader] = arbBlockNumber;
         if (msg.sender != trader) {
@@ -336,7 +335,7 @@ contract Margin is IMargin, IVault, Reentrant {
         )
     {
         require(
-            traderLatestOperation[msg.sender] != IArbSys(arbSys).arbBlockNumber(),
+            traderLatestOperation[msg.sender] != ChainAdapter.blockNumber(),
             "Margin.liquidate: ONE_BLOCK_TWICE_OPERATION"
         );
 
@@ -858,10 +857,5 @@ contract Margin is IMargin, IVault, Reentrant {
             int256 remainBase = baseSize.addU(baseNeeded);
             amount = remainBase <= 0 ? 0 : remainBase.abs();
         }
-    }
-
-    //just for dev use
-    function setArbSys(address _arbSys) external {
-        arbSys = _arbSys;
     }
 }
