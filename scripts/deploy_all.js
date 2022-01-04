@@ -59,7 +59,7 @@ const main = async () => {
   // await createMockTokens();
   // await createMockPair();
   // await createMockBondPool();
-  await bond();
+  // await bond();
   // await createMockStakingPool();
 };
 
