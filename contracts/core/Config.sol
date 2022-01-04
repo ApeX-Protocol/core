@@ -12,8 +12,8 @@ contract Config is IConfig, Ownable {
     uint8 public override beta = 50; // 50-200，50 means 0.5
     uint256 public override maxCPFBoost = 10; // default 10
     uint256 public override rebasePriceGap = 5; //0-100 , if 5 means 5%
-    uint256 public override tradingSlippage = 10; //0-100, if 5 means 5%
-    uint256 public override initMarginRatio = 1000; //if 1000, means margin ratio >= 10%
+    uint256 public override tradingSlippage = 5; //0-100, if 5 means 5%
+    uint256 public override initMarginRatio = 800; //if 1000, means margin ratio >= 10%
     uint256 public override liquidateThreshold = 10000; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio = 100; //if 100, means liquidator bot get 1% as fee
     uint256 public override feeParameter = 150; // 100 * (1/fee -1)
