@@ -79,10 +79,9 @@ contract StakingPool is IStakingPool, Reentrant {
     ) external override {
         require(depositIds.length == amounts.length, "cp.batchWithdraw: INVALID_DEPOSITS_AMOUNTS");
         require(yieldIds.length == yieldAmounts.length, "cp.batchWithdraw: INVALID_YIELDS_AMOUNTS");
-        address _staker = msg.sender;
-        uint256 now256 = block.timestamp;
-        User storage user = users[_staker];
-        _processRewards(_staker, user);
+        User storage user = users[msg.sender];
+        _processRewards(msg.sender, user);
+        emit UnstakeBatch(msg.sender, depositIds, amounts);
         uint256 lockTime = factory.lockTime();
 
         uint256 yieldAmount;
@@ -98,7 +97,10 @@ contract StakingPool is IStakingPool, Reentrant {
             _id = depositIds[i];
             require(_amount != 0, "cp.batchWithdraw: INVALID_AMOUNT");
             stakeDeposit = user.deposits[_id];
-            require(stakeDeposit.lockFrom == 0 || now256 > stakeDeposit.lockUntil, "cp.batchWithdraw: DEPOSIT_LOCKED");
+            require(
+                stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockUntil,
+                "cp.batchWithdraw: DEPOSIT_LOCKED"
+            );
             require(stakeDeposit.amount >= _amount, "cp.batchWithdraw: EXCEED_STAKED");
 
             previousWeight = stakeDeposit.weight;
@@ -131,7 +133,10 @@ contract StakingPool is IStakingPool, Reentrant {
             _id = yieldIds[i];
             require(_amount != 0, "cp.batchWithdraw: INVALID_AMOUNT");
             stakeYield = user.yields[_id];
-            require(stakeYield.lockFrom == 0 || now256 > stakeYield.lockUntil, "cp.batchWithdraw: DEPOSIT_LOCKED");
+            require(
+                stakeYield.lockFrom == 0 || block.timestamp > stakeYield.lockUntil,
+                "cp.batchWithdraw: DEPOSIT_LOCKED"
+            );
             require(stakeYield.amount >= _amount, "cp.batchWithdraw: EXCEED_STAKED");
 
             yieldAmount += _amount;
@@ -146,12 +151,11 @@ contract StakingPool is IStakingPool, Reentrant {
         }
 
         if (yieldAmount > 0) {
-            factory.transferYieldTo(_staker, yieldAmount);
+            factory.transferYieldTo(msg.sender, yieldAmount);
         }
         if (stakeAmount > 0) {
-            IERC20(poolToken).transfer(_staker, stakeAmount);
+            IERC20(poolToken).transfer(msg.sender, stakeAmount);
         }
-        emit UnstakeBatch(_staker, depositIds, amounts);
     }
 
     function forceWithdraw(uint256[] memory _yieldIds) external override {

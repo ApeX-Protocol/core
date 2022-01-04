@@ -94,11 +94,11 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         emit WeightUpdated(msg.sender, _pool, _weight);
     }
 
-    function setYieldLockTime(uint256 _yieldLockTime) external onlyOwner {
-        require(_yieldLockTime > yieldLockTime, "cpf.setYieldLockTime: INVALID_YIELDLOCKTIME");
-        yieldLockTime = _yieldLockTime;
+    function setLockTime(uint256 _lockTime) external onlyOwner {
+        require(_lockTime > lockTime, "cpf.setLockTime: INVALID_LOCK_TIME");
+        lockTime = _lockTime;
 
-        emit SetYieldLockTime(_yieldLockTime);
+        emit SetYieldLockTime(_lockTime);
     }
 
     function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external override onlyOwner {
