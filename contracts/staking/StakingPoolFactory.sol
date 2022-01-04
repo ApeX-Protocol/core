@@ -15,7 +15,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     uint256 public totalWeight;
     uint256 public override endBlock;
     uint256 public lastUpdateBlock;
-    uint256 public override yieldLockTime; //tocheck if can hardcode, will optimise gas
+    uint256 public override lockTime; //tocheck if can hardcode, will optimise gas
     uint256 public override minRemainRatioAfterBurn; //10k-based
     mapping(address => PoolInfo) public pools;
     mapping(address => address) public override poolTokenMap;

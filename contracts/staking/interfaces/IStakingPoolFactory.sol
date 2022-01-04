@@ -20,7 +20,7 @@ interface IStakingPoolFactory {
     /// @notice get the endBlock number to yield, after this, no yield reward
     function endBlock() external view returns (uint256);
 
-    function yieldLockTime() external view returns (uint256);
+    function lockTime() external view returns (uint256);
 
     /// @notice get minimum remain ratio after force withdraw
     function minRemainRatioAfterBurn() external view returns (uint256);
