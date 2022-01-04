@@ -50,7 +50,7 @@ describe("stakingPool contract", function () {
 
   describe("stake", function () {
     it("reverted when stake invalid amount", async function () {
-      await expect(apexStakingPool.stake(0, lockUntil)).to.be.revertedWith("cp.stake: INVALID_AMOUNT");
+      await expect(apexStakingPool.stake(0, lockUntil)).to.be.revertedWith("sp.stake: INVALID_AMOUNT");
     });
 
     it("reverted when exceed balance", async function () {
@@ -61,7 +61,7 @@ describe("stakingPool contract", function () {
 
     it("reverted when exceed balance", async function () {
       await expect(apexStakingPool.stake(10000, invalidLockUntil)).to.be.revertedWith(
-        "cp._stake: INVALID_LOCK_INTERVAL"
+        "sp._stake: INVALID_LOCK_INTERVAL"
       );
     });
 
@@ -115,7 +115,7 @@ describe("stakingPool contract", function () {
       await network.provider.send("evm_mine");
       await apexStakingPool.batchWithdraw([0], [10000], [], []);
       await expect(apexStakingPool.batchWithdraw([], [], [1], [10000])).to.be.revertedWith(
-        "cp.batchWithdraw: DEPOSIT_LOCKED"
+        "sp.batchWithdraw: DEPOSIT_LOCKED"
       );
       await mineBlocks(100);
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
@@ -135,7 +135,7 @@ describe("stakingPool contract", function () {
       let halfYearLockUntil = await halfYearLater();
       await slpStakingPool.stake(10000, halfYearLockUntil);
       await expect(slpStakingPool.batchWithdraw([1], [10000], [], [])).to.be.revertedWith(
-        "cp.batchWithdraw: DEPOSIT_LOCKED"
+        "sp.batchWithdraw: DEPOSIT_LOCKED"
       );
     });
 
@@ -186,7 +186,7 @@ describe("stakingPool contract", function () {
 
     it("revert when force withdraw from slp pool", async function () {
       await network.provider.send("evm_mine");
-      await expect(slpStakingPool.forceWithdraw([0])).to.be.revertedWith("cp.forceWithdraw: INVALID_POOL_TOKEN");
+      await expect(slpStakingPool.forceWithdraw([0])).to.be.revertedWith("sp.forceWithdraw: INVALID_POOL_TOKEN");
     });
 
     it("revert when force withdraw invalid depositId", async function () {
