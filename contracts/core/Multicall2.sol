@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-
 /// @title Multicall - Aggregate results from multiple read-only function calls
-
 contract Multicall2 {
     struct Call {
         address target;
