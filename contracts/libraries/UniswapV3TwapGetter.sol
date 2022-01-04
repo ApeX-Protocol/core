@@ -16,12 +16,14 @@ library UniswapV3TwapGetter {
             secondsAgos[0] = twapInterval; // from (before)
             secondsAgos[1] = 0; // to (now)
 
-            (int56[] memory tickCumulatives, ) = IUniswapV3Pool(uniswapV3Pool).observe(secondsAgos);
-
-            // tick(imprecise as it's an integer) to price
-            sqrtPriceX96 = TickMath.getSqrtRatioAtTick(
-                int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(twapInterval)))
-            );
+            try IUniswapV3Pool(uniswapV3Pool).observe(secondsAgos) returns (int56[] memory tickCumulatives, uint160[] memory) {
+                // tick(imprecise as it's an integer) to price
+                sqrtPriceX96 = TickMath.getSqrtRatioAtTick(
+                    int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(twapInterval)))
+                );
+            } catch Error(string memory /*reason*/) {
+                (sqrtPriceX96, , , , , , ) = IUniswapV3Pool(uniswapV3Pool).slot0();
+            }
         }
     }
 
