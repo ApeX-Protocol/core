@@ -81,7 +81,7 @@ contract StakingPool is IStakingPool, Reentrant {
         require(yieldIds.length == yieldAmounts.length, "cp.batchWithdraw: INVALID_YIELDS_AMOUNTS");
         User storage user = users[msg.sender];
         _processRewards(msg.sender, user);
-        emit UnstakeBatch(msg.sender, depositIds, amounts);
+        emit BatchWithdraw(msg.sender, depositIds, amounts, yieldIds, yieldAmounts);
         uint256 lockTime = factory.lockTime();
 
         uint256 yieldAmount;

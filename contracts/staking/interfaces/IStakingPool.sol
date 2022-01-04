@@ -23,7 +23,13 @@ interface IStakingPool {
         Yield[] yields;
     }
 
-    event UnstakeBatch(address indexed by, uint256[] _depositIds, uint256[] _amounts);
+    event BatchWithdraw(
+        address indexed by,
+        uint256[] _depositIds,
+        uint256[] _amounts,
+        uint256[] _yieldIds,
+        uint256[] _yieldAmounts
+    );
 
     event Staked(address indexed to, uint256 depositId, uint256 amount, uint256 lockFrom, uint256 lockUntil);
 
