@@ -63,6 +63,17 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         emit PoolRegistered(msg.sender, poolToken, _pool, _weight);
     }
 
+    function unregisterPool(address _pool) external override onlyOwner {
+        require(poolTokenMap[_pool] != address(0), "cpf.unregisterPool: POOL_NOT_REGISTERED");
+        address poolToken = IStakingPool(_pool).poolToken();
+
+        totalWeight -= pools[poolToken].weight;
+        delete pools[poolToken];
+        delete poolTokenMap[_pool];
+
+        emit PoolUnRegistered(msg.sender, poolToken, _pool);
+    }
+
     function updateApeXPerBlock() external override {
         uint256 blockNumber = block.number;
 
