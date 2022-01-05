@@ -36,6 +36,7 @@ contract StakingPool is IStakingPool, Reentrant {
         lastYieldDistribution = _initBlock;
     }
 
+    //tocheck can remove "nonReentrant"?
     function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
         require(_amount > 0, "sp.stake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
@@ -50,7 +51,6 @@ contract StakingPool is IStakingPool, Reentrant {
         User storage user = users[_staker];
         _processRewards(_staker, user);
 
-        IERC20(poolToken).transferFrom(_staker, address(this), _amount);
         //if 0, not lock
         uint256 lockFrom = _lockUntil > 0 ? now256 : 0;
         uint256 stakeWeight = (((_lockUntil - lockFrom) * WEIGHT_MULTIPLIER) / lockTime + WEIGHT_MULTIPLIER) * _amount;
@@ -69,6 +69,7 @@ contract StakingPool is IStakingPool, Reentrant {
         usersLockingWeight += stakeWeight;
 
         emit Staked(_staker, depositId, _amount, lockFrom, _lockUntil);
+        IERC20(poolToken).transferFrom(_staker, address(this), _amount);
     }
 
     function batchWithdraw(
