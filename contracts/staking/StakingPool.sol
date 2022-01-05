@@ -121,8 +121,8 @@ contract StakingPool is IStakingPool, Reentrant {
             } else {
                 stakeDeposit.amount -= _amount;
                 stakeDeposit.weight = newWeight;
+                user.deposits[_id] = stakeDeposit;
             }
-            user.deposits[_id] = stakeDeposit;
         }
         usersLockingWeight -= deltaUsersLockingWeight;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
@@ -146,8 +146,8 @@ contract StakingPool is IStakingPool, Reentrant {
                 delete user.yields[_id];
             } else {
                 stakeYield.amount -= _amount;
+                user.yields[_id] = stakeYield;
             }
-            user.yields[_id] = stakeYield;
         }
 
         if (yieldAmount > 0) {
