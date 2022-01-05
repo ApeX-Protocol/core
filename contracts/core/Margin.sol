@@ -131,9 +131,9 @@ contract Margin is IMargin, IVault, Reentrant {
         uint8 side,
         uint256 quoteAmount
     ) external override nonReentrant returns (uint256 baseAmount) {
-        uint256 arbBlockNumber = ChainAdapter.blockNumber();
-        require(traderLatestOperation[trader] != arbBlockNumber, "Margin.openPosition: ONE_BLOCK_TWICE_OPERATION");
-        traderLatestOperation[trader] = arbBlockNumber;
+        uint256 blockNumber = ChainAdapter.blockNumber();
+        require(traderLatestOperation[trader] != blockNumber, "Margin.openPosition: ONE_BLOCK_TWICE_OPERATION");
+        traderLatestOperation[trader] = blockNumber;
         require(side == 0 || side == 1, "Margin.openPosition: INVALID_SIDE");
         require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
         if (msg.sender != trader) {
@@ -235,9 +235,9 @@ contract Margin is IMargin, IVault, Reentrant {
         nonReentrant
         returns (uint256 baseAmount)
     {
-        uint256 arbBlockNumber = ChainAdapter.blockNumber();
-        require(traderLatestOperation[trader] != arbBlockNumber, "Margin.closePosition: ONE_BLOCK_TWICE_OPERATION");
-        traderLatestOperation[trader] = arbBlockNumber;
+        uint256 blockNumber = ChainAdapter.blockNumber();
+        require(traderLatestOperation[trader] != blockNumber, "Margin.closePosition: ONE_BLOCK_TWICE_OPERATION");
+        traderLatestOperation[trader] = blockNumber;
         if (msg.sender != trader) {
             require(IConfig(config).routerMap(msg.sender), "Margin.closePosition: FORBIDDEN");
         }
