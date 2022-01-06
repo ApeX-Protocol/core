@@ -45,12 +45,12 @@ describe("stakingPool contract", function () {
     await apexToken.mint(stakingPoolFactory.address, 100_0000);
     await slpToken.mint(owner.address, 100_0000);
     await slpToken.approve(slpStakingPool.address, 100_0000);
-    await stakingPoolFactory.setYieldLockTime(10);
+    await stakingPoolFactory.setLockTime(10);
   });
 
   describe("stake", function () {
     it("reverted when stake invalid amount", async function () {
-      await expect(apexStakingPool.stake(0, lockUntil)).to.be.revertedWith("cp._stake: INVALID_AMOUNT");
+      await expect(apexStakingPool.stake(0, lockUntil)).to.be.revertedWith("sp.stake: INVALID_AMOUNT");
     });
 
     it("reverted when exceed balance", async function () {
@@ -61,7 +61,7 @@ describe("stakingPool contract", function () {
 
     it("reverted when exceed balance", async function () {
       await expect(apexStakingPool.stake(10000, invalidLockUntil)).to.be.revertedWith(
-        "cp._stake: INVALID_LOCK_INTERVAL"
+        "sp._stake: INVALID_LOCK_INTERVAL"
       );
     });
 
@@ -80,17 +80,17 @@ describe("stakingPool contract", function () {
 
       let user = await apexStakingPool.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(30020);
-      expect(user.totalWeight.toNumber()).to.equal(30040 * 1e6);
+      expect(user.totalWeight.toNumber()).to.equal(30000 * 1e6);
       expect(user.subYieldRewards.toNumber()).to.equal(60);
     });
 
     it("stake twice, with one year lock", async function () {
-      await stakingPoolFactory.setYieldLockTime(15768000);
+      await stakingPoolFactory.setLockTime(15768000);
       let halfYearLockUntil = await halfYearLater();
       await apexStakingPool.stake(10000, halfYearLockUntil);
       let user = await apexStakingPool.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(10000);
-      expect(user.totalWeight.toNumber()).to.be.at.least(19999000000);
+      expect(user.totalWeight.toNumber()).to.be.at.least(19990000000);
       expect(user.subYieldRewards.toNumber()).to.equal(0);
 
       halfYearLockUntil = await halfYearLater();
@@ -98,7 +98,7 @@ describe("stakingPool contract", function () {
       user = await apexStakingPool.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(30019);
       expect(user.totalWeight.toNumber()).to.be.at.most(60037990000);
-      expect(user.subYieldRewards.toNumber()).to.equal(60);
+      expect(user.subYieldRewards.toNumber()).to.be.at.most(60);
     });
   });
 
@@ -113,11 +113,13 @@ describe("stakingPool contract", function () {
       await network.provider.send("evm_mine");
       await apexStakingPool.processRewards();
       await network.provider.send("evm_mine");
-      await apexStakingPool.unstakeBatch([0], [10000]);
-      await expect(apexStakingPool.unstakeBatch([1], [10000])).to.be.revertedWith("p.unstakeBatch: DEPOSIT_LOCKE");
+      await apexStakingPool.batchWithdraw([0], [10000], [], []);
+      await expect(apexStakingPool.batchWithdraw([], [], [1], [10000])).to.be.revertedWith(
+        "sp.batchWithdraw: DEPOSIT_LOCKED"
+      );
       await mineBlocks(100);
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      await apexStakingPool.unstakeBatch([1], [9]);
+      await apexStakingPool.batchWithdraw([], [], [1], [9]);
       let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
       expect(oldBalance + 9).to.be.equal(newBalance);
     });
@@ -129,10 +131,12 @@ describe("stakingPool contract", function () {
     });
 
     it("unlock too early", async function () {
-      await stakingPoolFactory.setYieldLockTime(15768000);
+      await stakingPoolFactory.setLockTime(15768000);
       let halfYearLockUntil = await halfYearLater();
       await slpStakingPool.stake(10000, halfYearLockUntil);
-      await expect(slpStakingPool.unstakeBatch([1], [10000])).to.be.revertedWith("p.unstakeBatch: DEPOSIT_LOCKE");
+      await expect(slpStakingPool.batchWithdraw([1], [10000], [], [])).to.be.revertedWith(
+        "sp.batchWithdraw: DEPOSIT_LOCKED"
+      );
     });
 
     it("stake, process reward to apeXPool, unstake from slpPool, unstake from apeXPool", async function () {
@@ -140,10 +144,10 @@ describe("stakingPool contract", function () {
       await slpStakingPool.processRewards();
 
       await network.provider.send("evm_mine");
-      await slpStakingPool.unstakeBatch([0], [10000]);
+      await slpStakingPool.batchWithdraw([0], [10000], [], []);
       await mineBlocks(100);
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      await apexStakingPool.unstakeBatch([0], [1]);
+      await apexStakingPool.batchWithdraw([], [], [0], [1]);
       let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
       expect(oldBalance + 1).to.be.equal(newBalance);
     });
@@ -165,6 +169,53 @@ describe("stakingPool contract", function () {
       expect(await slpStakingPool.pendingYieldRewards(owner.address)).to.be.equal(74);
     });
   });
+
+  describe("forceWithdraw", function () {
+    beforeEach(async function () {
+      await slpStakingPool.stake(10000, 0);
+      await apexToken.approve(apexStakingPool.address, 20000);
+
+      await stakingPoolFactory.setMinRemainRatioAfterBurn(5000);
+      await apexStakingPool.stake(10000, 0);
+    });
+
+    it("revert when force withdraw nonReward", async function () {
+      await network.provider.send("evm_mine");
+      await expect(apexStakingPool.forceWithdraw([0])).to.be.reverted;
+    });
+
+    it("revert when force withdraw from slp pool", async function () {
+      await network.provider.send("evm_mine");
+      await expect(slpStakingPool.forceWithdraw([0])).to.be.revertedWith("sp.forceWithdraw: INVALID_POOL_TOKEN");
+    });
+
+    it("revert when force withdraw invalid depositId", async function () {
+      await network.provider.send("evm_mine");
+      await expect(apexStakingPool.forceWithdraw([1])).to.be.reverted;
+    });
+
+    it("can withdraw", async function () {
+      await network.provider.send("evm_mine");
+      await network.provider.send("evm_mine");
+      await network.provider.send("evm_mine");
+      let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
+
+      await slpStakingPool.processRewards();
+      let oldUser = await apexStakingPool.users(owner.address);
+      let oldUsersLockingWeight = await apexStakingPool.usersLockingWeight();
+      expect(await apexStakingPool.getDepositsLength(owner.address)).to.be.equal(1);
+      await apexStakingPool.forceWithdraw([0]);
+      expect(await apexStakingPool.getDepositsLength(owner.address)).to.be.equal(1);
+
+      let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
+      expect(newBalance).to.be.equal(oldBalance + 327);
+      let newUser = await apexStakingPool.users(owner.address);
+      let newUsersLockingWeight = await apexStakingPool.usersLockingWeight();
+      expect(oldUser.tokenAmount.toNumber()).to.be.equal(newUser.tokenAmount.toNumber() + 579);
+      expect(oldUser.totalWeight.toNumber()).to.be.equal(newUser.totalWeight.toNumber());
+      expect(oldUsersLockingWeight.toNumber()).to.be.equal(newUsersLockingWeight.toNumber());
+    });
+  });
 });
 
 async function mineBlocks(blockNumber) {
@@ -181,5 +232,5 @@ async function currentBlockNumber() {
 }
 
 async function halfYearLater() {
-  return Math.floor(Date.now() / 1000) + 15768000;
+  return Math.floor(Date.now() / 1000) + 15758000;
 }

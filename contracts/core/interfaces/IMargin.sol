@@ -124,8 +124,6 @@ interface IMargin {
 
     function calUnrealizedPnl(address trader) external view returns (int256);
 
-    function getMarginRatio(address trader) external view returns (uint256);
-
     function getNewLatestCPF() external view returns (int256);
 
     function querySwapBaseWithAmm(bool isLong, uint256 quoteAmount) external view returns (uint256);

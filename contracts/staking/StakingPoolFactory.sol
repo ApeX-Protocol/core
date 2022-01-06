@@ -15,7 +15,8 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     uint256 public totalWeight;
     uint256 public override endBlock;
     uint256 public lastUpdateBlock;
-    uint256 public override yieldLockTime; //tocheck if can hardcode, will optimise gas
+    uint256 public override lockTime; //tocheck if can hardcode, will optimise gas
+    uint256 public override minRemainRatioAfterBurn; //10k-based
     mapping(address => PoolInfo) public pools;
     mapping(address => address) public override poolTokenMap;
 
@@ -62,6 +63,17 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         emit PoolRegistered(msg.sender, poolToken, _pool, _weight);
     }
 
+    function unregisterPool(address _pool) external override onlyOwner {
+        require(poolTokenMap[_pool] != address(0), "cpf.unregisterPool: POOL_NOT_REGISTERED");
+        address poolToken = IStakingPool(_pool).poolToken();
+
+        totalWeight -= pools[poolToken].weight;
+        delete pools[poolToken];
+        delete poolTokenMap[_pool];
+
+        emit PoolUnRegistered(msg.sender, poolToken, _pool);
+    }
+
     function updateApeXPerBlock() external override {
         uint256 blockNumber = block.number;
 
@@ -93,11 +105,16 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         emit WeightUpdated(msg.sender, _pool, _weight);
     }
 
-    function setYieldLockTime(uint256 _yieldLockTime) external onlyOwner {
-        require(_yieldLockTime > yieldLockTime, "cpf.setYieldLockTime: INVALID_YIELDLOCKTIME");
-        yieldLockTime = _yieldLockTime;
+    function setLockTime(uint256 _lockTime) external onlyOwner {
+        require(_lockTime > lockTime, "cpf.setLockTime: INVALID_LOCK_TIME");
+        lockTime = _lockTime;
 
-        emit SetYieldLockTime(_yieldLockTime);
+        emit SetYieldLockTime(_lockTime);
+    }
+
+    function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external override onlyOwner {
+        require(_minRemainRatioAfterBurn <= 10000, "cpf.setMinRemainRatioAfterBurn: INVALID_VALUE");
+        minRemainRatioAfterBurn = _minRemainRatioAfterBurn;
     }
 
     function calStakingPoolApeXReward(uint256 _lastYieldDistribution, address _poolToken)

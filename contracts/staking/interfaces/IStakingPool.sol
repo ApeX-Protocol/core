@@ -7,7 +7,12 @@ interface IStakingPool {
         uint256 weight;
         uint256 lockFrom;
         uint256 lockUntil;
-        bool isYield;
+    }
+
+    struct Yield {
+        uint256 amount;
+        uint256 lockFrom;
+        uint256 lockUntil;
     }
 
     struct User {
@@ -15,9 +20,16 @@ interface IStakingPool {
         uint256 totalWeight;
         uint256 subYieldRewards;
         Deposit[] deposits;
+        Yield[] yields;
     }
 
-    event UnstakeBatch(address indexed by, uint256[] _depositIds, uint256[] _amounts);
+    event BatchWithdraw(
+        address indexed by,
+        uint256[] _depositIds,
+        uint256[] _amounts,
+        uint256[] _yieldIds,
+        uint256[] _yieldAmounts
+    );
 
     event Staked(address indexed to, uint256 depositId, uint256 amount, uint256 lockFrom, uint256 lockUntil);
 
@@ -48,10 +60,19 @@ interface IStakingPool {
     /// @param lockUntil time to lock.
     function stake(uint256 amount, uint256 lockUntil) external;
 
-    /// @notice UnstakeBatch poolToken
+    /// @notice BatchWithdraw poolToken
     /// @param depositIds the deposit index.
-    /// @param amounts poolToken's amount to unstake.
-    function unstakeBatch(uint256[] memory depositIds, uint256[] memory amounts) external;
+    /// @param depositAmounts poolToken's amount to unstake.
+    function batchWithdraw(
+        uint256[] memory depositIds,
+        uint256[] memory depositAmounts,
+        uint256[] memory yieldIds,
+        uint256[] memory yieldAmounts
+    ) external;
+
+    /// @notice force withdraw locked reward and new reward
+    /// @param depositIds the deposit index of locked reward.
+    function forceWithdraw(uint256[] memory depositIds) external;
 
     /// @notice Not-apex stakingPool to stake their users' yield to apex stakingPool
     /// @param staker add yield to this staker in apex stakingPool.

@@ -11,6 +11,8 @@ interface IStakingPoolFactory {
 
     event PoolRegistered(address indexed by, address indexed poolToken, address indexed pool, uint256 weight);
 
+    event PoolUnRegistered(address indexed by, address indexed poolToken, address indexed pool);
+
     event SetYieldLockTime(uint256 yieldLockTime);
 
     event UpdateApeXPerBlock(uint256 apeXPerBlock);
@@ -20,7 +22,10 @@ interface IStakingPoolFactory {
     /// @notice get the endBlock number to yield, after this, no yield reward
     function endBlock() external view returns (uint256);
 
-    function yieldLockTime() external view returns (uint256);
+    function lockTime() external view returns (uint256);
+
+    /// @notice get minimum remain ratio after force withdraw
+    function minRemainRatioAfterBurn() external view returns (uint256);
 
     /// @notice get stakingPool's poolToken
     function poolTokenMap(address pool) external view returns (address);
@@ -29,6 +34,7 @@ interface IStakingPoolFactory {
     /// @param poolToken staked token.
     function getPoolAddress(address poolToken) external view returns (address);
 
+    /// @notice check if can update reward ratio
     function shouldUpdateRatio() external view returns (bool);
 
     /// @notice calculate yield reward of poolToken since lastYieldDistribution
@@ -56,6 +62,9 @@ interface IStakingPoolFactory {
     /// @param weight pool's weight between all other stakingPools.
     function registerPool(address pool, uint256 weight) external;
 
+    /// @notice unregister an exist pool
+    function unregisterPool(address pool) external;
+
     /// @notice mint apex to staker
     /// @param _to the staker.
     /// @param _amount apex amount.
@@ -65,4 +74,7 @@ interface IStakingPoolFactory {
     /// @param poolAddr the pool.
     /// @param weight new weight.
     function changePoolWeight(address poolAddr, uint256 weight) external;
+
+    /// @notice set minimum reward ratio when force withdraw locked rewards
+    function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external;
 }
