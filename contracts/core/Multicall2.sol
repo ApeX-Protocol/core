@@ -14,7 +14,7 @@ contract Multicall2 {
     }
 
     function aggregate(Call[] memory calls) public returns (uint256 blockNumber, bytes[] memory returnData) {
-        blockNumber = block.number;
+        blockNumber = ChainAdapter.blockNumber();
         returnData = new bytes[](calls.length);
         for (uint256 i = 0; i < calls.length; i++) {
             (bool success, bytes memory ret) = calls[i].target.call(calls[i].callData);
@@ -88,7 +88,7 @@ contract Multicall2 {
         )
     {
         blockNumber =  ChainAdapter.blockNumber();
-        blockHash = blockhash(block.number);
+        blockHash = blockhash(blockNumber);
         returnData = tryAggregate(requireSuccess, calls);
     }
 }
