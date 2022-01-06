@@ -50,7 +50,6 @@ contract StakingPool is IStakingPool, Reentrant {
         User storage user = users[_staker];
         _processRewards(_staker, user);
 
-        IERC20(poolToken).transferFrom(_staker, address(this), _amount);
         //if 0, not lock
         uint256 lockFrom = _lockUntil > 0 ? now256 : 0;
         uint256 stakeWeight = (((_lockUntil - lockFrom) * WEIGHT_MULTIPLIER) / lockTime + WEIGHT_MULTIPLIER) * _amount;
@@ -69,6 +68,7 @@ contract StakingPool is IStakingPool, Reentrant {
         usersLockingWeight += stakeWeight;
 
         emit Staked(_staker, depositId, _amount, lockFrom, _lockUntil);
+        IERC20(poolToken).transferFrom(_staker, address(this), _amount);
     }
 
     function batchWithdraw(
@@ -121,8 +121,8 @@ contract StakingPool is IStakingPool, Reentrant {
             } else {
                 stakeDeposit.amount -= _amount;
                 stakeDeposit.weight = newWeight;
+                user.deposits[_id] = stakeDeposit;
             }
-            user.deposits[_id] = stakeDeposit;
         }
         usersLockingWeight -= deltaUsersLockingWeight;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
@@ -146,8 +146,8 @@ contract StakingPool is IStakingPool, Reentrant {
                 delete user.yields[_id];
             } else {
                 stakeYield.amount -= _amount;
+                user.yields[_id] = stakeYield;
             }
-            user.yields[_id] = stakeYield;
         }
 
         if (yieldAmount > 0) {
