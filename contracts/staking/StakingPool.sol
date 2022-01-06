@@ -36,7 +36,6 @@ contract StakingPool is IStakingPool, Reentrant {
         lastYieldDistribution = _initBlock;
     }
 
-    //tocheck can remove "nonReentrant"?
     function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
         require(_amount > 0, "sp.stake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
