@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
+import "../libraries/ChainAdapter.sol";
 
 /// @title Multicall - Aggregate results from multiple read-only function calls
-
 contract Multicall2 {
     struct Call {
         address target;
@@ -39,7 +39,7 @@ contract Multicall2 {
     }
 
     function getBlockNumber() public view returns (uint256 blockNumber) {
-        blockNumber = block.number;
+        blockNumber = ChainAdapter.blockNumber();
     }
 
     function getCurrentBlockCoinbase() public view returns (address coinbase) {
@@ -63,7 +63,7 @@ contract Multicall2 {
     }
 
     function getLastBlockHash() public view returns (bytes32 blockHash) {
-        blockHash = blockhash(block.number - 1);
+        blockHash = blockhash(ChainAdapter.blockNumber() - 1);
     }
 
     function tryAggregate(bool requireSuccess, Call[] memory calls) public returns (Result[] memory returnData) {
@@ -87,7 +87,7 @@ contract Multicall2 {
             Result[] memory returnData
         )
     {
-        blockNumber = block.number;
+        blockNumber =  ChainAdapter.blockNumber();
         blockHash = blockhash(block.number);
         returnData = tryAggregate(requireSuccess, calls);
     }
