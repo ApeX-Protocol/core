@@ -5,6 +5,7 @@ const verifyStr = "npx hardhat verify --network";
 let invitation;
 let merkleDistributor;
 let apexToken;
+let multicall;
 
 const main = async () => {
   await createContracts();
@@ -13,6 +14,7 @@ const main = async () => {
 async function createContracts() {
   const MockToken = await ethers.getContractFactory("MockToken");
   const InvitationPoolFactory = await ethers.getContractFactory("Invitation");
+  const Multicall = await ethers.getContractFactory("Multicall2");
   [owner] = await ethers.getSigners();
   console.log("deployer:", owner.address);
 
@@ -23,6 +25,14 @@ async function createContracts() {
   invitation = await InvitationPoolFactory.deploy();
   await invitation.deployed();
   console.log("invitation✌️:", invitation.address);
+
+  multicall = await Multicall.deploy();
+  await multicall.deployed();
+  console.log("multicall:", multicall.address);
+
+  let blockNumber = await multicall.getBlockNumber();
+  console.log("blockNumber: ", blockNumber);
+
 
   const MerkleDistributorPoolFactory = await ethers.getContractFactory("MerkleDistributor");
 
