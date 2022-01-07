@@ -115,7 +115,7 @@ describe("stakingPool contract", function () {
       await network.provider.send("evm_mine");
       await apexStakingPool.batchWithdraw([0], [10000], [], []);
       await expect(apexStakingPool.batchWithdraw([], [], [1], [10000])).to.be.revertedWith(
-        "sp.batchWithdraw: DEPOSIT_LOCKED"
+        "sp.batchWithdraw: YIELD_LOCKED"
       );
       await mineBlocks(100);
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
