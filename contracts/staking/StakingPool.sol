@@ -235,6 +235,8 @@ contract StakingPool is IStakingPool, Reentrant {
         uint256 lockTime = factory.lockTime();
         address _staker = msg.sender;
         User storage user = users[_staker];
+        _processRewards(_staker, user);
+
         Deposit storage stakeDeposit = user.deposits[_depositId];
         require(_lockUntil > stakeDeposit.lockUntil, "sp.updateStakeLock: INVALID_NEW_LOCK");
 
@@ -245,14 +247,16 @@ contract StakingPool is IStakingPool, Reentrant {
             require(_lockUntil <= stakeDeposit.lockFrom + lockTime, "sp.updateStakeLock: EXCEED_MAX_LOCK");
         }
 
-        stakeDeposit.lockUntil = _lockUntil;
-        uint256 newWeight = (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
+        uint256 oldWeight = stakeDeposit.weight;
+        uint256 newWeight = (((_lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
             lockTime +
             WEIGHT_MULTIPLIER) * stakeDeposit.amount;
-        uint256 previousWeight = stakeDeposit.weight;
+
+        stakeDeposit.lockUntil = _lockUntil;
         stakeDeposit.weight = newWeight;
-        user.totalWeight = user.totalWeight - previousWeight + newWeight;
-        usersLockingWeight = usersLockingWeight - previousWeight + newWeight;
+        user.totalWeight = user.totalWeight - oldWeight + newWeight;
+        user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
+        usersLockingWeight = usersLockingWeight - oldWeight + newWeight;
 
         emit UpdateStakeLock(_staker, _depositId, stakeDeposit.lockFrom, _lockUntil);
     }
