@@ -14,7 +14,7 @@ contract StakingPool is IStakingPool, Reentrant {
     address public immutable apex;
     address public immutable override poolToken;
     IStakingPoolFactory public immutable factory;
-    uint256 public lastYieldDistribution; //blockNumber
+    uint256 public lastYieldDistribution; //timestamp
     uint256 public yieldRewardsPerWeight;
     uint256 public usersLockingWeight;
     mapping(address => User) public users;
@@ -23,17 +23,17 @@ contract StakingPool is IStakingPool, Reentrant {
         address _factory,
         address _poolToken,
         address _apex,
-        uint256 _initBlock
+        uint256 _initTimestamp
     ) {
         require(_factory != address(0), "cp: INVALID_FACTORY");
         require(_apex != address(0), "cp: INVALID_APEX_TOKEN");
-        require(_initBlock > 0, "cp: INVALID_INIT_BLOCK");
+        require(_initTimestamp > 0, "cp: INVALID_INIT_TIMESTAMP");
         require(_poolToken != address(0), "cp: INVALID_POOL_TOKEN");
 
         apex = _apex;
         factory = IStakingPoolFactory(_factory);
         poolToken = _poolToken;
-        lastYieldDistribution = _initBlock;
+        lastYieldDistribution = _initTimestamp;
     }
 
     function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
@@ -207,7 +207,7 @@ contract StakingPool is IStakingPool, Reentrant {
     //called by other staking pool to stake yield rewards into apeX pool
     function stakeAsPool(address _staker, uint256 _amount) external override {
         require(factory.poolTokenMap(msg.sender) != address(0), "sp.stakeAsPool: ACCESS_DENIED");
-        syncWeightPrice(); //need sync apexStakingPool
+        syncWeightPrice();
 
         User storage user = users[_staker];
 
@@ -271,22 +271,22 @@ contract StakingPool is IStakingPool, Reentrant {
 
     function syncWeightPrice() public {
         if (factory.shouldUpdateRatio()) {
-            factory.updateApeXPerBlock();
+            factory.updateApeXPerSec();
         }
 
-        uint256 endBlock = factory.endBlock();
-        uint256 currentBlockNumber = block.number;
-        if (lastYieldDistribution >= endBlock || lastYieldDistribution >= currentBlockNumber) {
+        uint256 endTimestamp = factory.endTimestamp();
+        uint256 currentTimestamp = block.timestamp;
+        if (lastYieldDistribution >= endTimestamp || lastYieldDistribution >= currentTimestamp) {
             return;
         }
         if (usersLockingWeight == 0) {
-            lastYieldDistribution = currentBlockNumber;
+            lastYieldDistribution = currentTimestamp;
             return;
         }
-        //@notice: if nobody sync this stakingPool for a long time, this stakingPool reward shrink
+
         uint256 apexReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
         yieldRewardsPerWeight += (apexReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
-        lastYieldDistribution = currentBlockNumber > endBlock ? endBlock : currentBlockNumber;
+        lastYieldDistribution = currentTimestamp > endTimestamp ? endTimestamp : currentTimestamp;
 
         emit Synchronized(msg.sender, yieldRewardsPerWeight, lastYieldDistribution);
     }
@@ -320,7 +320,7 @@ contract StakingPool is IStakingPool, Reentrant {
     function pendingYieldRewards(address _staker) external view returns (uint256 pending) {
         uint256 newYieldRewardsPerWeight = yieldRewardsPerWeight;
 
-        if (block.number > lastYieldDistribution && usersLockingWeight != 0) {
+        if (block.timestamp > lastYieldDistribution && usersLockingWeight != 0) {
             uint256 apexReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
             newYieldRewardsPerWeight += (apexReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
         }
@@ -335,5 +335,13 @@ contract StakingPool is IStakingPool, Reentrant {
 
     function getDepositsLength(address _user) external view returns (uint256) {
         return users[_user].deposits.length;
+    }
+
+    function getYield(address _user, uint256 _yieldId) external view returns (Yield memory) {
+        return users[_user].yields[_yieldId];
+    }
+
+    function getYieldsLength(address _user) external view returns (uint256) {
+        return users[_user].yields.length;
     }
 }

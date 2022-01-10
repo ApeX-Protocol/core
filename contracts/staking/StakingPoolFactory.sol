@@ -10,12 +10,13 @@ import "./StakingPool.sol";
 //this is a stakingPool factory to create and register stakingPool, distribute ApeX token according to pools' weight
 contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     address public apeX;
-    uint256 public blocksPerUpdate;
-    uint256 public apeXPerBlock;
+    uint256 public lastUpdateTimestamp;
+    uint256 public secSpanPerUpdate;
+    uint256 public apeXPerSec;
     uint256 public totalWeight;
-    uint256 public override endBlock;
-    uint256 public lastUpdateBlock;
-    uint256 public override lockTime; //tocheck if can hardcode, will optimise gas
+
+    uint256 public override endTimestamp;
+    uint256 public override lockTime;
     uint256 public override minRemainRatioAfterBurn; //10k-based
     mapping(address => PoolInfo) public pools;
     mapping(address => address) public override poolTokenMap;
@@ -23,31 +24,31 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     //upgradableProxy StakingPoolFactory only initialized once
     function initialize(
         address _apeX,
-        uint256 _apeXPerBlock,
-        uint256 _blocksPerUpdate,
-        uint256 _initBlock,
-        uint256 _endBlock
+        uint256 _apeXPerSec,
+        uint256 _secSpanPerUpdate,
+        uint256 _initTimestamp,
+        uint256 _endTimestamp
     ) public initializer {
         require(_apeX != address(0), "cpf.initialize: INVALID_APEX");
-        require(_apeXPerBlock > 0, "cpf.initialize: INVALID_PER_BLOCK");
-        require(_blocksPerUpdate > 0, "cpf.initialize: INVALID_UPDATE_SPAN");
-        require(_initBlock > 0, "cpf.initialize: INVALID_INIT_BLOCK");
-        require(_endBlock > _initBlock, "cpf.initialize: INVALID_ENDBLOCK");
+        require(_apeXPerSec > 0, "cpf.initialize: INVALID_PER_SEC");
+        require(_secSpanPerUpdate > 0, "cpf.initialize: INVALID_UPDATE_SPAN");
+        require(_initTimestamp > 0, "cpf.initialize: INVALID_INIT_TIMESTAMP");
+        require(_endTimestamp > _initTimestamp, "cpf.initialize: INVALID_END_TIMESTAMP");
 
         owner = msg.sender;
         apeX = _apeX;
-        apeXPerBlock = _apeXPerBlock;
-        blocksPerUpdate = _blocksPerUpdate;
-        lastUpdateBlock = _initBlock;
-        endBlock = _endBlock;
+        apeXPerSec = _apeXPerSec;
+        secSpanPerUpdate = _secSpanPerUpdate;
+        lastUpdateTimestamp = _initTimestamp;
+        endTimestamp = _endTimestamp;
     }
 
     function createPool(
         address _poolToken,
-        uint256 _initBlock,
+        uint256 _initTimestamp,
         uint256 _weight
     ) external override onlyOwner {
-        IStakingPool pool = new StakingPool(address(this), _poolToken, apeX, _initBlock);
+        IStakingPool pool = new StakingPool(address(this), _poolToken, apeX, _initTimestamp);
         registerPool(address(pool), _weight);
     }
 
@@ -74,18 +75,16 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         emit PoolUnRegistered(msg.sender, poolToken, _pool);
     }
 
-    function updateApeXPerBlock() external override {
-        uint256 blockNumber = block.number;
+    function updateApeXPerSec() external override {
+        uint256 currentTimestamp = block.timestamp;
 
-        require(
-            blockNumber <= endBlock && blockNumber >= lastUpdateBlock + blocksPerUpdate,
-            "cpf.updateApeXPerBlock: TOO_FREQUENT"
-        );
+        require(currentTimestamp >= lastUpdateTimestamp + secSpanPerUpdate, "cpf.updateApeXPerSec: TOO_FREQUENT");
+        require(currentTimestamp <= endTimestamp, "cpf.updateApeXPerSec: END");
 
-        apeXPerBlock = (apeXPerBlock * 97) / 100;
-        lastUpdateBlock = block.number;
+        apeXPerSec = (apeXPerSec * 97) / 100;
+        lastUpdateTimestamp = currentTimestamp;
 
-        emit UpdateApeXPerBlock(apeXPerBlock);
+        emit UpdateApeXPerSec(apeXPerSec);
     }
 
     function transferYieldTo(address _to, uint256 _amount) external override {
@@ -123,17 +122,17 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         override
         returns (uint256 reward)
     {
-        uint256 blockNumber = block.number;
-        uint256 blocksPassed = blockNumber > endBlock
-            ? endBlock - _lastYieldDistribution
-            : blockNumber - _lastYieldDistribution;
-        //@audit - if no claim, shrinking reward make sense?
-        reward = (blocksPassed * apeXPerBlock * pools[_poolToken].weight) / totalWeight;
+        uint256 currentTimestamp = block.timestamp;
+        uint256 secPassed = currentTimestamp > endTimestamp
+            ? endTimestamp - _lastYieldDistribution
+            : currentTimestamp - _lastYieldDistribution;
+
+        reward = (secPassed * apeXPerSec * pools[_poolToken].weight) / totalWeight;
     }
 
     function shouldUpdateRatio() external view override returns (bool) {
-        uint256 blockNumber = block.number;
-        return blockNumber > endBlock ? false : blockNumber >= lastUpdateBlock + blocksPerUpdate;
+        uint256 currentTimestamp = block.timestamp;
+        return currentTimestamp > endTimestamp ? false : currentTimestamp >= lastUpdateTimestamp + secSpanPerUpdate;
     }
 
     function getPoolAddress(address _poolToken) external view override returns (address) {
