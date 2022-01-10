@@ -30,10 +30,10 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         uint256 _endTimestamp
     ) public initializer {
         require(_apeX != address(0), "cpf.initialize: INVALID_APEX");
-        require(_apeXPerSec > 0, "cpf.initialize: INVALID_PER_BLOCK");
+        require(_apeXPerSec > 0, "cpf.initialize: INVALID_PER_SEC");
         require(_secSpanPerUpdate > 0, "cpf.initialize: INVALID_UPDATE_SPAN");
-        require(_initTimestamp > 0, "cpf.initialize: INVALID_INIT_BLOCK");
-        require(_endTimestamp > _initTimestamp, "cpf.initialize: INVALID_ENDBLOCK");
+        require(_initTimestamp > 0, "cpf.initialize: INVALID_INIT_TIMESTAMP");
+        require(_endTimestamp > _initTimestamp, "cpf.initialize: INVALID_END_TIMESTAMP");
 
         owner = msg.sender;
         apeX = _apeX;
@@ -45,10 +45,10 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
 
     function createPool(
         address _poolToken,
-        uint256 _initBlock,
+        uint256 _initTimestamp,
         uint256 _weight
     ) external override onlyOwner {
-        IStakingPool pool = new StakingPool(address(this), _poolToken, apeX, _initBlock);
+        IStakingPool pool = new StakingPool(address(this), _poolToken, apeX, _initTimestamp);
         registerPool(address(pool), _weight);
     }
 
