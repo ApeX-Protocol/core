@@ -13,23 +13,21 @@ library UniswapV3TwapGetter {
             // return the current price if twapInterval == 0
             (sqrtPriceX96, , , , , , ) = pool.slot0();
         } else {
-            uint16 observationCardinality;
-            (sqrtPriceX96, , , observationCardinality, , , ) = pool.slot0();
+            uint16 index;
+            uint16 cardinality;
+            (sqrtPriceX96, , index, cardinality, , , ) = pool.slot0();
 
             (uint32 firstElementTime, , , ) = pool.observations(0);
-            (uint32 lastElementTime, , , ) = pool.observations(observationCardinality - 1);
-            uint32 delta = uint32(block.timestamp) - firstElementTime;
+            (uint32 targetElementTime, , , bool initialized) = pool.observations((index + 1) % cardinality);
+            if (!initialized) {
+                targetElementTime = firstElementTime;
+            }
+            uint32 delta = uint32(block.timestamp) - targetElementTime;
             if (delta == 0) {
                 (sqrtPriceX96, , , , , , ) = pool.slot0();
                 return sqrtPriceX96;
-            } else if (lastElementTime <= 1) {
-                if (delta < twapInterval) {
-                    twapInterval = delta;
-                }
-            } else {
-                if (delta < twapInterval && lastElementTime >= firstElementTime) {
-                    twapInterval = delta;
-                }
+            } else if (delta < twapInterval) {
+                twapInterval = delta;
             }
 
             uint32[] memory secondsAgos = new uint32[](2);

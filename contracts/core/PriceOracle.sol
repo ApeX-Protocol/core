@@ -47,8 +47,8 @@ contract PriceOracle is IPriceOracle {
         require(pool != address(0), "PriceOracle.setupTwap: POOL_NOT_FOUND");
         IUniswapV3Pool v3Pool = IUniswapV3Pool(pool);
         (, , , , uint16 observationCardinalityNext, , ) = v3Pool.slot0();
-        if (observationCardinalityNext < 60) {
-            IUniswapV3Pool(pool).increaseObservationCardinalityNext(60);
+        if (observationCardinalityNext < 10) {
+            IUniswapV3Pool(pool).increaseObservationCardinalityNext(10);
         }
     }
 
