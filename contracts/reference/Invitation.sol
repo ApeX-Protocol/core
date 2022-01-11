@@ -38,13 +38,7 @@ contract Invitation {
         // ensure not registered
         require(0 == sender.startBlock, "REGISTERED");
         UserInvitation storage upper = userInvitations[inviter];
-        // throw exception
-        // if (0 == upper.startBlock) {
-        //     upper.upper = address(0);
-        //     upper.startBlock = block.number;
-
-        //     emit Invite(inviter, upper.upper, upper.startBlock);
-        // }
+        
         require(upper.startBlock != 0, "INVITER_NOT_EXIST!");
 
         sender.upper = inviter;
