@@ -26,9 +26,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     address public override baseToken;
     address public override quoteToken;
     address public override margin;
-
-    uint256 public override price0CumulativeLast;
-    uint256 public override price1CumulativeLast;
     uint256 public kLast;
     uint256 public override lastPrice;
 
@@ -360,16 +357,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint112 quoteReserveOld
     ) private {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
-        //uint32 blockTimestamp = uint32(block.timestamp % 2**32);
-        //uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
-
-        uint256 blockNmuberDelte = ChainAdapter.blockNumber() - lastBlockNumber;
+     
+        uint256 blockNmuberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
 
         // last price means last block price.
-        if (blockNmuberDelte > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
+        if (blockNmuberDelta > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
             lastPrice = uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld));
-            // price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
-            // price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
         }
 
         // keep lastprice not equal zero
@@ -381,6 +374,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         quoteReserve = uint112(quoteReserveNew);
 
         lastBlockNumber = ChainAdapter.blockNumber();
+        blockTimestampLast = uint32(block.timestamp % 2**32);
         emit Sync(baseReserve, quoteReserve);
     }
 
