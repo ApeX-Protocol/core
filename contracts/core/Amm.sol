@@ -14,6 +14,7 @@ import "../utils/Reentrant.sol";
 import "../libraries/UQ112x112.sol";
 import "../libraries/Math.sol";
 import "../libraries/FullMath.sol";
+import "../libraries/ChainAdapter.sol";
 
 contract Amm is IAmm, LiquidityERC20, Reentrant {
     using UQ112x112 for uint224;
@@ -35,6 +36,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     uint112 private baseReserve; // uses single storage slot, accessible via getReserves
     uint112 private quoteReserve; // uses single storage slot, accessible via getReserves
     uint32 private blockTimestampLast; // uses single storage slot, accessible via getReserves
+    uint256 private lastBlockNumber;
 
     modifier onlyMargin() {
         require(margin == msg.sender, "Amm: ONLY_MARGIN");
@@ -358,15 +360,16 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint112 quoteReserveOld
     ) private {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
-        uint32 blockTimestamp = uint32(block.timestamp % 2**32);
-        uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
+        //uint32 blockTimestamp = uint32(block.timestamp % 2**32);
+        //uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
+
+        uint256 blockNmuberDelte = ChainAdapter.blockNumber() - lastBlockNumber;
 
         // last price means last block price.
-        if (timeElapsed > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
-            // * never overflows, and + overflow is desired
+        if (blockNmuberDelte > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
             lastPrice = uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld));
-            price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
-            price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
+            // price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
+            // price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
         }
 
         // keep lastprice not equal zero
@@ -376,10 +379,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         baseReserve = uint112(baseReserveNew);
         quoteReserve = uint112(quoteReserveNew);
-        blockTimestampLast = blockTimestamp;
+
+        lastBlockNumber = ChainAdapter.blockNumber();
         emit Sync(baseReserve, quoteReserve);
     }
-
 
     function _safeTransfer(
         address token,
