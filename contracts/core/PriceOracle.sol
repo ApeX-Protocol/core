@@ -28,6 +28,30 @@ contract PriceOracle is IPriceOracle {
         v3Fees[2] = 10000;
     }
 
+    function setupTwap(address baseToken, address quoteToken) external override {
+        address pool;
+        address tempPool;
+        uint256 poolLiquidity;
+        uint256 tempLiquidity;
+        for (uint256 i = 0; i < v3Fees.length; i++) {
+            tempPool = IUniswapV3Factory(v3Factory).getPool(baseToken, quoteToken, v3Fees[i]);
+            if (tempPool == address(0)) continue;
+            tempLiquidity = uint256(IUniswapV3Pool(tempPool).liquidity());
+            // use the max liquidity pool as index price source
+            if (tempLiquidity > poolLiquidity) {
+                poolLiquidity = tempLiquidity;
+                pool = tempPool;
+            }
+        }
+
+        require(pool != address(0), "PriceOracle.setupTwap: POOL_NOT_FOUND");
+        IUniswapV3Pool v3Pool = IUniswapV3Pool(pool);
+        (, , , , uint16 observationCardinalityNext, , ) = v3Pool.slot0();
+        if (observationCardinalityNext < 60) {
+            IUniswapV3Pool(pool).increaseObservationCardinalityNext(60);
+        }
+    }
+
     function quoteFromV3(
         address baseToken,
         address quoteToken,
@@ -36,11 +60,11 @@ contract PriceOracle is IPriceOracle {
         address pool;
         uint160 sqrtPriceX96;
         address tempPool;
-        uint128 tempLiquidity;
+        uint256 tempLiquidity;
         for (uint256 i = 0; i < v3Fees.length; i++) {
             tempPool = IUniswapV3Factory(v3Factory).getPool(baseToken, quoteToken, v3Fees[i]);
             if (tempPool == address(0)) continue;
-            tempLiquidity = IUniswapV3Pool(tempPool).liquidity();
+            tempLiquidity = uint256(IUniswapV3Pool(tempPool).liquidity());
             // use the max liquidity pool as index price source
             if (tempLiquidity > poolLiquidity) {
                 poolLiquidity = tempLiquidity;
@@ -151,7 +175,7 @@ contract PriceOracle is IPriceOracle {
         uint8 beta,
         uint256 quoteAmount,
         bool negative
-    ) public view override returns (uint256 baseAmount) {
+    ) external view override returns (uint256 baseAmount) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
         uint256 rvalue = quoteAmount * beta / 100;
         uint256 denominator;
