@@ -358,10 +358,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     ) private {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
      
-        uint256 blockNmuberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
+        uint256 blockNumberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
 
         // last price means last block price.
-        if (blockNmuberDelta > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
+        if (blockNumberDelta > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
             lastPrice = uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld));
         }
 
