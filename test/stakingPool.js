@@ -8,10 +8,10 @@ describe("stakingPool contract", function () {
   let tx;
   let stakingPoolFactory;
   let slpToken;
-  let initBlock = 1;
-  let endBlock = 7090016;
-  let blocksPerUpdate = 2;
-  let apexPerBlock = 100;
+  let initTimestamp = 1641781192;
+  let endTimestamp = 1673288342;
+  let secSpanPerUpdate = 2;
+  let apeXPerSec = 100;
   let apexStakingPool;
   let slpStakingPool;
   let lockUntil = 0;
@@ -28,16 +28,16 @@ describe("stakingPool contract", function () {
     slpToken = await MockToken.deploy("slp token", "slp");
     stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
       apexToken.address,
-      apexPerBlock,
-      blocksPerUpdate,
-      initBlock,
-      endBlock,
+      apeXPerSec,
+      secSpanPerUpdate,
+      initTimestamp,
+      endTimestamp,
     ]);
 
-    await stakingPoolFactory.createPool(apexToken.address, initBlock, 21);
+    await stakingPoolFactory.createPool(apexToken.address, initTimestamp, 21);
     apexStakingPool = StakingPool.attach((await stakingPoolFactory.pools(apexToken.address))[0]);
 
-    await stakingPoolFactory.createPool(slpToken.address, initBlock, 79);
+    await stakingPoolFactory.createPool(slpToken.address, initTimestamp, 79);
     slpStakingPool = StakingPool.attach((await stakingPoolFactory.pools(slpToken.address))[0]);
 
     await apexToken.mint(owner.address, 100_0000);
@@ -76,6 +76,7 @@ describe("stakingPool contract", function () {
 
     it("stake twice, no lock", async function () {
       await apexStakingPool.stake(10000, 0);
+      await sleep(1000);
       await apexStakingPool.stake(20000, 0);
 
       let user = await apexStakingPool.users(owner.address);
@@ -115,7 +116,7 @@ describe("stakingPool contract", function () {
       await network.provider.send("evm_mine");
       await apexStakingPool.batchWithdraw([0], [10000], [], []);
       await expect(apexStakingPool.batchWithdraw([], [], [1], [10000])).to.be.revertedWith(
-        "sp.batchWithdraw: DEPOSIT_LOCKED"
+        "sp.batchWithdraw: YIELD_LOCKED"
       );
       await mineBlocks(100);
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
@@ -160,12 +161,12 @@ describe("stakingPool contract", function () {
 
     it("stake, process reward to apeXPool, unstake from slpPool, unstake from apeXPool", async function () {
       await network.provider.send("evm_mine");
-      //linear to apeXPerBlock, 97*79/100
+      //linear to apeXPerSec, 97*79/100
       expect(await slpStakingPool.pendingYieldRewards(owner.address)).to.be.equal(76);
       await slpStakingPool.processRewards();
       expect(await slpStakingPool.pendingYieldRewards(owner.address)).to.be.equal(0);
       await network.provider.send("evm_mine");
-      //linear to apeXPerBlock, 94*79/100
+      //linear to apeXPerSec, 94*79/100
       expect(await slpStakingPool.pendingYieldRewards(owner.address)).to.be.equal(74);
     });
   });
@@ -233,4 +234,8 @@ async function currentBlockNumber() {
 
 async function halfYearLater() {
   return Math.floor(Date.now() / 1000) + 15758000;
+}
+
+function sleep(ms = 10000) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

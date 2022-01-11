@@ -4,14 +4,13 @@ const { BN, constants } = require("@openzeppelin/test-helpers");
 describe("stakingPoolFactory contract", function () {
   let apexToken;
   let owner;
-  let tx;
   let stakingPoolFactory;
   let slpToken;
   let mockStakingPool;
-  let initBlock = 38;
-  let endBlock = 7090016;
-  let blocksPerUpdate = 2;
-  let apexPerBlock = 100;
+  let initTimestamp = 1641781192;
+  let endTimestamp = 1673288342;
+  let secSpanPerUpdate = 2;
+  let apeXPerSec = 100;
   let apexStakingPool;
   let addr1;
 
@@ -26,14 +25,14 @@ describe("stakingPoolFactory contract", function () {
     slpToken = await MockToken.deploy("slp token", "slp");
     stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
       apexToken.address,
-      apexPerBlock,
-      blocksPerUpdate,
-      initBlock,
-      endBlock,
+      apeXPerSec,
+      secSpanPerUpdate,
+      initTimestamp,
+      endTimestamp,
     ]);
     mockStakingPool = await StakingPool.deploy(stakingPoolFactory.address, slpToken.address, apexToken.address, 10);
 
-    await stakingPoolFactory.createPool(apexToken.address, initBlock, 21);
+    await stakingPoolFactory.createPool(apexToken.address, initTimestamp, 21);
     let apexStakingPoolAddr = (await stakingPoolFactory.pools(apexToken.address))[0];
     apexStakingPool = await StakingPool.attach(apexStakingPoolAddr);
 
@@ -43,12 +42,14 @@ describe("stakingPoolFactory contract", function () {
 
   describe("createPool", function () {
     it("create a pool and register", async function () {
-      await stakingPoolFactory.createPool(slpToken.address, initBlock, 79);
+      await stakingPoolFactory.createPool(slpToken.address, initTimestamp, 79);
       expect(await stakingPoolFactory.totalWeight()).to.be.equal(100);
     });
 
-    it("revert when create pool with invalid initBlock", async function () {
-      await expect(stakingPoolFactory.createPool(slpToken.address, 0, 79)).to.be.revertedWith("cp: INVALID_INIT_BLOCK");
+    it("revert when create pool with invalid initTimestamp", async function () {
+      await expect(stakingPoolFactory.createPool(slpToken.address, 0, 79)).to.be.revertedWith(
+        "cp: INVALID_INIT_TIMESTAMP"
+      );
     });
 
     it("revert when create pool with invalid poolToken", async function () {
@@ -74,19 +75,19 @@ describe("stakingPoolFactory contract", function () {
     });
   });
 
-  describe("updateApeXPerBlock", function () {
-    it("update apex rewards per block", async function () {
+  describe("updateApeXPerSec", function () {
+    it("update apex rewards per sec", async function () {
       await network.provider.send("evm_mine");
-      await stakingPoolFactory.updateApeXPerBlock();
-      expect(await stakingPoolFactory.apeXPerBlock()).to.be.equal(97);
+      await stakingPoolFactory.updateApeXPerSec();
+      expect(await stakingPoolFactory.apeXPerSec()).to.be.equal(97);
       await network.provider.send("evm_mine");
-      await stakingPoolFactory.updateApeXPerBlock();
-      expect(await stakingPoolFactory.apeXPerBlock()).to.be.equal(94);
+      await stakingPoolFactory.updateApeXPerSec();
+      expect(await stakingPoolFactory.apeXPerSec()).to.be.equal(94);
     });
 
-    it("revert when update ApeXPerBlock in next block", async function () {
-      await stakingPoolFactory.updateApeXPerBlock();
-      await expect(stakingPoolFactory.updateApeXPerBlock()).to.be.revertedWith("cpf.updateApeXPerBlock: TOO_FREQUENT");
+    it("revert when update apeXPerSec in next block", async function () {
+      await stakingPoolFactory.updateApeXPerSec();
+      await expect(stakingPoolFactory.updateApeXPerSec()).to.be.revertedWith("cpf.updateApeXPerSec: TOO_FREQUENT");
     });
   });
 
@@ -100,8 +101,8 @@ describe("stakingPoolFactory contract", function () {
   describe("calStakingPoolApeXReward", function () {
     it("calculate reward after some time", async function () {
       await network.provider.send("evm_mine");
-      await stakingPoolFactory.updateApeXPerBlock();
-      let latestBlock = (await stakingPoolFactory.lastUpdateBlock()).toNumber();
+      await stakingPoolFactory.updateApeXPerSec();
+      let latestBlock = (await stakingPoolFactory.lastUpdateTimestamp()).toNumber();
       //(latestBlock-0) * 97
       expect(await stakingPoolFactory.calStakingPoolApeXReward(0, apexToken.address)).to.be.equal(latestBlock * 97);
     });

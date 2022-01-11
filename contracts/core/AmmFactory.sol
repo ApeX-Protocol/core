@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./Amm.sol";
 import "./interfaces/IAmmFactory.sol";
+import "./interfaces/IPriceOracle.sol";
 
 contract AmmFactory is IAmmFactory {
     address public immutable override upperFactory; // PairFactory
@@ -49,6 +50,7 @@ contract AmmFactory is IAmmFactory {
     ) external override onlyUpper {
         address amm = getAmm[baseToken][quoteToken];
         Amm(amm).initialize(baseToken, quoteToken, margin);
+        IPriceOracle(IConfig(config).priceOracle()).setupTwap(baseToken, quoteToken);
     }
 
     function setFeeTo(address feeTo_) external override {

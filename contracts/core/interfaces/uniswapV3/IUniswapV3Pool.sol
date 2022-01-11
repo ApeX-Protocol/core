@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 interface IUniswapV3Pool {
+    function increaseObservationCardinalityNext(uint16 observationCardinalityNext) external;
+    
     function slot0()
         external
         view
@@ -13,6 +15,16 @@ interface IUniswapV3Pool {
             uint16 observationCardinalityNext,
             uint8 feeProtocol,
             bool unlocked
+        );
+
+    function observations(uint256 index)
+        external
+        view
+        returns (
+            uint32 blockTimestamp,
+            int56 tickCumulative,
+            uint160 secondsPerLiquidityCumulativeX128,
+            bool initialized
         );
 
     function liquidity() external view returns (uint128);

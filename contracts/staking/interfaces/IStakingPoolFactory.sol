@@ -15,12 +15,12 @@ interface IStakingPoolFactory {
 
     event SetYieldLockTime(uint256 yieldLockTime);
 
-    event UpdateApeXPerBlock(uint256 apeXPerBlock);
+    event UpdateApeXPerSec(uint256 apeXPerSec);
 
     event TransferYieldTo(address by, address to, uint256 amount);
 
-    /// @notice get the endBlock number to yield, after this, no yield reward
-    function endBlock() external view returns (uint256);
+    /// @notice get the end timestamp to yield, after this, no yield reward
+    function endTimestamp() external view returns (uint256);
 
     function lockTime() external view returns (uint256);
 
@@ -45,7 +45,7 @@ interface IStakingPoolFactory {
         returns (uint256 reward);
 
     /// @notice update yield reward rate
-    function updateApeXPerBlock() external;
+    function updateApeXPerSec() external;
 
     /// @notice create a new stakingPool
     /// @param poolToken stakingPool staked token.
