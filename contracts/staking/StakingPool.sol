@@ -329,7 +329,7 @@ contract StakingPool is IStakingPool, Reentrant {
         pending = (user.totalWeight * newYieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER - user.subYieldRewards;
     }
 
-    function getUserInfo(address _user)
+    function getStakeInfo(address _user)
         external
         view
         override

@@ -52,7 +52,7 @@ interface IStakingPool {
     /// @notice Get pool token of this core pool
     function poolToken() external view returns (address);
 
-    function getUserInfo(address _user)
+    function getStakeInfo(address _user)
         external
         view
         returns (
