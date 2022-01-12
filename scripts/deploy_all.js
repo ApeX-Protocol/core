@@ -15,12 +15,12 @@ const maxPayout = BigNumber.from("1000000000000000000000000");
 const discount = 500;
 const vestingTerm = 129600;
 // for StakingPoolFactory
-const apeXPerBlock = 100;
-const blocksPerUpdate = 2;
-const initBlock = 6690016;
-const endBlock = 7090016;
+const apeXPerSec = 1;
+const secSpanPerUpdate = 30;
+const initTimestamp = 1641781192;
+const endTimestamp = 1673288342;
 // transfer for staking
-const apeXAmountForString = BigNumber.from("1000000000000000000000000");
+const apeXAmountForStaking = BigNumber.from("1000000000000000000000000");
 
 let signer;
 let apeXToken;
@@ -54,14 +54,14 @@ const main = async () => {
   // await createPCVTreasury();
   // await createRouter();
   // await createBondPoolFactory();
-  // await createStakingPoolFactory();
+  await createStakingPoolFactory();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createMockPair();
   // await createMockBondPool();
   // await bond();
-  // await createMockStakingPool();
+  await createMockStakingPool();
 };
 
 async function createApeXToken() {
@@ -205,14 +205,16 @@ async function createStakingPoolFactory() {
     apeXToken = await ApeXToken.attach(apeXTokenAddress);
   }
   const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
-  stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
-    apeXToken.address,
-    apeXPerBlock,
-    blocksPerUpdate,
-    initBlock,
-    endBlock,
-  ]);
-  await apeXToken.transfer(stakingPoolFactory.address, apeXAmountForString);
+  stakingPoolFactory = await StakingPoolFactory.deploy();
+  await stakingPoolFactory.initialize(apeXToken.address, apeXPerSec, secSpanPerUpdate, initTimestamp, endTimestamp);
+  // stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
+  //   apeXToken.address,
+  //   apeXPerBlock,
+  //   secSpanPerUpdate,
+  //   initTimestamp,
+  //   endTimestamp,
+  // ]);
+  await apeXToken.transfer(stakingPoolFactory.address, apeXAmountForStaking);
   console.log("StakingPoolFactory:", stakingPoolFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
 }
@@ -315,8 +317,8 @@ async function createMockStakingPool() {
   }
   let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
   let slpTokenAddress = "0x2deeEa765219E3452143Dfb53c270fCa4486bc45"; // ApeX-XXX slp token from SushiSwap
-  await stakingPoolFactory.createPool(apeXTokenAddress, 6690016, 21);
-  await stakingPoolFactory.createPool(slpTokenAddress, 6690016, 79);
+  await stakingPoolFactory.createPool(apeXTokenAddress, initTimestamp, 21);
+  await stakingPoolFactory.createPool(slpTokenAddress, initTimestamp, 79);
   let apeXPool = await stakingPoolFactory.getPoolAddress(apeXTokenAddress);
   let slpPool = await stakingPoolFactory.getPoolAddress(slpTokenAddress);
   console.log("apeXPool:", apeXPool);
