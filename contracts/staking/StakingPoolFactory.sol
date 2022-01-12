@@ -9,12 +9,11 @@ import "./StakingPool.sol";
 
 //this is a stakingPool factory to create and register stakingPool, distribute ApeX token according to pools' weight
 contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
-    address public apeX;
-    uint256 public lastUpdateTimestamp;
-    uint256 public secSpanPerUpdate;
-    uint256 public apeXPerSec;
-    uint256 public totalWeight;
-
+    address public override apeX;
+    uint256 public override lastUpdateTimestamp;
+    uint256 public override secSpanPerUpdate;
+    uint256 public override apeXPerSec;
+    uint256 public override totalWeight;
     uint256 public override endTimestamp;
     uint256 public override lockTime;
     uint256 public override minRemainRatioAfterBurn; //10k-based
@@ -140,5 +139,10 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
 
     function getPoolAddress(address _poolToken) external view override returns (address) {
         return pools[_poolToken].pool;
+    }
+
+    //just for dev use
+    function setApeXPerSec(uint256 _apeXPerSec) external onlyOwner {
+        apeXPerSec = _apeXPerSec;
     }
 }
