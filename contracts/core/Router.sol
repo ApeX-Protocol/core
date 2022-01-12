@@ -223,42 +223,31 @@ contract Router is IRouter {
         address baseToken,
         address quoteToken,
         uint256 quoteAmount,
-        uint256 deadline,
-        bool autoWithdraw
-    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+        uint256 withdrawAmount,
+        uint256 deadline
+    ) external override ensure(deadline) returns (uint256 baseAmount) {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
-        (, int256 quoteSize, ) = IMargin(margin).getPosition(msg.sender);
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
-        if (autoWithdraw) {
+        if (withdrawAmount > 0) {
             uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
-            if (withdrawable > 0) {
-                if (quoteSize > 0) {
-                    withdrawAmount = FullMath.mulDiv(quoteAmount, withdrawable, uint256(quoteSize));
-                } else {
-                    withdrawAmount = FullMath.mulDiv(quoteAmount, withdrawable, uint256(0 - quoteSize));
-                }
-                IMargin(margin).removeMargin(msg.sender, msg.sender, withdrawAmount);
-            }
+            require(withdrawable >= withdrawAmount, "Router.closePosition: NOT_ENOUGH_WITHDRAWABLE");
+            IMargin(margin).removeMargin(msg.sender, msg.sender, withdrawAmount);
         }
     }
 
     function closePositionETH(
         address quoteToken,
         uint256 quoteAmount,
+        uint256 withdrawAmount,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+    ) external override ensure(deadline) returns (uint256 baseAmount) {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.closePositionETH: NOT_FOUND_MARGIN");
-        (, int256 quoteSize, ) = IMargin(margin).getPosition(msg.sender);
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
-        uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
-        if (withdrawable > 0) {
-            if (quoteSize > 0) {
-                withdrawAmount = FullMath.mulDiv(quoteAmount, withdrawable, uint256(quoteSize));
-            } else {
-                withdrawAmount = FullMath.mulDiv(quoteAmount, withdrawable, uint256(0 - quoteSize));
-            }
+        if (withdrawAmount > 0) {
+            uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
+            require(withdrawable >= withdrawAmount, "Router.closePosition: NOT_ENOUGH_WITHDRAWABLE");
             IMargin(margin).removeMargin(msg.sender, address(this), withdrawAmount);
             IWETH(WETH).withdraw(withdrawAmount);
             TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
