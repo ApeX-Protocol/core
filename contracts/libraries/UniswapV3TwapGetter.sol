@@ -8,22 +8,36 @@ import "./FullMath.sol";
 
 library UniswapV3TwapGetter {
     function getSqrtTwapX96(address uniswapV3Pool, uint32 twapInterval) internal view returns (uint160 sqrtPriceX96) {
+        IUniswapV3Pool pool = IUniswapV3Pool(uniswapV3Pool);
         if (twapInterval == 0) {
             // return the current price if twapInterval == 0
-            (sqrtPriceX96, , , , , , ) = IUniswapV3Pool(uniswapV3Pool).slot0();
+            (sqrtPriceX96, , , , , , ) = pool.slot0();
         } else {
+            uint16 index;
+            uint16 cardinality;
+            (sqrtPriceX96, , index, cardinality, , , ) = pool.slot0();
+
+            (uint32 firstElementTime, , , ) = pool.observations(0);
+            (uint32 targetElementTime, , , bool initialized) = pool.observations((index + 1) % cardinality);
+            if (!initialized) {
+                targetElementTime = firstElementTime;
+            }
+            uint32 delta = uint32(block.timestamp) - targetElementTime;
+            if (delta == 0) {
+                (sqrtPriceX96, , , , , , ) = pool.slot0();
+                return sqrtPriceX96;
+            } else if (delta < twapInterval) {
+                twapInterval = delta;
+            }
+
             uint32[] memory secondsAgos = new uint32[](2);
             secondsAgos[0] = twapInterval; // from (before)
             secondsAgos[1] = 0; // to (now)
-
-            try IUniswapV3Pool(uniswapV3Pool).observe(secondsAgos) returns (int56[] memory tickCumulatives, uint160[] memory) {
-                // tick(imprecise as it's an integer) to price
-                sqrtPriceX96 = TickMath.getSqrtRatioAtTick(
-                    int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(twapInterval)))
-                );
-            } catch Error(string memory /*reason*/) {
-                (sqrtPriceX96, , , , , , ) = IUniswapV3Pool(uniswapV3Pool).slot0();
-            }
+            (int56[] memory tickCumulatives, ) = pool.observe(secondsAgos);
+            // tick(imprecise as it's an integer) to price
+            sqrtPriceX96 = TickMath.getSqrtRatioAtTick(
+                int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(twapInterval)))
+            );
         }
     }
 

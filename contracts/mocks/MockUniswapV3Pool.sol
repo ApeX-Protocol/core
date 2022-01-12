@@ -51,6 +51,23 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         external
         view
         override
-        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s)
-    {}
+        returns (int56[] memory tickCumulatives, uint160[] memory secondsPerLiquidityCumulativeX128s) {
+            
+    }
+
+    function increaseObservationCardinalityNext(uint16 observationCardinalityNext) external override {
+
+    }
+
+    function observations(uint256 index)
+        external
+        view override
+        returns (
+            uint32 blockTimestamp,
+            int56 tickCumulative,
+            uint160 secondsPerLiquidityCumulativeX128,
+            bool initialized
+        ) {
+
+    }
 }

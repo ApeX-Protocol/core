@@ -24,6 +24,9 @@ contract PriceOracleForTest is IPriceOracle {
         getReserves[baseToken][quoteToken] = Reserves(reserveBase, reserveQuote);
     }
 
+    function setupTwap(address baseToken, address quoteToken) external override {
+    }
+
     function quote(
         address baseToken,
         address quoteToken,
