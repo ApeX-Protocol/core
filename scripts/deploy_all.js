@@ -210,7 +210,14 @@ async function createStakingPoolFactory() {
   }
   const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
   stakingPoolFactory = await StakingPoolFactory.deploy();
-  await stakingPoolFactory.initialize(apeXToken.address, apeXPerSec, secSpanPerUpdate, initTimestamp, endTimestamp);
+  await stakingPoolFactory.initialize(
+    apeXToken.address,
+    apeXPerSec,
+    secSpanPerUpdate,
+    initTimestamp,
+    endTimestamp,
+    lockTime
+  );
   // stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
   //   apeXToken.address,
   //   apeXPerBlock,
