@@ -52,6 +52,23 @@ interface IStakingPool {
     /// @notice Get pool token of this core pool
     function poolToken() external view returns (address);
 
+    function getStakeInfo(address _user)
+        external
+        view
+        returns (
+            uint256 tokenAmount,
+            uint256 totalWeight,
+            uint256 subYieldRewards
+        );
+
+    function getDeposit(address _user, uint256 _depositId) external view returns (Deposit memory);
+
+    function getDepositsLength(address _user) external view returns (uint256);
+
+    function getYield(address _user, uint256 _yieldId) external view returns (Yield memory);
+
+    function getYieldsLength(address _user) external view returns (uint256);
+
     /// @notice Process yield reward (apex) of msg.sender
     function processRewards() external;
 

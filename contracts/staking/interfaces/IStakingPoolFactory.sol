@@ -19,6 +19,16 @@ interface IStakingPoolFactory {
 
     event TransferYieldTo(address by, address to, uint256 amount);
 
+    function apeX() external view returns (address);
+
+    function lastUpdateTimestamp() external view returns (uint256);
+
+    function secSpanPerUpdate() external view returns (uint256);
+
+    function apeXPerSec() external view returns (uint256);
+
+    function totalWeight() external view returns (uint256);
+
     /// @notice get the end timestamp to yield, after this, no yield reward
     function endTimestamp() external view returns (uint256);
 
