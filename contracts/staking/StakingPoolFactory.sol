@@ -27,13 +27,15 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         uint256 _apeXPerSec,
         uint256 _secSpanPerUpdate,
         uint256 _initTimestamp,
-        uint256 _endTimestamp
+        uint256 _endTimestamp,
+        uint256 _lockTime
     ) public initializer {
         require(_apeX != address(0), "cpf.initialize: INVALID_APEX");
         require(_apeXPerSec > 0, "cpf.initialize: INVALID_PER_SEC");
         require(_secSpanPerUpdate > 0, "cpf.initialize: INVALID_UPDATE_SPAN");
         require(_initTimestamp > 0, "cpf.initialize: INVALID_INIT_TIMESTAMP");
         require(_endTimestamp > _initTimestamp, "cpf.initialize: INVALID_END_TIMESTAMP");
+        require(_lockTime > 0, "cpf.initialize: INVALID_LOCK_TIME");
 
         owner = msg.sender;
         apeX = _apeX;
@@ -41,6 +43,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         secSpanPerUpdate = _secSpanPerUpdate;
         lastUpdateTimestamp = _initTimestamp;
         endTimestamp = _endTimestamp;
+        lockTime = _lockTime;
     }
 
     function createPool(
