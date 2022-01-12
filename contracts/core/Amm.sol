@@ -203,7 +203,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 quoteReserveAfter * 100 <= uint256(_quoteReserve) * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
-        _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve);
+
+        _updateForRebase(_baseReserve, quoteReserveAfter);
 
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
@@ -357,7 +358,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint112 quoteReserveOld
     ) private {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
-     
+
         uint256 blockNumberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
 
         // last price means last block price.
@@ -369,6 +370,20 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         if (lastPrice == 0 && baseReserveNew != 0) {
             lastPrice = uint256(UQ112x112.encode(uint112(quoteReserveNew)).uqdiv(uint112(baseReserveNew)));
         }
+
+        baseReserve = uint112(baseReserveNew);
+        quoteReserve = uint112(quoteReserveNew);
+
+        lastBlockNumber = ChainAdapter.blockNumber();
+        blockTimestampLast = uint32(block.timestamp % 2**32);
+        emit Sync(baseReserve, quoteReserve);
+    }
+
+    // set the last price to current price for rebase may cause price gap oversize the tradeslippage.
+    function _updateForRebase(uint256 baseReserveNew, uint256 quoteReserveNew) private {
+        require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
+
+        lastPrice = uint256(UQ112x112.encode(uint112(quoteReserveNew)).uqdiv(uint112(baseReserveNew)));
 
         baseReserve = uint112(baseReserveNew);
         quoteReserve = uint112(quoteReserveNew);
