@@ -19,6 +19,7 @@ const apeXPerSec = 1;
 const secSpanPerUpdate = 30;
 const initTimestamp = 1641781192;
 const endTimestamp = 1673288342;
+const lockTime = 15552000;
 // transfer for staking
 const apeXAmountForStaking = BigNumber.from("1000000000000000000000000");
 
@@ -49,11 +50,11 @@ const main = async () => {
   signer = accounts[0].address;
   // await createApeXToken();
   await createPriceOracle();
-  // await createConfig();
-  // await createPairFactory();
+  await createConfig();
+  await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
-  // await createBondPoolFactory();
+  await createRouter();
+  await createBondPoolFactory();
   await createStakingPoolFactory();
   // await createMulticall2();
   //// below only deploy for testnet
@@ -61,7 +62,7 @@ const main = async () => {
   // await createMockPair();
   // await createMockBondPool();
   // await bond();
-  await createMockStakingPool();
+  // await createMockStakingPool();
 };
 
 async function createApeXToken() {
@@ -173,13 +174,16 @@ async function createRouter() {
 async function createBondPoolFactory() {
   let apeXAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
   let pcvTreasuryAddress = "0xcb186F6bbB2Df145ff450ee0A4Ec6aF4baadEec7";
-  let priceOracleAddress = "0x15C20c6c673c3B2244b465FC7736eAA0E8bd6DF6";
-  // let priceOracleAddress = priceOracle.address;
+  if (priceOracle == null) {
+    let priceOracleAddress = "0x15C20c6c673c3B2244b465FC7736eAA0E8bd6DF6";
+    const PriceOracle = await ethers.getContractFactory("PriceOracle");
+    priceOracle = await PriceOracle.attach(priceOracleAddress);
+  }
   const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
   bondPoolFactory = await BondPoolFactory.deploy(
     apeXAddress,
     pcvTreasuryAddress,
-    priceOracleAddress,
+    priceOracle.address,
     maxPayout,
     discount,
     vestingTerm
@@ -191,7 +195,7 @@ async function createBondPoolFactory() {
     bondPoolFactory.address,
     apeXAddress,
     pcvTreasuryAddress,
-    priceOracleAddress,
+    priceOracle.address,
     maxPayout.toString(),
     discount,
     vestingTerm
