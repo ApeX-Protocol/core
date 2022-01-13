@@ -223,12 +223,11 @@ contract Router is IRouter {
         address baseToken,
         address quoteToken,
         uint256 quoteAmount,
-        uint256 withdrawAmount,
+        uint256 userMargin,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount) {
-        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
-        baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+        address margin;
+        (margin, baseAmount, withdrawAmount) = _closePosition(msg.sender, baseToken, quoteToken, quoteAmount, userMargin);
         if (withdrawAmount > 0) {
             uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
             require(withdrawable >= withdrawAmount, "Router.closePosition: NOT_ENOUGH_WITHDRAWABLE");
@@ -239,12 +238,11 @@ contract Router is IRouter {
     function closePositionETH(
         address quoteToken,
         uint256 quoteAmount,
-        uint256 withdrawAmount,
+        uint256 userMargin,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount) {
-        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
-        require(margin != address(0), "Router.closePositionETH: NOT_FOUND_MARGIN");
-        baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+        address margin;
+        (margin, baseAmount, withdrawAmount) = _closePosition(msg.sender, WETH, quoteToken, quoteAmount, userMargin);
         if (withdrawAmount > 0) {
             uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
             require(withdrawable >= withdrawAmount, "Router.closePosition: NOT_ENOUGH_WITHDRAWABLE");
@@ -273,9 +271,9 @@ contract Router is IRouter {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         (uint256 reserveBase, uint256 reserveQuote, ) = IAmm(amm).getReserves();
         if (side == 0) {
-            quoteAmount = getAmountIn(baseAmount, reserveQuote, reserveBase);
+            quoteAmount = _getAmountIn(baseAmount, reserveQuote, reserveBase);
         } else {
-            quoteAmount = getAmountOut(baseAmount, reserveBase, reserveQuote);
+            quoteAmount = _getAmountOut(baseAmount, reserveBase, reserveQuote);
         }
     }
 
@@ -306,8 +304,38 @@ contract Router is IRouter {
         (baseSize, quoteSize, tradeSize) = IMargin(margin).getPosition(holder);
     }
 
+    // positionValueBefore / userMarginBefore = positionValueAfter / userMarginAfter  =>
+    // quoteSizeBefore / priceBefore / userMarginBefore = quoteSizeAfter / priceAfter / userMarginAfter  =>
+    // (quoteSizeBefore * reserveBaseBefore / reserveQuoteBefore) / userMarginBefore = (quoteSizeAfter * reserveBaseAfter / reserveQuoteAfter) / userMarginAfter
+    function _closePosition(
+        address trader,
+        address baseToken,
+        address quoteToken,
+        uint256 quoteAmount,
+        uint256 userMargin
+    ) internal returns (address margin, uint256 baseAmount, uint256 withdrawAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
+        require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
+
+        (uint256 reserveBase, uint256 reserveQuote, ) = IAmm(amm).getReserves();
+        (, int quoteSize, ) = IMargin(margin).getPosition(trader);
+        uint256 quoteSizeU = quoteSize >= 0 ? uint256(quoteSize) : uint256(0 - quoteSize);
+        uint256 valueBefore = FullMath.mulDiv(quoteSizeU, reserveBase, reserveQuote);
+
+        baseAmount = IMargin(margin).closePosition(trader, quoteAmount);
+
+        (reserveBase, reserveQuote, ) = IAmm(amm).getReserves();
+        (, quoteSize, ) = IMargin(margin).getPosition(trader);
+        quoteSizeU = quoteSize >= 0 ? uint256(quoteSize) : uint256(0 - quoteSize);
+        uint256 valueAfter = FullMath.mulDiv(quoteSizeU, reserveBase, reserveQuote);
+
+        uint256 userMarginAfter = valueAfter * userMargin / valueBefore;
+        withdrawAmount = (userMarginAfter >= userMargin) ? (userMarginAfter - userMargin) : (userMargin - userMarginAfter);
+    }
+
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
-    function getAmountOut(
+    function _getAmountOut(
         uint256 amountIn,
         uint256 reserveIn,
         uint256 reserveOut
@@ -321,7 +349,7 @@ contract Router is IRouter {
     }
 
     // given an output amount of an asset and pair reserves, returns a required input amount of the other asset
-    function getAmountIn(
+    function _getAmountIn(
         uint256 amountOut,
         uint256 reserveIn,
         uint256 reserveOut
