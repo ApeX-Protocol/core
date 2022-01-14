@@ -329,19 +329,33 @@ contract StakingPool is IStakingPool, Reentrant {
         pending = (user.totalWeight * newYieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER - user.subYieldRewards;
     }
 
-    function getDeposit(address _user, uint256 _depositId) external view returns (Deposit memory) {
+    function getStakeInfo(address _user)
+        external
+        view
+        override
+        returns (
+            uint256 tokenAmount,
+            uint256 totalWeight,
+            uint256 subYieldRewards
+        )
+    {
+        User memory user = users[_user];
+        return (user.tokenAmount, user.totalWeight, user.subYieldRewards);
+    }
+
+    function getDeposit(address _user, uint256 _depositId) external view override returns (Deposit memory) {
         return users[_user].deposits[_depositId];
     }
 
-    function getDepositsLength(address _user) external view returns (uint256) {
+    function getDepositsLength(address _user) external view override returns (uint256) {
         return users[_user].deposits.length;
     }
 
-    function getYield(address _user, uint256 _yieldId) external view returns (Yield memory) {
+    function getYield(address _user, uint256 _yieldId) external view override returns (Yield memory) {
         return users[_user].yields[_yieldId];
     }
 
-    function getYieldsLength(address _user) external view returns (uint256) {
+    function getYieldsLength(address _user) external view override returns (uint256) {
         return users[_user].yields.length;
     }
 }
