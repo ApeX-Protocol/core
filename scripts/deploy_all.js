@@ -15,10 +15,11 @@ const maxPayout = BigNumber.from("1000000000000000000000000");
 const discount = 500;
 const vestingTerm = 129600;
 // for StakingPoolFactory
-const apeXPerSec = 1;
+const apeXPerSec = 100;
 const secSpanPerUpdate = 30;
 const initTimestamp = 1641781192;
 const endTimestamp = 1673288342;
+const lockTime = 15552000;
 // transfer for staking
 const apeXAmountForStaking = BigNumber.from("1000000000000000000000000");
 
@@ -48,20 +49,20 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   // await createApeXToken();
-  await createPriceOracle();
+  // await createPriceOracle();
   // await createConfig();
   // await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createBondPoolFactory();
-  await createStakingPoolFactory();
+  // await createStakingPoolFactory();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createMockPair();
   // await createMockBondPool();
   // await bond();
-  await createMockStakingPool();
+  // await createMockStakingPool();
 };
 
 async function createApeXToken() {
@@ -139,7 +140,7 @@ async function createPCVTreasury() {
 
 async function createRouter() {
   if (pairFactory == null) {
-    let pairFactoryAddress = "0x0b1D5459fa5B4EDBDd58c919e911149aCa56034E";
+    let pairFactoryAddress = "0x61Ef918F64665a499dFe9FDA667F96bE2B2E504B";
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }
@@ -163,7 +164,7 @@ async function createRouter() {
 
   // need to regiter router in config
   if (config == null) {
-    let configAddress = "0x1e4298C82061FAdd05096Ff04487A28E41820a94";
+    let configAddress = "0x7565D4B79f2e43Fb02770A075a749cad6a91C213";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
   }
@@ -173,13 +174,16 @@ async function createRouter() {
 async function createBondPoolFactory() {
   let apeXAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
   let pcvTreasuryAddress = "0xcb186F6bbB2Df145ff450ee0A4Ec6aF4baadEec7";
-  let priceOracleAddress = "0x15C20c6c673c3B2244b465FC7736eAA0E8bd6DF6";
-  // let priceOracleAddress = priceOracle.address;
+  if (priceOracle == null) {
+    let priceOracleAddress = "0x15C20c6c673c3B2244b465FC7736eAA0E8bd6DF6";
+    const PriceOracle = await ethers.getContractFactory("PriceOracle");
+    priceOracle = await PriceOracle.attach(priceOracleAddress);
+  }
   const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
   bondPoolFactory = await BondPoolFactory.deploy(
     apeXAddress,
     pcvTreasuryAddress,
-    priceOracleAddress,
+    priceOracle.address,
     maxPayout,
     discount,
     vestingTerm
@@ -191,7 +195,7 @@ async function createBondPoolFactory() {
     bondPoolFactory.address,
     apeXAddress,
     pcvTreasuryAddress,
-    priceOracleAddress,
+    priceOracle.address,
     maxPayout.toString(),
     discount,
     vestingTerm
@@ -206,7 +210,14 @@ async function createStakingPoolFactory() {
   }
   const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
   stakingPoolFactory = await StakingPoolFactory.deploy();
-  await stakingPoolFactory.initialize(apeXToken.address, apeXPerSec, secSpanPerUpdate, initTimestamp, endTimestamp);
+  await stakingPoolFactory.initialize(
+    apeXToken.address,
+    apeXPerSec,
+    secSpanPerUpdate,
+    initTimestamp,
+    endTimestamp,
+    lockTime
+  );
   // stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
   //   apeXToken.address,
   //   apeXPerBlock,
@@ -245,7 +256,7 @@ async function createMockPair() {
   let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526";
 
   if (pairFactory == null) {
-    let pairFactoryAddress = "0x907207E5C148Ccb946231Db604Bd2B9F231853f1";
+    let pairFactoryAddress = "0x61Ef918F64665a499dFe9FDA667F96bE2B2E504B";
 
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
@@ -262,9 +273,9 @@ async function createMockPair() {
 }
 
 async function createMockBondPool() {
-  ammAddress = "0x1e6De9AD57A228056F1b6e83F443CbC3e4e5c15e";
+  ammAddress = "0xB6612a0355E99B359e91834B908f5616068633c1";
   if (bondPoolFactory == null) {
-    let bondPoolFactoryAddress = "0x0f7B3d3e5699A36680E1B05447426Ee5c6d47f10";
+    let bondPoolFactoryAddress = "0x1efda03600f616e14251cf40eA157e4Ad66FE497";
     const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
     bondPoolFactory = await BondPoolFactory.attach(bondPoolFactoryAddress);
   }
@@ -288,7 +299,7 @@ async function createMockBondPool() {
 
 async function bond() {
   if (bondPool == null) {
-    let bondPoolAddress = "0x01A1c41EB8ACF60A6423A22555a741221BA6561E";
+    let bondPoolAddress = "0x16BA8df5cF5B926BFBb5e1c9Aa9b688bE705616F";
     const BondPool = await ethers.getContractFactory("BondPool");
     bondPool = await BondPool.attach(bondPoolAddress);
   }
@@ -297,7 +308,7 @@ async function bond() {
     let PCVTreasury = await ethers.getContractFactory("PCVTreasury");
     pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
   }
-  let ammAddress = "0x1e6De9AD57A228056F1b6e83F443CbC3e4e5c15e";
+  let ammAddress = "0xB6612a0355E99B359e91834B908f5616068633c1";
   await pcvTreasury.addLiquidityToken(ammAddress);
   await pcvTreasury.addBondPool(bondPool.address);
 
@@ -311,7 +322,7 @@ async function bond() {
 
 async function createMockStakingPool() {
   if (stakingPoolFactory == null) {
-    let stakingPoolFactoryAddress = "0xafB431eC4212C118cD865390836a96b145451a3f";
+    let stakingPoolFactoryAddress = "0x5B0Fafe5FbE2F51dD0EaC053630CF896B2Ef4943";
     const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
     stakingPoolFactory = await StakingPoolFactory.attach(stakingPoolFactoryAddress);
   }

@@ -195,7 +195,7 @@ describe("Router contract", function () {
       await baseToken.approve(router.address, 1000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 10000, 1, 9999999999, false);
       await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 1000, 10000, 1, 9999999999);
-      await router.closePosition(baseToken.address, quoteToken.address, 10000, 9999999999, true);
+      await router.closePosition(baseToken.address, quoteToken.address, 10000, 5000, 9999999999);
     });
   });
 });
