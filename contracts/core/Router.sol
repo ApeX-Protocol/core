@@ -9,8 +9,11 @@ import "./interfaces/ILiquidityERC20.sol";
 import "./interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/FullMath.sol";
+import "../libraries/SignedMath.sol";
 
 contract Router is IRouter {
+    using SignedMath for int256;
+
     address public immutable override pairFactory;
     address public immutable override pcvTreasury;
     address public immutable override WETH;
@@ -223,29 +226,61 @@ contract Router is IRouter {
         address baseToken,
         address quoteToken,
         uint256 quoteAmount,
-        uint256 userMargin,
-        uint256 deadline
+        uint256 deadline,
+        bool autoWithdraw
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
-        address margin;
-        (margin, baseAmount, withdrawAmount) = _closePosition(msg.sender, baseToken, quoteToken, quoteAmount, userMargin);
-        if (withdrawAmount > 0) {
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
+        require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
+        if (!autoWithdraw) {
+            baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+        } else {
+            (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
+            baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+            (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(msg.sender);
+            int256 fundingFee = IMargin(margin).calFundingFee(msg.sender);
+            int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(msg.sender);
+            int256 traderMargin;
+            if (quoteSizeAfter < 0) { // long, traderMargin = baseSize - tradeSize + fundingFee + unrealizedPnl
+                traderMargin = baseSize.subU(tradeSize) + fundingFee + unrealizedPnl;
+            } else { // short, traderMargin = baseSize + tradeSize + fundingFee + unrealizedPnl
+                traderMargin = baseSize.addU(tradeSize) + fundingFee + unrealizedPnl;
+            }
+            withdrawAmount = traderMargin.abs() - traderMargin.abs() * quoteSizeAfter.abs() / quoteSizeBefore.abs();
             uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
-            require(withdrawable >= withdrawAmount, "Router.closePosition: NOT_ENOUGH_WITHDRAWABLE");
-            IMargin(margin).removeMargin(msg.sender, msg.sender, withdrawAmount);
+            if (withdrawable > withdrawAmount) {
+                withdrawAmount = withdrawable;
+            }
+            if (withdrawAmount > 0) {
+                IMargin(margin).removeMargin(msg.sender, msg.sender, withdrawAmount);
+            }
         }
     }
 
     function closePositionETH(
         address quoteToken,
         uint256 quoteAmount,
-        uint256 userMargin,
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
-        address margin;
-        (margin, baseAmount, withdrawAmount) = _closePosition(msg.sender, WETH, quoteToken, quoteAmount, userMargin);
+        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
+        require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
+        
+        (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
+        baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+        (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(msg.sender);
+        int256 fundingFee = IMargin(margin).calFundingFee(msg.sender);
+        int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(msg.sender);
+        int256 traderMargin;
+        if (quoteSizeAfter < 0) { // long, traderMargin = baseSize - tradeSize + fundingFee + unrealizedPnl
+            traderMargin = baseSize.subU(tradeSize) + fundingFee + unrealizedPnl;
+        } else { // short, traderMargin = baseSize + tradeSize + fundingFee + unrealizedPnl
+            traderMargin = baseSize.addU(tradeSize) + fundingFee + unrealizedPnl;
+        }
+        withdrawAmount = traderMargin.abs() - traderMargin.abs() * quoteSizeAfter.abs() / quoteSizeBefore.abs();
+        uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
+        if (withdrawable > withdrawAmount) {
+            withdrawAmount = withdrawable;
+        }
         if (withdrawAmount > 0) {
-            uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
-            require(withdrawable >= withdrawAmount, "Router.closePosition: NOT_ENOUGH_WITHDRAWABLE");
             IMargin(margin).removeMargin(msg.sender, address(this), withdrawAmount);
             IWETH(WETH).withdraw(withdrawAmount);
             TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
@@ -302,36 +337,6 @@ contract Router is IRouter {
     {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         (baseSize, quoteSize, tradeSize) = IMargin(margin).getPosition(holder);
-    }
-
-    // positionValueBefore / userMarginBefore = positionValueAfter / userMarginAfter  =>
-    // quoteSizeBefore / priceBefore / userMarginBefore = quoteSizeAfter / priceAfter / userMarginAfter  =>
-    // (quoteSizeBefore * reserveBaseBefore / reserveQuoteBefore) / userMarginBefore = (quoteSizeAfter * reserveBaseAfter / reserveQuoteAfter) / userMarginAfter
-    function _closePosition(
-        address trader,
-        address baseToken,
-        address quoteToken,
-        uint256 quoteAmount,
-        uint256 userMargin
-    ) internal returns (address margin, uint256 baseAmount, uint256 withdrawAmount) {
-        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
-        margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
-
-        (uint256 reserveBase, uint256 reserveQuote, ) = IAmm(amm).getReserves();
-        (, int quoteSize, ) = IMargin(margin).getPosition(trader);
-        uint256 quoteSizeU = quoteSize >= 0 ? uint256(quoteSize) : uint256(0 - quoteSize);
-        uint256 valueBefore = FullMath.mulDiv(quoteSizeU, reserveBase, reserveQuote);
-
-        baseAmount = IMargin(margin).closePosition(trader, quoteAmount);
-
-        (reserveBase, reserveQuote, ) = IAmm(amm).getReserves();
-        (, quoteSize, ) = IMargin(margin).getPosition(trader);
-        quoteSizeU = quoteSize >= 0 ? uint256(quoteSize) : uint256(0 - quoteSize);
-        uint256 valueAfter = FullMath.mulDiv(quoteSizeU, reserveBase, reserveQuote);
-
-        uint256 userMarginAfter = valueAfter * userMargin / valueBefore;
-        withdrawAmount = (userMarginAfter >= userMargin) ? (userMarginAfter - userMargin) : (userMargin - userMarginAfter);
     }
 
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
