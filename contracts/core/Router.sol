@@ -237,17 +237,16 @@ contract Router is IRouter {
             (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
             baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
             (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(msg.sender);
-            int256 fundingFee = IMargin(margin).calFundingFee(msg.sender);
             int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(msg.sender);
             int256 traderMargin;
-            if (quoteSizeAfter < 0) { // long, traderMargin = baseSize - tradeSize + fundingFee + unrealizedPnl
-                traderMargin = baseSize.subU(tradeSize) + fundingFee + unrealizedPnl;
-            } else { // short, traderMargin = baseSize + tradeSize + fundingFee + unrealizedPnl
-                traderMargin = baseSize.addU(tradeSize) + fundingFee + unrealizedPnl;
+            if (quoteSizeAfter < 0) { // long, traderMargin = baseSize - tradeSize + unrealizedPnl
+                traderMargin = baseSize.subU(tradeSize) + unrealizedPnl;
+            } else { // short, traderMargin = baseSize + tradeSize + unrealizedPnl
+                traderMargin = baseSize.addU(tradeSize) + unrealizedPnl;
             }
             withdrawAmount = traderMargin.abs() - traderMargin.abs() * quoteSizeAfter.abs() / quoteSizeBefore.abs();
             uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
-            if (withdrawable > withdrawAmount) {
+            if (withdrawable < withdrawAmount) {
                 withdrawAmount = withdrawable;
             }
             if (withdrawAmount > 0) {
@@ -267,17 +266,16 @@ contract Router is IRouter {
         (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
         (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(msg.sender);
-        int256 fundingFee = IMargin(margin).calFundingFee(msg.sender);
         int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(msg.sender);
         int256 traderMargin;
-        if (quoteSizeAfter < 0) { // long, traderMargin = baseSize - tradeSize + fundingFee + unrealizedPnl
-            traderMargin = baseSize.subU(tradeSize) + fundingFee + unrealizedPnl;
-        } else { // short, traderMargin = baseSize + tradeSize + fundingFee + unrealizedPnl
-            traderMargin = baseSize.addU(tradeSize) + fundingFee + unrealizedPnl;
+        if (quoteSizeAfter < 0) { // long, traderMargin = baseSize - tradeSize + unrealizedPnl
+            traderMargin = baseSize.subU(tradeSize) + unrealizedPnl;
+        } else { // short, traderMargin = baseSize + tradeSize + unrealizedPnl
+            traderMargin = baseSize.addU(tradeSize) + unrealizedPnl;
         }
         withdrawAmount = traderMargin.abs() - traderMargin.abs() * quoteSizeAfter.abs() / quoteSizeBefore.abs();
         uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
-        if (withdrawable > withdrawAmount) {
+        if (withdrawable < withdrawAmount) {
             withdrawAmount = withdrawable;
         }
         if (withdrawAmount > 0) {
