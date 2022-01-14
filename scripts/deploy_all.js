@@ -15,7 +15,7 @@ const maxPayout = BigNumber.from("1000000000000000000000000");
 const discount = 500;
 const vestingTerm = 129600;
 // for StakingPoolFactory
-const apeXPerSec = 100;
+const apeXPerSec = BigNumber.from("100000000000000000000");
 const secSpanPerUpdate = 30;
 const initTimestamp = 1641781192;
 const endTimestamp = 1673288342;
@@ -53,16 +53,16 @@ const main = async () => {
   // await createConfig();
   // await createPairFactory();
   // await createPCVTreasury();
-  await createRouter();
+  // await createRouter();
   // await createBondPoolFactory();
-  // await createStakingPoolFactory();
+  await createStakingPoolFactory();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createMockPair();
   // await createMockBondPool();
   // await bond();
-  // await createMockStakingPool();
+  await createMockStakingPool();
 };
 
 async function createApeXToken() {
