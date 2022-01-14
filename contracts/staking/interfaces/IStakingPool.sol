@@ -31,6 +31,8 @@ interface IStakingPool {
         uint256[] _yieldAmounts
     );
 
+    event ForceWithdraw(address indexed by, uint256[] yieldIds);
+
     event Staked(address indexed to, uint256 depositId, uint256 amount, uint256 lockFrom, uint256 lockUntil);
 
     event YieldClaimed(address indexed by, uint256 depositId, uint256 amount, uint256 lockFrom, uint256 lockUntil);
