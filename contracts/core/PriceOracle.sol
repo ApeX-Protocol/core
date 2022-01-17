@@ -12,9 +12,12 @@ import "./interfaces/uniswapV2/IUniswapV2Pair.sol";
 import "../libraries/FullMath.sol";
 import "../libraries/UniswapV3TwapGetter.sol";
 import "../libraries/FixedPoint96.sol";
-import '@uniswap/lib/contracts/libraries/FixedPoint.sol';
+
+import "../libraries/UQ112x112.sol";
 
 contract PriceOracle is IPriceOracle {
+    using UQ112x112 for uint224;
+
     address public immutable v3Factory;
     address public immutable v2Factory;
     address public immutable WETH;
@@ -27,7 +30,7 @@ contract PriceOracle is IPriceOracle {
     mapping(address => Observation[]) public pairObservations;
 
     struct Observation {
-        uint256 timestamp;
+        uint32 timestamp;
         uint256 price0Cumulative;
         uint256 price1Cumulative;
     }
@@ -69,8 +72,8 @@ contract PriceOracle is IPriceOracle {
         }
     }
 
-    function updateAmmTwap(address pair) public  {
-       require(msg.sender == pair, "PriceOracle.updateAmmTwap: ONLY_AMM_CAN_UPDATE") ;     
+    function updateAmmTwap(address pair) public override {
+        require(msg.sender == pair, "PriceOracle.updateAmmTwap: ONLY_AMM_CAN_UPDATE");
         // populate the array with empty observations (first call only)
         for (uint256 i = pairObservations[pair].length; i < granularity; i++) {
             pairObservations[pair].push();
@@ -247,21 +250,21 @@ contract PriceOracle is IPriceOracle {
         price0Cumulative = IAmm(pair).price0CumulativeLast();
         price1Cumulative = IAmm(pair).price1CumulativeLast();
 
-       // if time has elapsed since the last update on the pair, mock the accumulated price values
+        // if time has elapsed since the last update on the pair, mock the accumulated price values
         (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast) = IAmm(pair).getReserves();
         if (blockTimestampLast != blockTimestamp) {
             // subtraction overflow is desired
             uint32 timeElapsed = blockTimestamp - blockTimestampLast;
             // addition overflow is desired
             // counterfactual
-            price0Cumulative += uint256(UQ112x112.encode(reserve1).uqdiv(reserve0)) * timeElapsed;;
+            price0Cumulative += uint256(UQ112x112.encode(reserve1).uqdiv(reserve0)) * timeElapsed;
             // counterfactual
             price1Cumulative += uint256(UQ112x112.encode(reserve0).uqdiv(reserve1)) * timeElapsed;
         }
     }
 
-    // quote 
-    function consult(address pair, uint256 baseAmount) external view returns (uint256 amountOut) {
+    //  equal  quote method!!!
+    function consult(address pair, uint256 baseAmount) external view override returns (uint256 amountOut) {
         Observation storage firstObservation = getFirstObservationInWindow(pair);
 
         uint256 timeElapsed = currentBlockTimestamp() - firstObservation.timestamp;
@@ -270,10 +273,8 @@ contract PriceOracle is IPriceOracle {
         require(timeElapsed >= windowSize - periodSize * 2, "SlidingWindowOracle: UNEXPECTED_TIME_ELAPSED");
 
         (uint256 price0Cumulative, uint256 price1Cumulative, ) = currentCumulativePrices(pair);
-    
+
         return computeAmountOut(firstObservation.price0Cumulative, price0Cumulative, timeElapsed, baseAmount);
-     
-        }
     }
 
     function computeAmountOut(
@@ -283,10 +284,9 @@ contract PriceOracle is IPriceOracle {
         uint256 amountIn
     ) private pure returns (uint256 amountOut) {
         // overflow is desired.
-        uint256 memory priceAverage = 
-            (priceCumulativeEnd - priceCumulativeStart) / timeElapsed;
+        uint256 priceAverage = (priceCumulativeEnd - priceCumulativeStart) / timeElapsed;
         // move right 112
-        amountOut = priceAverage.mul(amountIn).div(2**112);
+        amountOut = (priceAverage * (amountIn)) / (2**112);
     }
 
     // helper function that returns the current block timestamp within the range of uint32, i.e. [0, 2**32 - 1]

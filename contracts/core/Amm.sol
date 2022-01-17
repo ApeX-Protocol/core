@@ -382,7 +382,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
             
             // update twap 
-            IPriceOracle.updateAmmTwap( address.this);
+
+            IPriceOracle(IConfig(config).priceOracle()).updateAmmTwap(address(this) );
         }
 
      
