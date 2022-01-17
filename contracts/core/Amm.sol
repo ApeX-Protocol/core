@@ -202,6 +202,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
         quoteReserveAfter = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, _baseReserve);
+
+        uint256 ammTwapPrice = IPriceOracle(IConfig(config).priceOracle()).ammTwap();
+
+        uint256 indexTwapPrice = IPriceOracle(IConfig(config).priceOracle()).indexPrice();
+
         uint256 gap = IConfig(config).rebasePriceGap();
         require(
             quoteReserveAfter * 100 >= uint256(_quoteReserve) * (100 + gap) ||
@@ -209,7 +214,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
+        _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
 
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
@@ -364,10 +369,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         bool isRebaseOrForceSwap
     ) private {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
-        uint32 blockTimestamp = uint32(block.timestamp % 2**32);
+
+
+       uint32 blockTimestamp = uint32(block.timestamp % 2**32);
 
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
-        uint256 blockNumberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
 
         // last price means last block price.
         if (timeElapsed > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
@@ -376,18 +382,18 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
         }
 
+       // update twap 
+        IPriceOracle.updateAmmTwap( address.this);
+
+        uint256 blockNumberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
+
         //every arbi block number calculate
         if (blockNumberDelta > 0 && baseReserveOld != 0) {
             lastPrice = uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld));
         }
 
-        //set the last price to current price for rebase may cause price gap oversize the tradeslippage.    
-        if (isRebaseOrForceSwap) {
-            lastPrice = uint256(UQ112x112.encode(uint112(quoteReserveNew)).uqdiv(uint112(baseReserveNew)));
-        }
-
-        // keep lastprice not equal zero, only used in the first transaction.
-        if (lastPrice == 0 && baseReserveNew != 0) {
+        //set the last price to current price for rebase may cause price gap oversize the tradeslippage.
+        if ((lastPrice == 0 && baseReserveNew != 0) || isRebaseOrForceSwap) {
             lastPrice = uint256(UQ112x112.encode(uint112(quoteReserveNew)).uqdiv(uint112(baseReserveNew)));
         }
 
@@ -396,6 +402,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         lastBlockNumber = ChainAdapter.blockNumber();
         blockTimestampLast = blockTimestamp;
+
         emit Sync(baseReserve, quoteReserve);
     }
 

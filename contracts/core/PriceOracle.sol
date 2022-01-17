@@ -12,6 +12,7 @@ import "./interfaces/uniswapV2/IUniswapV2Pair.sol";
 import "../libraries/FullMath.sol";
 import "../libraries/UniswapV3TwapGetter.sol";
 import "../libraries/FixedPoint96.sol";
+import '@uniswap/lib/contracts/libraries/FixedPoint.sol';
 
 contract PriceOracle is IPriceOracle {
     address public immutable v3Factory;
@@ -19,7 +20,23 @@ contract PriceOracle is IPriceOracle {
     address public immutable WETH;
     uint24[3] public v3Fees;
 
-    constructor(address v3Factory_, address v2Factory_, address WETH_) {
+    //ExampleSlidingWindowOracle
+    uint256 public immutable windowSize = 3600;
+    uint8 public immutable granularity = 12;
+    uint256 public immutable periodSize = 300;
+    mapping(address => Observation[]) public pairObservations;
+
+    struct Observation {
+        uint256 timestamp;
+        uint256 price0Cumulative;
+        uint256 price1Cumulative;
+    }
+
+    constructor(
+        address v3Factory_,
+        address v2Factory_,
+        address WETH_
+    ) {
         v3Factory = v3Factory_;
         v2Factory = v2Factory_;
         WETH = WETH_;
@@ -49,6 +66,26 @@ contract PriceOracle is IPriceOracle {
         (, , , , uint16 observationCardinalityNext, , ) = v3Pool.slot0();
         if (observationCardinalityNext < 10) {
             IUniswapV3Pool(pool).increaseObservationCardinalityNext(10);
+        }
+    }
+
+    function updateAmmTwap(address pair) private {
+        // populate the array with empty observations (first call only)
+        for (uint256 i = pairObservations[pair].length; i < granularity; i++) {
+            pairObservations[pair].push();
+        }
+
+        uint8 observationIndex = observationIndexOf(block.timestamp);
+        Observation storage observation = pairObservations[pair][observationIndex];
+
+        uint32 timeElapsed = block.timestamp - observation.timestamp; // overflow is desired
+
+        if (timeElapsed > periodSize) {
+            // * never overflows, and + overflow is desired
+            (uint256 price0Cumulative, uint256 price1Cumulative, ) = currentCumulativePrices(pair);
+            observation.timestamp = block.timestamp;
+            observation.price0Cumulative = price0Cumulative;
+            observation.price1Cumulative = price1Cumulative;
         }
     }
 
@@ -104,7 +141,7 @@ contract PriceOracle is IPriceOracle {
     }
 
     function quoteFromHybrid(
-        address baseToken, 
+        address baseToken,
         address quoteToken,
         uint256 baseAmount
     ) public view returns (uint256 quoteAmount) {
@@ -177,7 +214,7 @@ contract PriceOracle is IPriceOracle {
         bool negative
     ) external view override returns (uint256 baseAmount) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        uint256 rvalue = quoteAmount * beta / 100;
+        uint256 rvalue = (quoteAmount * beta) / 100;
         uint256 denominator;
         if (negative) {
             denominator = quoteReserve - rvalue;
@@ -194,5 +231,78 @@ contract PriceOracle is IPriceOracle {
         int256 indexPrice = int256(getIndexPrice(amm));
         require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
         return ((markPrice - indexPrice) * 1e18) / (8 * 3600) / indexPrice;
+    }
+
+    function currentCumulativePrices(address pair)
+        internal
+        view
+        returns (
+            uint256 price0Cumulative,
+            uint256 price1Cumulative,
+            uint32 blockTimestamp
+        )
+    {
+        blockTimestamp = currentBlockTimestamp();
+        price0Cumulative = IAmm(pair).price0CumulativeLast();
+        price1Cumulative = IAmm(pair).price1CumulativeLast();
+
+       // if time has elapsed since the last update on the pair, mock the accumulated price values
+        (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast) = IAmm(pair).getReserves();
+        if (blockTimestampLast != blockTimestamp) {
+            // subtraction overflow is desired
+            uint32 timeElapsed = blockTimestamp - blockTimestampLast;
+            // addition overflow is desired
+            // counterfactual
+            price0Cumulative += uint256(UQ112x112.encode(reserve1).uqdiv(reserve0)) * timeElapsed;;
+            // counterfactual
+            price1Cumulative += uint256(UQ112x112.encode(reserve0).uqdiv(reserve1)) * timeElapsed;
+        }
+    }
+
+    // quote 
+    function consult(address pair, uint256 baseAmount) external view returns (uint256 amountOut) {
+        Observation storage firstObservation = getFirstObservationInWindow(pair);
+
+        uint256 timeElapsed = block.timestamp - firstObservation.timestamp;
+        require(timeElapsed <= windowSize, "SlidingWindowOracle: MISSING_HISTORICAL_OBSERVATION");
+        // should never happen.
+        require(timeElapsed >= windowSize - periodSize * 2, "SlidingWindowOracle: UNEXPECTED_TIME_ELAPSED");
+
+        (uint256 price0Cumulative, uint256 price1Cumulative, ) = currentCumulativePrices(pair);
+    
+        return computeAmountOut(firstObservation.price0Cumulative, price0Cumulative, timeElapsed, baseAmount);
+     
+        }
+    }
+
+    function computeAmountOut(
+        uint256 priceCumulativeStart,
+        uint256 priceCumulativeEnd,
+        uint256 timeElapsed,
+        uint256 amountIn
+    ) private pure returns (uint256 amountOut) {
+        // overflow is desired.
+        uint256 memory priceAverage = 
+            (priceCumulativeEnd - priceCumulativeStart) / timeElapsed;
+        // move right 112
+        amountOut = priceAverage.mul(amountIn).div(2**112);
+    }
+
+    // helper function that returns the current block timestamp within the range of uint32, i.e. [0, 2**32 - 1]
+    function currentBlockTimestamp() internal view returns (uint32) {
+        return uint32(block.timestamp % 2**32);
+    }
+
+    function observationIndexOf(uint256 timestamp) public view returns (uint8 index) {
+        uint256 epochPeriod = timestamp / periodSize;
+        return uint8(epochPeriod % granularity);
+    }
+
+    // returns the observation from the oldest epoch (at the beginning of the window) relative to the current time
+    function getFirstObservationInWindow(address pair) private view returns (Observation storage firstObservation) {
+        uint8 observationIndex = observationIndexOf(block.timestamp);
+        // no overflow issue. if observationIndex + 1 overflows, result is still zero.
+        uint8 firstObservationIndex = (observationIndex + 1) % granularity;
+        firstObservation = pairObservations[pair][firstObservationIndex];
     }
 }
