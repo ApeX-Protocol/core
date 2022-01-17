@@ -212,7 +212,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         );
 
         uint256 gap = IConfig(config).rebasePriceGap();
-        
+
         require(
             quoteReserveCalculatedByExternalTwap * 100 >= uint256(quoteReserveCalculatedByExternalTwap) * (100 + gap) ||
                 quoteReserveCalculatedByExternalTwap * 100 <=
