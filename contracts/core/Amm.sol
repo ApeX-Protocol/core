@@ -203,9 +203,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         quoteReserveAfter = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, _baseReserve);
 
-        uint256 ammTwapPrice = IPriceOracle(IConfig(config).priceOracle()).ammTwap();
+        // uint256 ammTwapPrice = IPriceOracle(IConfig(config).priceOracle()).consult();
 
-        uint256 indexTwapPrice = IPriceOracle(IConfig(config).priceOracle()).indexPrice();
+        // uint256 indexTwapPrice = IPriceOracle(IConfig(config).priceOracle()).indexPrice();
 
         uint256 gap = IConfig(config).rebasePriceGap();
         require(
@@ -380,10 +380,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             // * never overflows, and + overflow is desired
             price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
+            
+            // update twap 
+            IPriceOracle.updateAmmTwap( address.this);
         }
 
-       // update twap 
-        IPriceOracle.updateAmmTwap( address.this);
+     
+        
 
         uint256 blockNumberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
 

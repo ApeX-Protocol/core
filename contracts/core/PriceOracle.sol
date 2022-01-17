@@ -69,21 +69,22 @@ contract PriceOracle is IPriceOracle {
         }
     }
 
-    function updateAmmTwap(address pair) private {
+    function updateAmmTwap(address pair) public  {
+       require(msg.sender == pair, "PriceOracle.updateAmmTwap: ONLY_AMM_CAN_UPDATE") ;     
         // populate the array with empty observations (first call only)
         for (uint256 i = pairObservations[pair].length; i < granularity; i++) {
             pairObservations[pair].push();
         }
 
-        uint8 observationIndex = observationIndexOf(block.timestamp);
+        uint8 observationIndex = observationIndexOf(currentBlockTimestamp());
         Observation storage observation = pairObservations[pair][observationIndex];
 
-        uint32 timeElapsed = block.timestamp - observation.timestamp; // overflow is desired
+        uint32 timeElapsed = currentBlockTimestamp() - observation.timestamp; // overflow is desired
 
         if (timeElapsed > periodSize) {
             // * never overflows, and + overflow is desired
             (uint256 price0Cumulative, uint256 price1Cumulative, ) = currentCumulativePrices(pair);
-            observation.timestamp = block.timestamp;
+            observation.timestamp = currentBlockTimestamp();
             observation.price0Cumulative = price0Cumulative;
             observation.price1Cumulative = price1Cumulative;
         }
@@ -263,7 +264,7 @@ contract PriceOracle is IPriceOracle {
     function consult(address pair, uint256 baseAmount) external view returns (uint256 amountOut) {
         Observation storage firstObservation = getFirstObservationInWindow(pair);
 
-        uint256 timeElapsed = block.timestamp - firstObservation.timestamp;
+        uint256 timeElapsed = currentBlockTimestamp() - firstObservation.timestamp;
         require(timeElapsed <= windowSize, "SlidingWindowOracle: MISSING_HISTORICAL_OBSERVATION");
         // should never happen.
         require(timeElapsed >= windowSize - periodSize * 2, "SlidingWindowOracle: UNEXPECTED_TIME_ELAPSED");
@@ -300,7 +301,7 @@ contract PriceOracle is IPriceOracle {
 
     // returns the observation from the oldest epoch (at the beginning of the window) relative to the current time
     function getFirstObservationInWindow(address pair) private view returns (Observation storage firstObservation) {
-        uint8 observationIndex = observationIndexOf(block.timestamp);
+        uint8 observationIndex = observationIndexOf(currentBlockTimestamp());
         // no overflow issue. if observationIndex + 1 overflows, result is still zero.
         uint8 firstObservationIndex = (observationIndex + 1) % granularity;
         firstObservation = pairObservations[pair][firstObservationIndex];
