@@ -24,9 +24,9 @@ contract PriceOracle is IPriceOracle {
     uint24[3] public v3Fees;
 
     //ExampleSlidingWindowOracle
-    uint256 public immutable windowSize = 3600;
-    uint8 public immutable granularity = 12;
-    uint256 public immutable periodSize = 300;
+    uint256 public immutable windowSize = 3600;   // 1小时
+    uint8 public immutable granularity = 12;       
+    uint256 public immutable periodSize = 300;  // 5 min
     mapping(address => Observation[]) public pairObservations;
 
     struct Observation {

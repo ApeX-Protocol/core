@@ -201,18 +201,32 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
-        quoteReserveAfter = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, _baseReserve);
-
-        // uint256 ammTwapPrice = IPriceOracle(IConfig(config).priceOracle()).consult();
-
-        // uint256 indexTwapPrice = IPriceOracle(IConfig(config).priceOracle()).indexPrice();
+        uint256 quoteReserveCalculatedByAmmTwap = IPriceOracle(IConfig(config).priceOracle()).consult(
+            address(this),
+            _baseReserve
+        );
+        uint256 quoteReserveCalculatedByExternalTwap = IPriceOracle(IConfig(config).priceOracle()).quote(
+            baseToken,
+            quoteToken,
+            _baseReserve
+        );
 
         uint256 gap = IConfig(config).rebasePriceGap();
+        
         require(
-            quoteReserveAfter * 100 >= uint256(_quoteReserve) * (100 + gap) ||
-                quoteReserveAfter * 100 <= uint256(_quoteReserve) * (100 - gap),
+            quoteReserveCalculatedByExternalTwap * 100 >= uint256(quoteReserveCalculatedByExternalTwap) * (100 + gap) ||
+                quoteReserveCalculatedByExternalTwap * 100 <=
+                uint256(quoteReserveCalculatedByExternalTwap) * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
+
+        if (quoteReserveCalculatedByAmmTwap > quoteReserveCalculatedByExternalTwap) {
+            // amm price higer than external price
+            quoteReserveAfter = _quoteReserve * (100 - gap);
+        } else {
+            // amm price lower than external price
+            quoteReserveAfter = _quoteReserve * (100 + gap);
+        }
 
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
 
@@ -370,8 +384,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     ) private {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
 
-
-       uint32 blockTimestamp = uint32(block.timestamp % 2**32);
+        uint32 blockTimestamp = uint32(block.timestamp % 2**32);
 
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
 
@@ -380,14 +393,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             // * never overflows, and + overflow is desired
             price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
-            
-            // update twap 
 
-            IPriceOracle(IConfig(config).priceOracle()).updateAmmTwap(address(this) );
+            // update twap
+
+            IPriceOracle(IConfig(config).priceOracle()).updateAmmTwap(address(this));
         }
-
-     
-        
 
         uint256 blockNumberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
 
@@ -409,8 +419,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         emit Sync(baseReserve, quoteReserve);
     }
-
-
 
     function _safeTransfer(
         address token,
