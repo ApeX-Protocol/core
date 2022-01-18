@@ -36,8 +36,8 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         startTime = _startTime; //unix time
     }
 
-    function withdrawETH(address to, uint256 amount) external onlyOwner {
-        payable(to).transfer(amount);
+    function withdrawETH(address to) external onlyOwner {
+        payable(to).transfer(address(this).balance);
     }
 
     function withdrawERC20Token(address to, uint256 amount) external onlyOwner {
