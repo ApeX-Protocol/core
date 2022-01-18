@@ -19,9 +19,10 @@ const apeXPerSec = BigNumber.from("100000000000000000000");
 const secSpanPerUpdate = 30;
 const initTimestamp = 1641781192;
 const endTimestamp = 1673288342;
-const lockTime = 15552000;
+// const lockTime = 15552000;
+const lockTime = 120;
 // transfer for staking
-const apeXAmountForStaking = BigNumber.from("1000000000000000000000000");
+const apeXAmountForStaking = BigNumber.from("10000000000000000000000");
 
 let signer;
 let apeXToken;
@@ -63,6 +64,16 @@ const main = async () => {
   // await createMockBondPool();
   // await bond();
   await createMockStakingPool();
+
+  // const MockArbSys = await ethers.getContractFactory("MockArbSys");
+  // let mockArbSys = await MockArbSys.deploy();
+  // for (let i = 0; i < 240; i++) {
+  //   // let number = await mockArbSys.arbBlockNumber();
+  //   // let timestamp = await mockArbSys.blockTimestamp();
+  //   let block = await mockArbSys.getBlock();
+  //   console.log("Block number:", block.number.toNumber(), " Block timestamp:", block.timestamp.toNumber());
+  //   await new Promise((resolve) => setTimeout(resolve, 500));
+  // }
 };
 
 async function createApeXToken() {

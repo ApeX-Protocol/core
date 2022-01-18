@@ -2,13 +2,11 @@
 pragma solidity ^0.8.0;
 
 interface IPriceOracle {
-    function setupTwap(address baseToken, address quoteToken) external;
+    function setupTwap(address amm) external;
 
-    function quote(
-        address baseToken,
-        address quoteToken,
-        uint256 baseAmount
-    ) external view returns (uint256 quoteAmount);
+    function updateAmmTwap(address amm) external;
+
+    function getAmmTwap(address amm) external view returns (uint256);
 
     function getIndexPrice(address amm) external view returns (uint256);
 
@@ -22,4 +20,10 @@ interface IPriceOracle {
     ) external view returns (uint256 baseAmount);
 
     function getPremiumFraction(address amm) external view returns (int256);
+
+    function quote(
+        address baseToken,
+        address quoteToken,
+        uint256 baseAmount
+    ) external view returns (uint256 quoteAmount);
 }

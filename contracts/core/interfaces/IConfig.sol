@@ -13,6 +13,7 @@ interface IConfig {
     event SetBeta(uint256 oldBeta, uint256 beta);
     event SetFeeParameter(uint256 oldFeeParameter, uint256 feeParameter);
     event SetMaxCPFBoost(uint256 oldMaxCPFBoost, uint256 maxCPFBoost);
+    event SetTwapInterval(uint16 oldTwapInterval, uint16 newTwapInterval);
 
     /// @notice get price oracle address.
     function priceOracle() external view returns (address);
@@ -41,6 +42,8 @@ interface IConfig {
     function routerMap(address) external view returns (bool);
 
     function maxCPFBoost() external view returns (uint256);
+
+    function twapInterval() external view returns (uint16);
 
     function registerRouter(address router) external;
 
@@ -80,4 +83,6 @@ interface IConfig {
     function setFeeParameter(uint256 newFeeParameter) external;
 
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
+
+    function setTwapInterval(uint16 newTwapInterval) external;
 }
