@@ -79,7 +79,12 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         }
 
         // (t/6*5000+ vault/N)60%
-        uint256 bonus = (((diffTime * BONUS_PERPAX) / HALF_YEAR + vault / existNftAmount) * 60) / 100;
+        uint256 bonus = (
+            ((diffTime * BONUS_PERPAX * (100 - BURN_DISCOUNT)) /
+                HALF_YEAR +
+                (vault * (100 - BURN_DISCOUNT)) /
+                existNftAmount)
+        ) / 100;
 
         withdrawAmount = BASE_AMOUNT + bonus;
 
