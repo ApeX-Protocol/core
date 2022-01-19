@@ -50,7 +50,7 @@ contract AmmFactory is IAmmFactory {
     ) external override onlyUpper {
         address amm = getAmm[baseToken][quoteToken];
         Amm(amm).initialize(baseToken, quoteToken, margin);
-        IPriceOracle(IConfig(config).priceOracle()).setupTwap(baseToken, quoteToken);
+        IPriceOracle(IConfig(config).priceOracle()).setupTwap(amm);
     }
 
     function setFeeTo(address feeTo_) external override {
