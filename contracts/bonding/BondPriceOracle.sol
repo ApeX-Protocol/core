@@ -15,7 +15,7 @@ import "../libraries/V3Oracle.sol";
 import "../libraries/V2Oracle.sol";
 import "../utils/Initializable.sol";
 
-contract PriceOracle is IBondPriceOracle, Initializable {
+contract BondPriceOracle is IBondPriceOracle, Initializable {
     using FullMath for uint256;
     using V3Oracle for V3Oracle.Observation[65535];
     using V2Oracle for V2Oracle.Observation[];
@@ -75,7 +75,7 @@ contract PriceOracle is IBondPriceOracle, Initializable {
             IUniswapV3Pool(pool).increaseObservationCardinalityNext(cardinality);
         }
     }
-    
+
     function updateV2() external override {
         v2Observations.update(v2Pair, periodSize, cardinality);
     }

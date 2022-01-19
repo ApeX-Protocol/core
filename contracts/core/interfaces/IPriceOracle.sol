@@ -6,7 +6,13 @@ interface IPriceOracle {
 
     function updateAmmTwap(address amm) external;
 
-    function getAmmTwap(address amm) external view returns (uint256);
+    function quoteFromAmmTwap(address amm, uint256 baseAmount) external view returns (uint256 quoteAmount);
+
+    function quote(
+        address baseToken,
+        address quoteToken,
+        uint256 baseAmount
+    ) external view returns (uint256 quoteAmount);
 
     function getIndexPrice(address amm) external view returns (uint256);
 
@@ -20,10 +26,4 @@ interface IPriceOracle {
     ) external view returns (uint256 baseAmount);
 
     function getPremiumFraction(address amm) external view returns (int256);
-
-    function quote(
-        address baseToken,
-        address quoteToken,
-        uint256 baseAmount
-    ) external view returns (uint256 quoteAmount);
 }

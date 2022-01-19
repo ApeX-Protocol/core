@@ -12,7 +12,7 @@ library V2Oracle {
     }
 
     // returns the index of the observation corresponding to the given timestamp
-    function observationIndexOf(uint256 timestamp, uint256 periodSize, uint16 granularity) internal view returns (uint16 index) {
+    function observationIndexOf(uint256 timestamp, uint256 periodSize, uint16 granularity) internal pure returns (uint16 index) {
         uint256 epochPeriod = timestamp / periodSize;
         return uint16(epochPeriod % granularity);
     }
