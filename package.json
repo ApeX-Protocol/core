@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.3.2",
+    "@uniswap/lib": "^4.0.1-alpha",
     "dotenv": "^10.0.0",
     "hardhat-watcher": "^2.1.1"
   }

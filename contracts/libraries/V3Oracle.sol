@@ -8,7 +8,7 @@ pragma solidity ^0.8.0;
 /// maximum length of the oracle array. New slots will be added when the array is fully populated.
 /// Observations are overwritten when the full length of the oracle array is populated.
 /// The most recent observation is available, independent of the length of the oracle array, by passing 0 to observe()
-library Oracle {
+library V3Oracle {
     struct Observation {
         // the block timestamp of the observation
         uint32 blockTimestamp;

@@ -10,7 +10,6 @@ contract Config is IConfig, Ownable {
     address public override priceOracle;
 
     uint8 public override beta = 50; // 50-200，50 means 0.5
-    uint16 public override twapInterval = 1800; // in seconds
     uint256 public override maxCPFBoost = 10; // default 10
     uint256 public override rebasePriceGap = 5; //0-100 , if 5 means 5%
     uint256 public override tradingSlippage = 5; //0-100, if 5 means 5%
@@ -77,11 +76,6 @@ contract Config is IConfig, Ownable {
         beta = newBeta;
     }
     
-    function setTwapInterval(uint16 newTwapInterval) external override onlyOwner {
-        emit SetTwapInterval(twapInterval, newTwapInterval);
-        twapInterval = newTwapInterval;
-    }
-
     //must be careful, expose all traders's position
     function registerRouter(address router) external override onlyOwner {
         require(router != address(0), "Config: ZERO_ADDRESS");

@@ -3,50 +3,45 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IERC20.sol";
 import "./interfaces/IAmm.sol";
-import "./interfaces/IConfig.sol";
 import "./interfaces/IPriceOracle.sol";
 import "./interfaces/uniswapV3/IUniswapV3Factory.sol";
 import "./interfaces/uniswapV3/IUniswapV3Pool.sol";
-import "./interfaces/uniswapV2/IUniswapV2Factory.sol";
-import "./interfaces/uniswapV2/IUniswapV2Pair.sol";
 import "../libraries/FullMath.sol";
 import "../libraries/Math.sol";
 import "../libraries/TickMath.sol";
 import "../libraries/UniswapV3TwapGetter.sol";
 import "../libraries/FixedPoint96.sol";
-import "../libraries/Oracle.sol";
+import "../libraries/V3Oracle.sol";
+import "../utils/Initializable.sol";
 
-contract PriceOracle is IPriceOracle {
+contract PriceOracle is IPriceOracle, Initializable {
     using Math for uint256;
     using FullMath for uint256;
-    using Oracle for Oracle.Observation[65535];
+    using V3Oracle for V3Oracle.Observation[65535];
 
-    address public immutable config;
-    address public immutable v3Factory;
-    address public immutable v2Factory;
-    address public immutable WETH;
+    uint16 public constant cardinality = 120;
+    uint32 public constant twapInterval = 1800; // 30 min
+
+    address public v3Factory;
     uint24[3] public v3Fees;
 
-    uint16 cardinality = 120;
-    mapping(address => address) v3Pools;
-    mapping(address => uint16) ammObservationIndex;
-    mapping(address => Oracle.Observation[65535]) ammObservations;
-    
-    constructor(address config_, address v3Factory_, address v2Factory_, address WETH_) {
-        config = config_;
+    // baseToken => quoteToken => v3Pool
+    mapping(address => mapping(address => address)) public v3Pools;
+    mapping(address => V3Oracle.Observation[65535]) public ammObservations;
+    mapping(address => uint16) public ammObservationIndex;
+
+    function initialize(address v3Factory_) public initializer {
         v3Factory = v3Factory_;
-        v2Factory = v2Factory_;
-        WETH = WETH_;
         v3Fees[0] = 500;
         v3Fees[1] = 3000;
         v3Fees[2] = 10000;
     }
 
     function setupTwap(address amm) external override {
-        require(v3Pools[amm] == address(0), "PriceOracle.setupTwap: ALREADY_SETUP");
+        require(!ammObservations[amm][0].initialized, "PriceOracle.setupTwap: ALREADY_SETUP");
         address baseToken = IAmm(amm).baseToken();
         address quoteToken = IAmm(amm).quoteToken();
-
+        
         // find out the pool with best liquidity as target pool
         address pool;
         address tempPool;
@@ -63,7 +58,7 @@ contract PriceOracle is IPriceOracle {
             }
         }
         require(pool != address(0), "PriceOracle.setupTwap: POOL_NOT_FOUND");
-        v3Pools[amm] = pool;
+        v3Pools[baseToken][quoteToken] = pool;
 
         IUniswapV3Pool v3Pool = IUniswapV3Pool(pool);
         (, , , , uint16 cardinalityNext, , ) = v3Pool.slot0();
@@ -72,130 +67,54 @@ contract PriceOracle is IPriceOracle {
         }
 
         ammObservationIndex[amm] = 0;
-        ammObservations[amm][0] = Oracle.Observation({
-            blockTimestamp: _blockTimestamp(),
-            tickCumulative: 0,
-            initialized: true
-        });
-        for (uint16 i = 1; i < cardinality; i++) ammObservations[amm][i].blockTimestamp = 1;
+        ammObservations[amm].initialize(_blockTimestamp());
+        ammObservations[amm].grow(1, cardinality);
     }
 
     function updateAmmTwap(address amm) external override {
         uint160 sqrtPriceX96 = uint160(getMarkPrice(amm).sqrt() * 2**96 / 1e9);
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
         uint16 index = ammObservationIndex[amm];
-        Oracle.Observation memory last = ammObservations[amm][index];
-        if (last.blockTimestamp < _blockTimestamp()) {
-            uint16 indexUpdated = (index + 1) % cardinality;
-            uint32 delta = _blockTimestamp() - last.blockTimestamp;
-            ammObservations[amm][indexUpdated] = Oracle.Observation({
-                blockTimestamp: _blockTimestamp(),
-                tickCumulative: last.tickCumulative + int56(tick) * int32(delta),
-                initialized: true
-            });
-            ammObservationIndex[amm] = indexUpdated;
-        }
+        (uint16 indexUpdated, ) = ammObservations[amm].write(
+            index,
+            _blockTimestamp(),
+            tick,
+            cardinality,
+            cardinality
+        );
+        ammObservationIndex[amm] = indexUpdated;
     }
 
     function getAmmTwap(address amm) external view override returns (uint256) {
-        uint32[] memory secondsAgos = new uint32[](2);
-        uint16 twapInterval = IConfig(config).twapInterval();
-        secondsAgos[0] = twapInterval; // from (before)
-        secondsAgos[1] = 0; // to (now)
-
         uint160 sqrtPriceX96 = uint160(getMarkPrice(amm).sqrt() * 2**96 / 1e9);
-        int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
-        int56[] memory tickCumulatives = ammObservations[amm].observe(
-            _blockTimestamp(),
-            secondsAgos,
-            tick,
-            ammObservationIndex[amm],
-            cardinality
-        );
-        // tick(imprecise as it's an integer) to price
-        sqrtPriceX96 = TickMath.getSqrtRatioAtTick(
-            int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(twapInterval)))
-        );
+        uint16 index = ammObservationIndex[amm];
+        V3Oracle.Observation memory observation = ammObservations[amm][(index + 1) % cardinality];
+        if (!observation.initialized) {
+            observation = ammObservations[amm][0];
+        }
+        uint32 currentTime = _blockTimestamp();
+        uint32 delta = currentTime - observation.blockTimestamp;
+        if (delta > 0) {
+            address _amm = amm;
+            uint32 _twapInterval = twapInterval;
+            if (delta < _twapInterval) _twapInterval = delta;
+            uint32[] memory secondsAgos = new uint32[](2);
+            secondsAgos[0] = twapInterval; // from (before)
+            secondsAgos[1] = 0; // to (now)
+            int56[] memory tickCumulatives = ammObservations[_amm].observe(
+                currentTime,
+                secondsAgos,
+                TickMath.getTickAtSqrtRatio(sqrtPriceX96),
+                index,
+                cardinality
+            );
+            // tick(imprecise as it's an integer) to price
+            sqrtPriceX96 = TickMath.getSqrtRatioAtTick(
+                int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(_twapInterval)))
+            );
+        }
+        
         return uint256(sqrtPriceX96) * sqrtPriceX96 * 1e18 >> (96 * 2);
-    }
-
-    function quoteFromV3(
-        address baseToken,
-        address quoteToken,
-        uint256 baseAmount
-    ) public view returns (uint256 quoteAmount, uint256 poolLiquidity) {
-        address pool;
-        uint160 sqrtPriceX96;
-        address tempPool;
-        uint256 tempLiquidity;
-        for (uint256 i = 0; i < v3Fees.length; i++) {
-            tempPool = IUniswapV3Factory(v3Factory).getPool(baseToken, quoteToken, v3Fees[i]);
-            if (tempPool == address(0)) continue;
-            tempLiquidity = uint256(IUniswapV3Pool(tempPool).liquidity());
-            // use the max liquidity pool as index price source
-            if (tempLiquidity > poolLiquidity) {
-                poolLiquidity = tempLiquidity;
-                pool = tempPool;
-                // get sqrt twap in 30*60 seconds
-                sqrtPriceX96 = UniswapV3TwapGetter.getSqrtTwapX96(pool, 30*60);
-            }
-        }
-        if (pool == address(0)) return (0, 0);
-        // priceX96 = token1/token0, this price is scaled by 2^96
-        uint256 priceX96 = UniswapV3TwapGetter.getPriceX96FromSqrtPriceX96(sqrtPriceX96);
-        if (baseToken == IUniswapV3Pool(pool).token0()) {
-            quoteAmount = baseAmount.mulDiv(priceX96, FixedPoint96.Q96);
-        } else {
-            quoteAmount = baseAmount.mulDiv(FixedPoint96.Q96, priceX96);
-        }
-    }
-
-    // this mainly for ApeX Bonding to get APEX-XXX price
-    function quoteFromV2(
-        address baseToken,
-        address quoteToken,
-        uint256 baseAmount
-    ) public view returns (uint256 quoteAmount, uint256 poolLiquidity) {
-        if (v2Factory == address(0)) {
-            return (0, 0);
-        }
-        address pair = IUniswapV2Factory(v2Factory).getPair(baseToken, quoteToken);
-        if (pair == address(0)) return (0, 0);
-        poolLiquidity = IUniswapV2Pair(pair).totalSupply();
-        (uint112 reserve0, uint112 reserve1, ) = IUniswapV2Pair(pair).getReserves();
-        if (baseToken == IUniswapV2Pair(pair).token0()) {
-            quoteAmount = baseAmount.mulDiv(reserve1, reserve0);
-        } else {
-            quoteAmount = baseAmount.mulDiv(reserve0, reserve1);
-        }
-    }
-
-    function quoteFromHybrid(
-        address baseToken, 
-        address quoteToken,
-        uint256 baseAmount
-    ) public view returns (uint256 quoteAmount) {
-        uint256 wethAmount;
-        uint256 wethAmountV3;
-        uint256 wethAmountV2;
-        uint256 liquidityV3;
-        uint256 liquidityV2;
-        (wethAmountV3, liquidityV3) = quoteFromV3(baseToken, WETH, baseAmount);
-        (wethAmountV2, liquidityV2) = quoteFromV2(baseToken, WETH, baseAmount);
-        if (liquidityV3 >= liquidityV2) {
-            wethAmount = wethAmountV3;
-        } else {
-            wethAmount = wethAmountV2;
-        }
-        uint256 quoteAmountV3;
-        uint256 quoteAmountV2;
-        (quoteAmountV3, liquidityV3) = quoteFromV3(WETH, quoteToken, wethAmount);
-        (quoteAmountV2, liquidityV2) = quoteFromV2(WETH, quoteToken, wethAmount);
-        if (liquidityV3 >= liquidityV2) {
-            quoteAmount = quoteAmountV3;
-        } else {
-            quoteAmount = quoteAmountV2;
-        }
     }
 
     function quote(
@@ -203,15 +122,15 @@ contract PriceOracle is IPriceOracle {
         address quoteToken,
         uint256 baseAmount
     ) public view override returns (uint256 quoteAmount) {
-        (uint256 quoteAmountV3, uint256 liquidityV3) = quoteFromV3(baseToken, quoteToken, baseAmount);
-        (uint256 quoteAmountV2, uint256 liquidityV2) = quoteFromV2(baseToken, quoteToken, baseAmount);
-        if (liquidityV3 >= liquidityV2) {
-            quoteAmount = quoteAmountV3;
+        address pool = v3Pools[baseToken][quoteToken];
+        if (pool == address(0)) return 0;
+        uint160 sqrtPriceX96 = UniswapV3TwapGetter.getSqrtTwapX96(pool, twapInterval);
+        // priceX96 = token1/token0, this price is scaled by 2^96
+        uint256 priceX96 = UniswapV3TwapGetter.getPriceX96FromSqrtPriceX96(sqrtPriceX96);
+        if (baseToken == IUniswapV3Pool(pool).token0()) {
+            quoteAmount = baseAmount.mulDiv(priceX96, FixedPoint96.Q96);
         } else {
-            quoteAmount = quoteAmountV2;
-        }
-        if (quoteAmount == 0) {
-            quoteAmount = quoteFromHybrid(baseToken, quoteToken, baseAmount);
+            quoteAmount = baseAmount.mulDiv(FixedPoint96.Q96, priceX96);
         }
     }
 

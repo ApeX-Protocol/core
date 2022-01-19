@@ -33,6 +33,7 @@ let ammFactory;
 let marginFactory;
 let pcvTreasury;
 let router;
+let bondPriceOracle;
 let bondPoolFactory;
 let stakingPoolFactory;
 let multicall2;
@@ -85,16 +86,10 @@ async function createApeXToken() {
 
 async function createPriceOracle() {
   const PriceOracle = await ethers.getContractFactory("PriceOracle");
-  priceOracle = await PriceOracle.deploy(v3FactoryAddress, v2FactoryAddress, wethAddress);
+  priceOracle = await PriceOracle.deploy();
+  await priceOracle.initialize(v3FactoryAddress);
   console.log("PriceOracle:", priceOracle.address);
-  console.log(
-    verifyStr,
-    process.env.HARDHAT_NETWORK,
-    priceOracle.address,
-    v3FactoryAddress,
-    v2FactoryAddress,
-    wethAddress
-  );
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, priceOracle.address);
 }
 
 async function createConfig() {
@@ -180,6 +175,15 @@ async function createRouter() {
     config = await Config.attach(configAddress);
   }
   await config.registerRouter(router.address);
+}
+
+async function createBondPriceOracle() {
+  let apeXAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+  const BondPriceOracle = await ethers.getContractFactory("BondPriceOracle");
+  let bondPriceOracle = await BondPriceOracle.deploy();
+  await bondPriceOracle.initialize(apeXAddress, wethAddress, v3FactoryAddress, v2FactoryAddress);
+  console.log("BondPriceOracle:", bondPriceOracle.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, bondPriceOracle.address);
 }
 
 async function createBondPoolFactory() {
