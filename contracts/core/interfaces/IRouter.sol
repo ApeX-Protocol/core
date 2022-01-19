@@ -94,14 +94,13 @@ interface IRouter {
         address baseToken,
         address quoteToken,
         uint256 quoteAmount,
-        uint256 traderMargin,
-        uint256 deadline
+        uint256 deadline,
+        bool autoWithdraw
     ) external returns (uint256 baseAmount, uint256 withdrawAmount);
 
     function closePositionETH(
         address quoteToken,
         uint256 quoteAmount,
-        uint256 traderMargin,
         uint256 deadline
     ) external returns (uint256 baseAmount, uint256 withdrawAmount);
 

@@ -202,6 +202,8 @@ contract StakingPool is IStakingPool, Reentrant {
         if (yieldAmount > 0) {
             factory.transferYieldTo(_staker, yieldAmount);
         }
+
+        emit ForceWithdraw(_staker, _yieldIds);
     }
 
     //called by other staking pool to stake yield rewards into apeX pool

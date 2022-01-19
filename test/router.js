@@ -24,7 +24,6 @@ describe("Router contract", function () {
 
     const Config = await ethers.getContractFactory("Config");
     let config = await Config.deploy();
-    await config.initialize(owner.address);
 
     const PriceOracle = await ethers.getContractFactory("PriceOracleForTest");
     priceOracle = await PriceOracle.deploy();
@@ -143,7 +142,7 @@ describe("Router contract", function () {
       await baseToken.approve(router.address, 1000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 1000, 1, 9999999999, false);
       await router.deposit(baseToken.address, quoteToken.address, owner.address, 1000);
-      await router.openPositionWithMargin(baseToken.address, quoteToken.address, 0, 1000, 1, 9999999999);
+      await router.openPositionWithMargin(baseToken.address, quoteToken.address, 0, 3300, 1, 9999999999);
     });
 
     it("openPositionWithMargin open short", async function () {
@@ -151,7 +150,7 @@ describe("Router contract", function () {
       await baseToken.approve(router.address, 1000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 1000, 1, 9999999999, false);
       await router.deposit(baseToken.address, quoteToken.address, owner.address, 1000);
-      await router.openPositionWithMargin(baseToken.address, quoteToken.address, 1, 1000, 10000000, 9999999999);
+      await router.openPositionWithMargin(baseToken.address, quoteToken.address, 1, 3300, 10000000, 9999999999);
     });
   });
 
@@ -160,14 +159,14 @@ describe("Router contract", function () {
       await baseToken.mint(owner.address, 1000000);
       await baseToken.approve(router.address, 1000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 10000, 1, 9999999999, false);
-      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 1000, 10000, 1, 9999999999);
+      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, 9999999999);
     });
 
     it("openPositionWithWallet open short", async function () {
       await baseToken.mint(owner.address, 1000000);
       await baseToken.approve(router.address, 1000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 10000, 1, 9999999999, false);
-      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 1, 1000, 10000, 10000000, 9999999999);
+      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 10000000, 9999999999);
     });
   });
 
@@ -194,8 +193,8 @@ describe("Router contract", function () {
       await baseToken.mint(owner.address, 1000000);
       await baseToken.approve(router.address, 1000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 10000, 1, 9999999999, false);
-      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 1000, 10000, 1, 9999999999);
-      await router.closePosition(baseToken.address, quoteToken.address, 10000, 5000, 9999999999);
+      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, 9999999999);
+      await router.closePosition(baseToken.address, quoteToken.address, 10000, 9999999999, true);
     });
   });
 });
