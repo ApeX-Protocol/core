@@ -200,7 +200,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(msg.sender == tx.origin, "Amm.rebase: ONLY_EOA");
         // todo 1h
         require(block.timestamp - rebaseTimestampLast >= 3600, "Amm.rebase: REBASE_INTERVAL_MUST_LARGER_THAN_ONE_HOUR");
-       
+
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
 
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
@@ -219,7 +219,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 quoteReserveExternalTwap * 100 <= uint256(quoteReserveAmmTwap) * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
-        
+
         //todo check  rebase price gap
         quoteReserveAfter = (_quoteReserve * quoteReserveExternalTwap) / quoteReserveAmmTwap;
 
