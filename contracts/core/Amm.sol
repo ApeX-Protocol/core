@@ -36,8 +36,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transfer(address,uint256)")));
     uint112 private baseReserve; // uses single storage slot, accessible via getReserves
     uint112 private quoteReserve; // uses single storage slot, accessible via getReserves
-    uint32 private blockTimestampLast; // uses single storage slot, accessible via getReserves
+    uint32 private blockTimestampLast;
     uint256 private lastBlockNumber;
+    uint256 private rebaseTimestampLast;
 
     modifier onlyMargin() {
         require(margin == msg.sender, "Amm: ONLY_MARGIN");
@@ -197,15 +198,15 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     /// @notice gap is in config contract
     function rebase() external override nonReentrant returns (uint256 quoteReserveAfter) {
         require(msg.sender == tx.origin, "Amm.rebase: ONLY_EOA");
+        // todo 1h
+        require(block.timestamp - rebaseTimestampLast >= 3600, "Amm.rebase: REBASE_INTERVAL_MUST_LARGER_THAN_ONE_HOUR");
+       
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
 
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
-        uint256 quoteReserveCalculatedByAmmTwap = IPriceOracle(IConfig(config).priceOracle()).consult(
-            address(this),
-            _baseReserve
-        );
-        uint256 quoteReserveCalculatedByExternalTwap = IPriceOracle(IConfig(config).priceOracle()).quote(
+        uint256 quoteReserveAmmTwap = IPriceOracle(IConfig(config).priceOracle()).consult(address(this), _baseReserve);
+        uint256 quoteReserveExternalTwap = IPriceOracle(IConfig(config).priceOracle()).quote(
             baseToken,
             quoteToken,
             _baseReserve
@@ -214,19 +215,14 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 gap = IConfig(config).rebasePriceGap();
 
         require(
-            quoteReserveCalculatedByExternalTwap * 100 >= uint256(quoteReserveCalculatedByExternalTwap) * (100 + gap) ||
-                quoteReserveCalculatedByExternalTwap * 100 <=
-                uint256(quoteReserveCalculatedByExternalTwap) * (100 - gap),
+            quoteReserveExternalTwap * 100 >= uint256(quoteReserveAmmTwap) * (100 + gap) ||
+                quoteReserveExternalTwap * 100 <= uint256(quoteReserveAmmTwap) * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-        if (quoteReserveCalculatedByAmmTwap > quoteReserveCalculatedByExternalTwap) {
-            // amm price higer than external price
-            quoteReserveAfter = _quoteReserve * (100 - gap);
-        } else {
-            // amm price lower than external price
-            quoteReserveAfter = _quoteReserve * (100 + gap);
-        }
+        quoteReserveAfter = (_quoteReserve * quoteReserveExternalTwap) / quoteReserveAmmTwap;
+
+        rebaseTimestampLast = uint32(block.timestamp % 2**32);
 
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
 
@@ -352,7 +348,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     }
 
     // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
-    //todo
     function _mintFee(uint112 reserve0, uint112 reserve1) private returns (bool feeOn) {
         address feeTo = IAmmFactory(factory).feeTo();
         feeOn = feeTo != address(0);
