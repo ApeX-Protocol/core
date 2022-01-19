@@ -219,7 +219,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 quoteReserveExternalTwap * 100 <= uint256(quoteReserveAmmTwap) * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
-
+        
+        //todo check  rebase price gap
         quoteReserveAfter = (_quoteReserve * quoteReserveExternalTwap) / quoteReserveAmmTwap;
 
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
