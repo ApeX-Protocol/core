@@ -3,9 +3,9 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IBondPool.sol";
 import "./interfaces/IPCVTreasury.sol";
+import "./interfaces/IBondPriceOracle.sol";
 import "../core/interfaces/IAmm.sol";
 import "../core/interfaces/IERC20.sol";
-import "../core/interfaces/IPriceOracle.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/FullMath.sol";
 import "../utils/Ownable.sol";
@@ -143,7 +143,7 @@ contract BondPool is IBondPool, Ownable {
     // payout = amount / bondPrice = marketApeXAmount / (1 - discount))
     function payoutFor(uint256 amount) public view override returns (uint256 payout) {
         address baseToken = IAmm(amm).baseToken();
-        uint256 marketApeXAmount = IPriceOracle(priceOracle).quote(baseToken, apeXToken, amount);
+        uint256 marketApeXAmount = IBondPriceOracle(priceOracle).quote(baseToken, amount);
         payout = marketApeXAmount * 10000 / (10000 - discount);
     }
 

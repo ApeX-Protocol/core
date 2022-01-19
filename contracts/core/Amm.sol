@@ -205,7 +205,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
-        uint256 quoteReserveAmmTwap = IPriceOracle(IConfig(config).priceOracle()).consult(address(this), _baseReserve);
+        uint256 quoteReserveAmmTwap = IPriceOracle(IConfig(config).priceOracle()).quoteFromAmmTwap(address(this), _baseReserve);
         uint256 quoteReserveExternalTwap = IPriceOracle(IConfig(config).priceOracle()).quote(
             baseToken,
             quoteToken,

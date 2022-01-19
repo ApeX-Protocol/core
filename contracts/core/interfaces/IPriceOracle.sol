@@ -2,11 +2,11 @@
 pragma solidity ^0.8.0;
 
 interface IPriceOracle {
-    function setupTwap(address baseToken, address quoteToken) external;
+    function setupTwap(address amm) external;
+
+    function quoteFromAmmTwap(address amm, uint256 baseAmount) external view returns (uint256 quoteAmount);
 
     function updateAmmTwap(address pair) external ;
-
-    function consult(address pair, uint256 baseAmount) external view returns (uint256 amountOut) ;
 
     function quote(
         address baseToken,
