@@ -11,13 +11,13 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 public totalEth = 0;
     uint256 public remainOwners = 20;
     uint256 public id = 0;
-    uint256 public startTime;
+
     mapping(address => bool) public whitelist;
     mapping(address => bool) public buyer;
 
-    uint256 public cliff;
-    uint256 public start;
-    uint256 public duration;
+    uint256 public startTime;
+    uint256 public cliffTime;
+    uint256 public endTime;
     uint256 public totalAmount;
     mapping(address => uint256) public claimed;
     address public token;
@@ -35,8 +35,8 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
     ) ERC721PresetMinterPauserAutoId(_name, _symbol, _baseTokenURI) {
         token = _token;
         startTime = _startTime;
-        duration = _startTime + _duration;
-        cliff = _startTime + _cliff;
+        endTime = _startTime + _duration;
+        cliffTime = _startTime + _cliff;
     }
 
     function setTotalAmount(uint256 _totalAmount) external onlyOwner {
@@ -65,7 +65,7 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
         buyer[msg.sender] = true;
     }
 
-    function claimAPEX() public {
+    function claimAPEX() external {
         address user = msg.sender;
         require(buyer[user], "ONLY_VIP_NFT_BUYER_CAN_CLAIM");
 
@@ -79,26 +79,26 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
         emit Claimed(user, unClaimed);
     }
 
+    function withdrawETH(address to) external onlyOwner {
+        payable(to).transfer(address(this).balance);
+    }
+
     function claimableAmount(address user) public view returns (uint256) {
         return vestedAmount() - (claimed[user]);
     }
 
     function vestedAmount() public view returns (uint256) {
-        if (block.timestamp < cliff) {
+        if (block.timestamp < cliffTime) {
             return 0;
-        } else if (block.timestamp >= duration) {
+        } else if (block.timestamp >= endTime) {
             return totalAmount;
         } else {
-            return (totalAmount * (block.timestamp - cliff)) / (duration - cliff);
+            return (totalAmount * (block.timestamp - cliffTime)) / (endTime - cliffTime);
         }
     }
 
     function _removeFromWhitelist(address _beneficiary) internal {
         whitelist[_beneficiary] = false;
-    }
-
-    function withdrawETH(address to) public onlyOwner {
-        payable(to).transfer(address(this).balance);
     }
 
     modifier isWhitelisted(address _beneficiary) {
