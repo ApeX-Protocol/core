@@ -9,10 +9,11 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 private constant HALF_YEAR = 180 days;
     uint256 private constant MULTIPLIER = 1e18;
     uint256 public startTime;
-    uint256 public remainOwners;
-
     uint256 internal BURN_DISCOUNT = 40;
     uint256 public vault;
+
+    //todo  
+    uint256 public remainOwners;
     //todo
     uint256 public price = 2.5 ether;
     //todo
