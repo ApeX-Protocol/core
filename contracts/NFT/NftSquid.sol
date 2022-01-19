@@ -10,12 +10,16 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 private constant MULTIPLIER = 1e18;
     uint256 public startTime;
     uint256 public remainOwners;
-    uint256 internal BONUS_PERPAX = 5000 * 10**18;
-    uint256 internal BASE_AMOUNT = 10000 * 10**18;
+
     uint256 internal BURN_DISCOUNT = 40;
     uint256 public vault;
     //todo
     uint256 public price = 2.5 ether;
+    //todo
+    uint256 internal BONUS_PERPAX = 5000 * 10**18;
+    //todo
+    uint256 internal BASE_AMOUNT = 10000 * 10**18;
+
     uint256 public id = 0;
     address public token;
     uint256 public totalEth = 0;
@@ -59,6 +63,16 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         require(IERC20(token).transfer(msg.sender, withdrawAmount));
     }
 
+    function withdrawETH(address to) external onlyOwner {
+        payable(to).transfer(address(this).balance);
+    }
+
+    function withdrawERC20Token(address to) external onlyOwner returns (bool) {
+        require(IERC20(token).balanceOf(address(this)) >= 0);
+        require(IERC20(token).transfer(to, IERC20(token).balanceOf(address(this))));
+        return true;
+    }
+
     function calculateWithdrawAmount() internal returns (uint256 withdrawAmount) {
         uint256 endTime = startTime + HALF_YEAR;
         uint256 nowTime = block.timestamp;
@@ -71,22 +85,15 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         }
 
         // (t/6*5000+ vault/N)60%
-        uint256 bouns = (((diffTime * BONUS_PERPAX) / HALF_YEAR + vault / remainOwners) * 60) / 100;
+        uint256 bouns = ((diffTime * BONUS_PERPAX * (100 - BURN_DISCOUNT)) /
+            HALF_YEAR +
+            (vault * (100 - BURN_DISCOUNT)) /
+            remainOwners) / 100;
 
         withdrawAmount = BASE_AMOUNT + bouns;
 
         // vault += 5000-bouns (may negative)
         vault = vault + BONUS_PERPAX - bouns;
         remainOwners = remainOwners - 1;
-    }
-
-    function withdrawETH(address to) public onlyOwner {
-        payable(to).transfer(totalEth);
-    }
-
-    function withdrawERC20Token(address to) public onlyOwner returns (bool) {
-        require(IERC20(token).balanceOf(address(this)) >= 0);
-        require(IERC20(token).transfer(to, IERC20(token).balanceOf(address(this))));
-        return true;
     }
 }
