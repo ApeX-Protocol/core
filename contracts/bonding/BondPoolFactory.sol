@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "./BondPool.sol";
 import "./interfaces/IBondPoolFactory.sol";
 import "./interfaces/IPCVTreasury.sol";
+import "./interfaces/IBondPriceOracle.sol";
 import "../utils/Ownable.sol";
 
 contract BondPoolFactory is IBondPoolFactory, Ownable {
@@ -58,6 +59,7 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         address pool = address(new BondPool(owner, apeXToken, treasury, priceOracle, amm, maxPayout, discount, vestingTerm));
         getPool[amm] = pool;
         allPools.push(pool);
+        IBondPriceOracle(priceOracle).setupTwap(pool);
         emit BondPoolCreated(amm, pool);
         return pool;
     }

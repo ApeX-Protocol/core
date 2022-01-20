@@ -58,6 +58,10 @@ interface IAmm {
 
     function quoteToken() external view returns (address);
 
+    function price0CumulativeLast() external view returns (uint256);
+
+    function price1CumulativeLast() external view returns (uint256);
+
     function margin() external view returns (address);
 
     function lastPrice() external view returns (uint256);

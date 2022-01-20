@@ -39,4 +39,11 @@ contract MockPriceOracle {
     ) external view returns (uint256 quoteAmount) {
         quoteAmount = 100000 * 10**6;
     }
+
+  
+    function updateAmmTwap(address pair)  external {
+        
+    }
+
+
 }

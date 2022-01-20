@@ -24,7 +24,12 @@ contract PriceOracleForTest is IPriceOracle {
         getReserves[baseToken][quoteToken] = Reserves(reserveBase, reserveQuote);
     }
 
-    function setupTwap(address baseToken, address quoteToken) external override {
+    function setupTwap(address amm) override external  {
+        return;
+    }
+
+    function updateAmmTwap(address pair) override external {
+        
     }
 
     function quote(
@@ -36,6 +41,14 @@ contract PriceOracleForTest is IPriceOracle {
         require(baseAmount > 0, "INSUFFICIENT_AMOUNT");
         require(reserves.base > 0 && reserves.quote > 0, "INSUFFICIENT_LIQUIDITY");
         quoteAmount = (baseAmount * reserves.quote) / reserves.base;
+    } 
+    
+     function quoteFromAmmTwap(
+        address amm,
+        uint256 baseAmount
+    ) public view override returns (uint256 quoteAmount) {
+        
+        quoteAmount = 0;
     }
 
     function getIndexPrice(address amm) public view override returns (uint256) {
