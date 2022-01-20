@@ -26,14 +26,19 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     address public override baseToken;
     address public override quoteToken;
     address public override margin;
+
+    uint256 public override price0CumulativeLast;
+    uint256 public override price1CumulativeLast;
+
     uint256 public kLast;
     uint256 public override lastPrice;
 
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transfer(address,uint256)")));
     uint112 private baseReserve; // uses single storage slot, accessible via getReserves
     uint112 private quoteReserve; // uses single storage slot, accessible via getReserves
-    uint32 private blockTimestampLast; // uses single storage slot, accessible via getReserves
+    uint32 private blockTimestampLast;
     uint256 private lastBlockNumber;
+    uint256 private rebaseTimestampLast;
 
     modifier onlyMargin() {
         require(margin == msg.sender, "Amm: ONLY_MARGIN");
@@ -97,7 +102,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(liquidity > 0, "Amm.mint: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
 
-        _update(_baseReserve + baseAmount, _quoteReserve + quoteAmount, _baseReserve, _quoteReserve);
+        _update(_baseReserve + baseAmount, _quoteReserve + quoteAmount, _baseReserve, _quoteReserve, false);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
         _safeTransfer(baseToken, margin, baseAmount);
@@ -136,7 +141,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
         _burn(address(this), liquidity);
-        _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve);
+        _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve, false);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
         IVault(margin).withdraw(msg.sender, to, baseAmount);
@@ -154,7 +159,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         (reserves, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
         //check trade slippage
         _checkTradeSlippage(reserves[0], reserves[1], baseReserve, quoteReserve);
-        _update(reserves[0], reserves[1], baseReserve, quoteReserve);
+        _update(reserves[0], reserves[1], baseReserve, quoteReserve, false);
 
         emit Swap(inputToken, outputToken, amounts[0], amounts[1]);
     }
@@ -181,7 +186,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             reserve0 = _baseReserve - outputAmount;
             reserve1 = _quoteReserve + inputAmount;
         }
-        _update(reserve0, reserve1, _baseReserve, _quoteReserve);
+
+        _update(reserve0, reserve1, _baseReserve, _quoteReserve, true);
 
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
@@ -192,19 +198,34 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     /// @notice gap is in config contract
     function rebase() external override nonReentrant returns (uint256 quoteReserveAfter) {
         require(msg.sender == tx.origin, "Amm.rebase: ONLY_EOA");
+        // todo 1h
+        require(block.timestamp - rebaseTimestampLast >= 3600, "Amm.rebase: REBASE_INTERVAL_MUST_LARGER_THAN_ONE_HOUR");
+
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
 
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
-        quoteReserveAfter = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, _baseReserve);
+        uint256 quoteReserveAmmTwap = IPriceOracle(IConfig(config).priceOracle()).quoteFromAmmTwap(address(this), _baseReserve);
+        uint256 quoteReserveExternalTwap = IPriceOracle(IConfig(config).priceOracle()).quote(
+            baseToken,
+            quoteToken,
+            _baseReserve
+        );
+
         uint256 gap = IConfig(config).rebasePriceGap();
+
         require(
-            quoteReserveAfter * 100 >= uint256(_quoteReserve) * (100 + gap) ||
-                quoteReserveAfter * 100 <= uint256(_quoteReserve) * (100 - gap),
+            quoteReserveExternalTwap * 100 >= uint256(quoteReserveAmmTwap) * (100 + gap) ||
+                quoteReserveExternalTwap * 100 <= uint256(quoteReserveAmmTwap) * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-        _updateForRebase(_baseReserve, quoteReserveAfter);
+        //todo check  rebase price gap
+        quoteReserveAfter = (_quoteReserve * quoteReserveExternalTwap) / quoteReserveAmmTwap;
+
+        rebaseTimestampLast = uint32(block.timestamp % 2**32);
+
+        _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
 
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
@@ -328,7 +349,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     }
 
     // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
-    //todo
     function _mintFee(uint112 reserve0, uint112 reserve1) private returns (bool feeOn) {
         address feeTo = IAmmFactory(factory).feeTo();
         feeOn = feeTo != address(0);
@@ -355,18 +375,35 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 baseReserveNew,
         uint256 quoteReserveNew,
         uint112 baseReserveOld,
-        uint112 quoteReserveOld
+        uint112 quoteReserveOld,
+        bool isRebaseOrForceSwap
     ) private {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
-        uint256 blockNumberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
+
+        uint32 blockTimestamp = uint32(block.timestamp % 2**32);
+
+        uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
 
         // last price means last block price.
-        if (blockNumberDelta > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
+        if (timeElapsed > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
+            // * never overflows, and + overflow is desired
+            price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
+            price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
+
+            // update twap
+
+            IPriceOracle(IConfig(config).priceOracle()).updateAmmTwap(address(this));
+        }
+
+        uint256 blockNumberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
+
+        //every arbi block number calculate
+        if (blockNumberDelta > 0 && baseReserveOld != 0) {
             lastPrice = uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld));
         }
 
-        // keep lastprice not equal zero
-        if (lastPrice == 0 && baseReserveNew != 0) {
+        //set the last price to current price for rebase may cause price gap oversize the tradeslippage.
+        if ((lastPrice == 0 && baseReserveNew != 0) || isRebaseOrForceSwap) {
             lastPrice = uint256(UQ112x112.encode(uint112(quoteReserveNew)).uqdiv(uint112(baseReserveNew)));
         }
 
@@ -374,21 +411,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         quoteReserve = uint112(quoteReserveNew);
 
         lastBlockNumber = ChainAdapter.blockNumber();
-        blockTimestampLast = uint32(block.timestamp % 2**32);
-        emit Sync(baseReserve, quoteReserve);
-    }
+        blockTimestampLast = blockTimestamp;
 
-    // set the last price to current price for rebase may cause price gap oversize the tradeslippage.
-    function _updateForRebase(uint256 baseReserveNew, uint256 quoteReserveNew) private {
-        require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
-
-        lastPrice = uint256(UQ112x112.encode(uint112(quoteReserveNew)).uqdiv(uint112(baseReserveNew)));
-
-        baseReserve = uint112(baseReserveNew);
-        quoteReserve = uint112(quoteReserveNew);
-
-        lastBlockNumber = ChainAdapter.blockNumber();
-        blockTimestampLast = uint32(block.timestamp % 2**32);
         emit Sync(baseReserve, quoteReserve);
     }
 

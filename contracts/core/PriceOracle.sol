@@ -41,7 +41,7 @@ contract PriceOracle is IPriceOracle, Initializable {
         require(!ammObservations[amm][0].initialized, "PriceOracle.setupTwap: ALREADY_SETUP");
         address baseToken = IAmm(amm).baseToken();
         address quoteToken = IAmm(amm).quoteToken();
-        
+
         // find out the pool with best liquidity as target pool
         address pool;
         address tempPool;
@@ -72,21 +72,15 @@ contract PriceOracle is IPriceOracle, Initializable {
     }
 
     function updateAmmTwap(address amm) external override {
-        uint160 sqrtPriceX96 = uint160(getMarkPrice(amm).sqrt() * 2**96 / 1e9);
+        uint160 sqrtPriceX96 = uint160((getMarkPrice(amm).sqrt() * 2**96) / 1e9);
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
         uint16 index = ammObservationIndex[amm];
-        (uint16 indexUpdated, ) = ammObservations[amm].write(
-            index,
-            _blockTimestamp(),
-            tick,
-            cardinality,
-            cardinality
-        );
+        (uint16 indexUpdated, ) = ammObservations[amm].write(index, _blockTimestamp(), tick, cardinality, cardinality);
         ammObservationIndex[amm] = indexUpdated;
     }
 
     function quoteFromAmmTwap(address amm, uint256 baseAmount) external view override returns (uint256 quoteAmount) {
-        uint160 sqrtPriceX96 = uint160(getMarkPrice(amm).sqrt() * 2**96 / 1e9);
+        uint160 sqrtPriceX96 = uint160((getMarkPrice(amm).sqrt() * 2**96) / 1e9);
         uint16 index = ammObservationIndex[amm];
         V3Oracle.Observation memory observation = ammObservations[amm][(index + 1) % cardinality];
         if (!observation.initialized) {
@@ -163,7 +157,7 @@ contract PriceOracle is IPriceOracle, Initializable {
         bool negative
     ) external view override returns (uint256 baseAmount) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        uint256 rvalue = quoteAmount * beta / 100;
+        uint256 rvalue = (quoteAmount * beta) / 100;
         uint256 denominator;
         if (negative) {
             denominator = quoteReserve - rvalue;
