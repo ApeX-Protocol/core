@@ -9,21 +9,21 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 private constant HALF_YEAR = 180 days;
     uint256 private constant MULTIPLIER = 1e18;
     uint256 public startTime;
-    uint256 internal BURN_DISCOUNT = 40;
-    uint256 public vault;
+    uint256 internal constant BURN_DISCOUNT = 40;
+    uint256 public vaultAmount;
 
-    //todo  
+    //todo
     uint256 public remainOwners;
     //todo
-    uint256 public price = 2.5 ether;
+    uint256 public constant price = 2.5 ether;
     //todo
-    uint256 internal BONUS_PERPAX = 5000 * 10**18;
+    uint256 internal constant BONUS_PERPAX = 5000 * 10**18;
     //todo
-    uint256 internal BASE_AMOUNT = 10000 * 10**18;
+    uint256 internal constant BASE_AMOUNT = 10000 * 10**18;
 
-    uint256 public id = 0;
+    uint256 public id;
     address public token;
-    uint256 public totalEth = 0;
+    uint256 public totalEth;
 
     event Burn(uint256 tokenId, uint256 withdrawAmount, address indexed sender);
 
@@ -55,11 +55,16 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
 
     // player burn their nft
     function burnAndEarn(uint256 tokenId) external {
-        require(remainOwners > 0, "ALL_BURNED");
+        uint256 _remainOwners = remainOwners;
+        require(_remainOwners > 0, "ALL_BURNED");
         require(ownerOf(tokenId) == msg.sender, "NO_AUTHORITY");
         require(startTime != 0 && block.timestamp >= startTime, "GAME_IS_NOT_BEGIN");
         _burn(tokenId);
-        uint256 withdrawAmount = calculateWithdrawAmount();
+        (uint256 withdrawAmount, uint256 bonus) = _calWithdrawAmountAndBonus();
+        if (_remainOwners != 1) {
+            vaultAmount += (BONUS_PERPAX - bonus);
+        }
+        remainOwners = _remainOwners - 1;
         emit Burn(tokenId, withdrawAmount, msg.sender);
         require(IERC20(token).transfer(msg.sender, withdrawAmount));
     }
@@ -74,27 +79,29 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         return true;
     }
 
-    function calculateWithdrawAmount() internal returns (uint256 withdrawAmount) {
+    function calWithdrawAmountAndBonus() external view returns (uint256 withdrawAmount, uint256 bonus) {
+        return _calWithdrawAmountAndBonus();
+    }
+
+    function _calWithdrawAmountAndBonus() internal view returns (uint256 withdrawAmount, uint256 bonus) {
         uint256 endTime = startTime + HALF_YEAR;
         uint256 nowTime = block.timestamp;
         uint256 diffTime = nowTime < endTime ? nowTime - startTime : endTime - startTime;
 
         // the last one is special
         if (remainOwners == 1) {
-            withdrawAmount = BASE_AMOUNT + BONUS_PERPAX + vault;
-            return withdrawAmount;
+            withdrawAmount = BASE_AMOUNT + BONUS_PERPAX + vaultAmount;
+            return (withdrawAmount, 0);
         }
 
-        // (t/6*5000+ vault/N)60%
-        uint256 bouns = ((diffTime * BONUS_PERPAX * (100 - BURN_DISCOUNT)) /
-            HALF_YEAR +
-            (vault * (100 - BURN_DISCOUNT)) /
-            remainOwners) / 100;
+        // (t/6*5000+ vaultAmount/N)60%
+        bonus =
+            ((diffTime * BONUS_PERPAX * (100 - BURN_DISCOUNT)) /
+                HALF_YEAR +
+                (vaultAmount * (100 - BURN_DISCOUNT)) /
+                remainOwners) /
+            100;
 
-        withdrawAmount = BASE_AMOUNT + bouns;
-
-        // vault += 5000-bouns (may negative)
-        vault = vault + BONUS_PERPAX - bouns;
-        remainOwners = remainOwners - 1;
+        withdrawAmount = BASE_AMOUNT + bonus;
     }
 }
