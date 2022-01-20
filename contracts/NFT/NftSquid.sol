@@ -25,6 +25,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     address public token;
     uint256 public totalEth;
 
+    event Mint(address indexed owner, uint256 tokenId);
     event Burn(uint256 tokenId, uint256 withdrawAmount, address indexed sender);
 
     //"APEX NFT", "APEXNFT", "https://apexNFT/"
@@ -48,6 +49,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         require(msg.value == price, "value not match");
         totalEth = totalEth + price;
         _mint(msg.sender, id);
+        emit Mint(msg.sender, id);
         require(block.timestamp < startTime, "GAME_IS_ALREADY_BEGIN");
         id++;
         remainOwners++;
