@@ -5,7 +5,7 @@ const verifyStr = "npx hardhat verify --network";
 // for PriceOracle
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
 // const v2FactoryAddress = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"; // SushiV2Factory address
-const v2FactoryAddress = "0x0000000000000000000000000000000000000000";
+const v2FactoryAddress = "0x9ef193943E14D83BcdAD9e3d782DBafA93bd25A1"; // Self deploy UniswapV2Factory address
 const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mock WETH
 
 // transfer to pcvTreasury
@@ -170,6 +170,9 @@ async function createRouter() {
 
 async function createBondPriceOracle() {
   let apeXAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+  if (apeXToken != null) {
+    apeXAddress = apeXToken.address;
+  }
   const BondPriceOracle = await ethers.getContractFactory("BondPriceOracle");
   bondPriceOracle = await BondPriceOracle.deploy();
   await bondPriceOracle.initialize(apeXAddress, wethAddress, v3FactoryAddress, v2FactoryAddress);
@@ -179,7 +182,13 @@ async function createBondPriceOracle() {
 
 async function createBondPoolFactory() {
   let apeXAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+  if (apeXToken != null) {
+    apeXAddress = apeXToken.address;
+  }
   let pcvTreasuryAddress = "0xcb186F6bbB2Df145ff450ee0A4Ec6aF4baadEec7";
+  if (pcvTreasury != null) {
+    pcvTreasuryAddress = pcvTreasury.address;
+  }
   if (priceOracle == null) {
     let priceOracleAddress = "0x15C20c6c673c3B2244b465FC7736eAA0E8bd6DF6";
     const PriceOracle = await ethers.getContractFactory("PriceOracle");

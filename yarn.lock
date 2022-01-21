@@ -2,6 +2,40 @@
 # yarn lockfile v1
 
 
+"@apex-protocol/core@^0.0.1":
+  "integrity" "sha512-sEn6QQS4hU3swcZfQDa1H8y74nmgrghw9mLI0NR2AE6sV47YwVtNrt0/lORViGtUrllefz2jUqG3FIJ4cFTlNw=="
+  "resolved" "https://registry.npmjs.org/@apex-protocol/core/-/core-0.0.1.tgz"
+  "version" "0.0.1"
+  dependencies:
+    "@openzeppelin/contracts" "^4.3.2"
+    "@uniswap/lib" "^4.0.1-alpha"
+    "dotenv" "^10.0.0"
+    "hardhat-watcher" "^2.1.1"
+
+"@apex-protocol/core@0.0.2":
+  "integrity" "sha512-qDuEHuUlKo0F2Xuzyq9jXzTz+AsPkXBltyrDo+sZhDbrQJQYfD8VhDsLN32yjzhm6HfDz6mhkA0bZ5l8LNoJDA=="
+  "resolved" "https://registry.npmjs.org/@apex-protocol/core/-/core-0.0.2.tgz"
+  "version" "0.0.2"
+  dependencies:
+    "@apex-protocol/core" "^0.0.1"
+    "@openzeppelin/contracts" "^4.3.2"
+    "@uniswap/lib" "^4.0.1-alpha"
+    "@uniswap/v3-core" "^1.0.0"
+    "dotenv" "^10.0.0"
+    "hardhat-watcher" "^2.1.1"
+
+"@apex-protocol/v0@^0.0.1":
+  "integrity" "sha512-0um7CXUrpntMzNI4xkyenxsYi7q7Tb33ScUEwB4WsyrIt2CE7U5MpD4RC2PMjPwTGeNsVtdYa5UmqcSj3EqBrg=="
+  "resolved" "https://registry.npmjs.org/@apex-protocol/v0/-/v0-0.0.1.tgz"
+  "version" "0.0.1"
+  dependencies:
+    "@apex-protocol/core" "0.0.2"
+    "@openzeppelin/contracts" "^4.3.2"
+    "@uniswap/lib" "^4.0.1-alpha"
+    "@uniswap/v3-core" "^1.0.0"
+    "dotenv" "^10.0.0"
+    "hardhat-watcher" "^2.1.1"
+
 "@babel/runtime@^7.4.4":
   "integrity" "sha512-WBwekcqacdY2e9AF/Q7WLFUWmdJGJTkbjqTjoMDgXkVZ3ZRUvOPsLb5KdwISoQVsbP+DQzVZW4Zhci0DvpbNTQ=="
   "resolved" "https://registry.npmjs.org/@babel/runtime/-/runtime-7.16.3.tgz"
@@ -1362,6 +1396,11 @@
   "integrity" "sha512-MtybtkUPSyysqLY2U210NBDeCHX+ltHt3oADGdjqoThZaFRDKwM6k1Nb3F0A3hk5hwuQvytFWhrWHOEq6nVJ8Q=="
   "resolved" "https://registry.npmjs.org/@uniswap/v2-core/-/v2-core-1.0.1.tgz"
   "version" "1.0.1"
+
+"@uniswap/v3-core@^1.0.0":
+  "integrity" "sha512-kSC4djMGKMHj7sLMYVnn61k9nu+lHjMIxgg9CDQT+s2QYLoA56GbSK9Oxr+qJXzzygbkrmuY6cwgP6cW2JXPFA=="
+  "resolved" "https://registry.npmjs.org/@uniswap/v3-core/-/v3-core-1.0.0.tgz"
+  "version" "1.0.0"
 
 "@yarnpkg/lockfile@^1.1.0":
   "integrity" "sha512-GpSwvyXOcOOlV70vbnzjj4fW5xW/FdUF6nQEt1ENy7m4ZCczi1+/buVUPAqmGfqznsORNFzUMjctTIp8a9tuCQ=="
