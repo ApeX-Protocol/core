@@ -37,6 +37,7 @@
     "deploy_bonding": "hardhat run scripts/deploy_bonding.js --network l2rinkeby",
     "deploy_reference": "hardhat run scripts/deploy_reference.js --network l2rinkeby",
     "deploy_staking": "hardhat run scripts/deploy_staking.js --network l2rinkeby",
+    "deploy_nft": "hardhat run scripts/deploy_nft.js --network l2rinkeby",
     "simulate_price": "hardhat run scripts/simulate_price.js"
   },
   "devDependencies": {
