@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-contract Invitation {
+import "../utils/Initializable.sol";
+
+contract Invitation is Initializable {
     event Invite(address indexed user, address indexed upper, uint256 height);
 
     struct UserInvitation {
@@ -14,7 +16,7 @@ contract Invitation {
     mapping(address => UserInvitation) public userInvitations;
     uint256 public totalRegisterCount = 0;
 
-    constructor()  {
+    function initialize() public initializer {
         startBlock = block.number;
     }
 
