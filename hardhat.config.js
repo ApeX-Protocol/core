@@ -23,6 +23,9 @@ module.exports = {
       },
     ],
   },
+  mocha: {
+    timeout: 600000
+  },
 
   networks: {
     hardhat: {

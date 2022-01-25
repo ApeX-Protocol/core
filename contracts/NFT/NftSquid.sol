@@ -12,14 +12,14 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 internal constant BURN_DISCOUNT = 40;
     uint256 public vaultAmount;
 
-    //todo
+    //todo  <4560
     uint256 public remainOwners;
     //todo
-    uint256 public constant price = 2.5 ether;
+    uint256 public constant price = 0.45 ether;
     //todo
-    uint256 internal constant BONUS_PERPAX = 5000 * 10**18;
+    uint256 internal constant BONUS_PERPAX = 1500 * 10**18;
     //todo
-    uint256 internal constant BASE_AMOUNT = 10000 * 10**18;
+    uint256 internal constant BASE_AMOUNT = 3000 * 10**18;
 
     uint256 public id;
     address public token;
@@ -53,6 +53,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         require(block.timestamp < startTime, "GAME_IS_ALREADY_BEGIN");
         id++;
         remainOwners++;
+        require(remainOwners <= 4560, "SOLD_OUT");
     }
 
     // player burn their nft
@@ -63,9 +64,11 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         require(startTime != 0 && block.timestamp >= startTime, "GAME_IS_NOT_BEGIN");
         _burn(tokenId);
         (uint256 withdrawAmount, uint256 bonus) = _calWithdrawAmountAndBonus();
-        if (_remainOwners != 1) {
-            vaultAmount += (BONUS_PERPAX - bonus);
+
+        if (_remainOwners > 1) {
+            vaultAmount =  vaultAmount + BONUS_PERPAX - bonus;
         }
+
         remainOwners = _remainOwners - 1;
         emit Burn(tokenId, withdrawAmount, msg.sender);
         require(IERC20(token).transfer(msg.sender, withdrawAmount));
@@ -93,16 +96,20 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         // the last one is special
         if (remainOwners == 1) {
             withdrawAmount = BASE_AMOUNT + BONUS_PERPAX + vaultAmount;
-            return (withdrawAmount, 0);
+            return (withdrawAmount, BONUS_PERPAX + vaultAmount);
         }
 
         // (t/6*5000+ vaultAmount/N)60%
         bonus =
-            ((diffTime * BONUS_PERPAX * (100 - BURN_DISCOUNT)) /
-                HALF_YEAR +
+            (
+                (diffTime * BONUS_PERPAX * (100 - BURN_DISCOUNT)) /HALF_YEAR +
                 (vaultAmount * (100 - BURN_DISCOUNT)) /
-                remainOwners) /
-            100;
+                remainOwners) / 100;
+
+        // drain the pool
+        if ( bonus > vaultAmount + BONUS_PERPAX ) {
+            bonus = vaultAmount + BONUS_PERPAX;
+        }
 
         withdrawAmount = BASE_AMOUNT + bonus;
     }
