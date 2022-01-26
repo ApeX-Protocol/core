@@ -11,7 +11,7 @@ contract Reward is Reentrant, Ownable {
     
     event SetEmergency(bool emergency);
     event SetSigner(address signer, bool state);
-    event Claim(address user, uint256 amount, uint256 nonce);
+    event Claim(address indexed user, uint256 amount, uint256 nonce);
 
     bool public emergency;
     address public rewardToken;

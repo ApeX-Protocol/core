@@ -23,6 +23,7 @@ const endTimestamp = 1673288342;
 const lockTime = 120;
 // transfer for staking
 const apeXAmountForStaking = BigNumber.from("10000000000000000000000");
+const apeXAmountForReward = BigNumber.from("10000000000000000000000");
 
 let signer;
 let apeXToken;
@@ -36,6 +37,8 @@ let router;
 let bondPriceOracle;
 let bondPoolFactory;
 let stakingPoolFactory;
+let invitation;
+let reward;
 let multicall2;
 
 /// below variables only for testnet
@@ -50,15 +53,17 @@ let bondPool;
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  await createApeXToken();
-  await createPriceOracle();
-  await createConfig();
-  await createPairFactory();
-  await createPCVTreasury();
-  await createRouter();
-  await createBondPriceOracle();
-  await createBondPoolFactory();
-  await createStakingPoolFactory();
+  // await createApeXToken();
+  // await createPriceOracle();
+  // await createConfig();
+  // await createPairFactory();
+  // await createPCVTreasury();
+  // await createRouter();
+  // await createBondPriceOracle();
+  // await createBondPoolFactory();
+  // await createStakingPoolFactory();
+  await createInvitation();
+  await createReward();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -243,6 +248,27 @@ async function createStakingPoolFactory() {
   await apeXToken.transfer(stakingPoolFactory.address, apeXAmountForStaking);
   console.log("StakingPoolFactory:", stakingPoolFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
+}
+
+async function createInvitation() {
+  const Invitation = await ethers.getContractFactory("Invitation");
+  invitation = await Invitation.deploy();
+  await invitation.initialize();
+  console.log("Invitation:", invitation.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, invitation.address);
+}
+
+async function createReward() {
+  if (apeXToken == null) {
+    let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+    const ApeXToken = await ethers.getContractFactory("ApeXToken");
+    apeXToken = await ApeXToken.attach(apeXTokenAddress);
+  }
+  const Reward = await ethers.getContractFactory("Reward");
+  reward = await Reward.deploy(apeXToken.address);
+  console.log("Reward:", reward.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, reward.address, apeXToken.address);
+  await apeXToken.transfer(reward.address, apeXAmountForReward);
 }
 
 async function createMulticall2() {
