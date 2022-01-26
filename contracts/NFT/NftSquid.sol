@@ -85,9 +85,9 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         require(block.timestamp < startTime, "GAME_IS_ALREADY_BEGIN");
         id++;
         remainOwners++;
-        require(remainOwners <= 5, "SOLD_OUT");
+        require(remainOwners <= 4560, "SOLD_OUT");
         if (reservedOn) {
-            require(remainOwners <= 5 - reservedCount, "SOLD_OUT_NORMAL");
+            require(remainOwners <= 4560 - reservedCount, "SOLD_OUT_NORMAL");
             if (reserved[msg.sender]) {
                 delete reserved[msg.sender];
                 reservedCount--;
