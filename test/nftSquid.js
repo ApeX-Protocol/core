@@ -65,8 +65,7 @@ describe("nftSquid contract", function () {
       //   console.log("id : ", i , "     amount ", args[1].div(exp1).toString());
       // }
     }
-   
-    
+
     expect(args[1].div(exp1).toString()).to.be.equal("123630");
     expect(args[0].toString()).to.be.equal("4559");
 
@@ -75,5 +74,26 @@ describe("nftSquid contract", function () {
     expect(balanceAfter.div(exp1).toString()).to.be.equal("9998");
     let apexAmount = await erc20.balanceOf(nftSquid.address);
     expect(apexAmount.div(exp1).toString()).to.be.equal("0");
+  });
+
+  it("add reserved", async function () {
+    let dateTime = new Date();
+    let ct = Math.floor(dateTime / 1000);
+    console.log("ct:", ct);
+    //await nftSquid.setStartTime(ct + 500);
+    let balance = await ethers.provider.getBalance(owner.address);
+    console.log("balance: ", balance.div(exp1).toString());
+
+    let i = 0;
+
+    await nftSquid.setStartTime(ct + 50000);
+    await nftSquid.addToReserved([addr1.address]);
+    let overrides = {
+      value: ethers.utils.parseEther("0.45"),
+    };
+    let reservedCount = await nftSquid.reservedCount();
+    for (i = 0; i < players - reservedCount; i++) {
+      await nftSquid.claimApeXNFT(overrides);
+    }
   });
 });

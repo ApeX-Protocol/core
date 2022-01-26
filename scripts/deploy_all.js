@@ -62,8 +62,9 @@ const main = async () => {
   // await createBondPriceOracle();
   // await createBondPoolFactory();
   // await createStakingPoolFactory();
-  await createInvitation();
-  await createReward();
+  // await createInvitation();
+  // await createReward();
+  await createNftSquid();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -269,6 +270,31 @@ async function createReward() {
   console.log("Reward:", reward.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, reward.address, apeXToken.address);
   await apeXToken.transfer(reward.address, apeXAmountForReward);
+}
+
+async function createNftSquid() {
+  if (apeXToken == null) {
+    let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+    const ApeXToken = await ethers.getContractFactory("ApeXToken");
+    apeXToken = await ApeXToken.attach(apeXTokenAddress);
+  }
+  const NftSquid = await ethers.getContractFactory("NftSquid");
+  let nftSquid = await NftSquid.deploy("APEX-NFT", "ANFT", "https://google.com", apeXToken.address);
+  console.log("NftSquid:", nftSquid.address);
+  console.log(
+    verifyStr,
+    process.env.HARDHAT_NETWORK,
+    nftSquid.address,
+    "APEX-NFT",
+    "ANFT",
+    "https://google.com",
+    apeXToken.address
+  );
+
+  await nftSquid.setStartTime(1645868268);
+  await nftSquid.setReservedOff();
+  let reservedOn = await nftSquid.reservedOn();
+  console.log("reservedOn:", reservedOn.toString());
 }
 
 async function createMulticall2() {

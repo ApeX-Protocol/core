@@ -8,22 +8,30 @@ import "../core/interfaces/IERC20.sol";
 contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 private constant HALF_YEAR = 180 days;
     uint256 private constant MULTIPLIER = 1e18;
-    uint256 public startTime;
     uint256 internal constant BURN_DISCOUNT = 40;
-    uint256 public vaultAmount;
-
-    //todo  <4560
-    uint256 public remainOwners;
-    //todo
-    uint256 public constant price = 0.45 ether;
     //todo
     uint256 internal constant BONUS_PERPAX = 1500 * 10**18;
     //todo
     uint256 internal constant BASE_AMOUNT = 3000 * 10**18;
+    //todo
+    uint256 public constant price = 0.001 ether;
 
+    uint256 public vaultAmount;
+    uint256 public startTime;
+
+    //todo  <4560
+    uint256 public remainOwners;
+    
     uint256 public id;
     address public token;
     uint256 public totalEth;
+
+    // reserved for whitelist address
+    mapping(address => bool) public reserved;
+    // left reserved that not claim yet
+    uint16 public reservedCount;
+    // if turn to false, then all reserved will become invalid
+    bool public reservedOn = true;
 
     event Mint(address indexed owner, uint256 tokenId);
     event Burn(uint256 tokenId, uint256 withdrawAmount, address indexed sender);
@@ -38,13 +46,37 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         token = _token;
     }
 
+    function setReservedOff() external onlyOwner {
+        reservedOn = false;
+    }
+
+    function addToReserved(address[] memory list) external onlyOwner {
+        require(block.timestamp < startTime, "GAME_ALREADY_START");
+        for (uint16 i = 0; i < list.length; i++) {
+            if (!reserved[list[i]]) {
+                reserved[list[i]] = true;
+                reservedCount++;
+            }
+        }
+    }
+
+    function removeFromReserved(address[] memory list) external onlyOwner {
+        require(block.timestamp < startTime, "GAME_ALREADY_START");
+        for (uint16 i = 0; i < list.length; i++) {
+            if (reserved[list[i]]) {
+                delete reserved[list[i]];
+                reservedCount--;
+            }
+        }
+    }
+
     // The time players are able to burn
     function setStartTime(uint256 _startTime) external onlyOwner {
         require(_startTime > block.timestamp, "START_TIME_MUST_BIGGER_THAN_NOW");
         startTime = _startTime; //unix time
     }
 
-    // player can  buy before startTime
+    // player can buy before startTime
     function claimApeXNFT() external payable {
         require(msg.value == price, "value not match");
         totalEth = totalEth + price;
@@ -54,6 +86,13 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         id++;
         remainOwners++;
         require(remainOwners <= 4560, "SOLD_OUT");
+        if (reservedOn) {
+            require(remainOwners <= 4560 - reservedCount, "SOLD_OUT_NORMAL");
+            if (reserved[msg.sender]) {
+                delete reserved[msg.sender];
+                reservedCount--;
+            }
+        }
     }
 
     // player burn their nft
