@@ -1,5 +1,6 @@
 const { BigNumber } = require("@ethersproject/bignumber");
 const { expect } = require("chai");
+const  fs  = require('fs');
 
 async function deploy(name, ...params) {
   const Contract = await ethers.getContractFactory(name);
@@ -41,10 +42,17 @@ describe("nftSquid contract", function () {
       value: ethers.utils.parseEther("0.45"),
     };
 
+    const mySet1 = new Set()
     for (i = 0; i < players; i++) {
-      await nftSquid.claimApeXNFT(overrides);
+      let tx = await nftSquid.claimApeXNFT(1,overrides);
+      let txReceipt = await tx.wait();
+      args = txReceipt["events"][0].args;
+      mySet1.add(args[2].toString());
+     
     }
+    console.log("set:", mySet1.size)
     let token0URI = await nftSquid.tokenURI(0);
+
     await erc20.transfer(nftSquid.address, ethers.BigNumber.from(4500 * players).mul(exp1));
 
     await ethers.provider.send("evm_setNextBlockTimestamp", [ct + 6000]);

@@ -14,7 +14,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     //todo
     uint256 internal constant BASE_AMOUNT = 3000 * 10**18;
     //todo
-    uint256 public constant price = 0.001 ether;
+    uint256 public constant price = 0.45 ether;
 
     uint256 public vaultAmount;
     uint256 public startTime;
@@ -22,7 +22,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     //todo  <4560
     uint256 public remainOwners;
     uint256 public constant MAX_PLAYERS = 4560;
-    
+
     uint256 public id;
     address public token;
     uint256 public totalEth;
@@ -33,7 +33,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint16 public reservedCount;
     // if turn to false, then all reserved will become invalid
     bool public reservedOn = true;
-     // This is a packed array of booleans.
+    // This is a packed array of booleans.
     mapping(uint256 => uint256) private claimedBitMap;
 
     event Mint(address indexed owner, uint256 tokenId);
@@ -80,11 +80,11 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     }
 
     // player can buy before startTime
-    function claimApeXNFT(uint userSeed) external payable {
+    function claimApeXNFT(uint256 userSeed) external payable {
         require(msg.value == price, "value not match");
         totalEth = totalEth + price;
         uint256 randRaw = random(userSeed);
-        uint256 rand =    getUnusedRandom(randRaw);
+        uint256 rand = getUnusedRandom(randRaw);
         _mint(msg.sender, rand);
         _setClaimed(rand);
         emit Mint(msg.sender, rand);
@@ -111,7 +111,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         (uint256 withdrawAmount, uint256 bonus) = _calWithdrawAmountAndBonus();
 
         if (_remainOwners > 1) {
-            vaultAmount =  vaultAmount + BONUS_PERPAX - bonus;
+            vaultAmount = vaultAmount + BONUS_PERPAX - bonus;
         }
 
         remainOwners = _remainOwners - 1;
@@ -119,25 +119,24 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         require(IERC20(token).transfer(msg.sender, withdrawAmount));
     }
 
-     function random(uint userSeed) public view returns(uint){
-    return uint(keccak256(
-        abi.encodePacked(block.timestamp, block.number, userSeed, 
-        blockhash(block.number)))) % MAX_PLAYERS;
-  }
-
-  function getUnusedRandom(uint256 randomNumber) internal view returns (uint256) {
-    
-    while (isClaimed(randomNumber)) {
-      randomNumber++;
-       if (randomNumber >= MAX_PLAYERS) {
-        randomNumber = randomNumber % MAX_PLAYERS;
-      }
+    function random(uint256 userSeed) public view returns (uint256) {
+        return
+            uint256(keccak256(abi.encodePacked(block.timestamp, block.number, userSeed, blockhash(block.number)))) %
+            MAX_PLAYERS;
     }
-      
-    return randomNumber;
-  }
 
- function isClaimed(uint256 index) public view  returns (bool) {
+    function getUnusedRandom(uint256 randomNumber) internal view returns (uint256) {
+        while (isClaimed(randomNumber)) {
+            randomNumber++;
+            if (randomNumber == MAX_PLAYERS) {
+                randomNumber = randomNumber % MAX_PLAYERS;
+            }
+        }
+
+        return randomNumber;
+    }
+
+    function isClaimed(uint256 index) public view returns (bool) {
         uint256 claimedWordIndex = index / 256;
         uint256 claimedBitIndex = index % 256;
         uint256 claimedWord = claimedBitMap[claimedWordIndex];
@@ -150,6 +149,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         uint256 claimedBitIndex = index % 256;
         claimedBitMap[claimedWordIndex] = claimedBitMap[claimedWordIndex] | (1 << claimedBitIndex);
     }
+
     function withdrawETH(address to) external onlyOwner {
         payable(to).transfer(address(this).balance);
     }
@@ -177,13 +177,14 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
 
         // (t/6*5000+ vaultAmount/N)60%
         bonus =
-            (
-                (diffTime * BONUS_PERPAX * (100 - BURN_DISCOUNT)) /HALF_YEAR +
+            ((diffTime * BONUS_PERPAX * (100 - BURN_DISCOUNT)) /
+                HALF_YEAR +
                 (vaultAmount * (100 - BURN_DISCOUNT)) /
-                remainOwners) / 100;
+                remainOwners) /
+            100;
 
         // drain the pool
-        if ( bonus > vaultAmount + BONUS_PERPAX ) {
+        if (bonus > vaultAmount + BONUS_PERPAX) {
             bonus = vaultAmount + BONUS_PERPAX;
         }
 
