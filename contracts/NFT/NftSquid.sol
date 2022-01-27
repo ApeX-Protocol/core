@@ -17,9 +17,11 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 public constant price = 0.45 ether;
 
     uint256 public vaultAmount;
-    uint256 public startTime;
+    uint256 public squidStartTime;
+    uint256 public nftStartTime;
+    uint256 public nftEndTime;
 
-    //todo  <4560
+
     uint256 public remainOwners;
     uint256 public constant MAX_PLAYERS = 4560;
 
@@ -44,9 +46,13 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         string memory _name,
         string memory _symbol,
         string memory _baseTokenURI,
-        address _token
+        address _token,
+        uint256 _nftStartTime,
+        uint256 _nftEndTime
     ) ERC721PresetMinterPauserAutoId(_name, _symbol, _baseTokenURI) {
         token = _token;
+        nftStartTime = _nftStartTime;
+        nftEndTime = _nftEndTime;
     }
 
     function setReservedOff() external onlyOwner {
@@ -54,7 +60,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     }
 
     function addToReserved(address[] memory list) external onlyOwner {
-        require(block.timestamp < startTime, "GAME_ALREADY_START");
+        require(block.timestamp < nftEndTime, "NFT_SALE_TIME_END");
         for (uint16 i = 0; i < list.length; i++) {
             if (!reserved[list[i]]) {
                 reserved[list[i]] = true;
@@ -64,7 +70,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     }
 
     function removeFromReserved(address[] memory list) external onlyOwner {
-        require(block.timestamp < startTime, "GAME_ALREADY_START");
+        require(block.timestamp < nftEndTime, "NFT_SALE_TIME_END");
         for (uint16 i = 0; i < list.length; i++) {
             if (reserved[list[i]]) {
                 delete reserved[list[i]];
@@ -74,9 +80,17 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     }
 
     // The time players are able to burn
-    function setStartTime(uint256 _startTime) external onlyOwner {
-        require(_startTime > block.timestamp, "START_TIME_MUST_BIGGER_THAN_NOW");
-        startTime = _startTime; //unix time
+    function setSquidStartTime(uint256 _squidStartTime) external onlyOwner {
+        require(_squidStartTime > nftEndTime, "SQUID_START_TIME_MUST_BIGGER_THAN_NFT_END_TIME");
+        squidStartTime = _squidStartTime; //unix time
+    }  
+     function setNFTStartTime(uint256 _nftStartTime) external onlyOwner {
+        require(_nftStartTime > block.timestamp, "NFT_START_TIME_MUST_BIGGER_THAN_NOW");
+        nftStartTime = _nftStartTime; //unix time
+    }  
+     function setNFTEndTime(uint256 _nftEndTime) external onlyOwner {
+        require(_nftEndTime > nftStartTime, "NFT_END_TIME_MUST_AFTER_START_TIME");
+        nftEndTime = _nftEndTime; //unix time
     }
 
     // player can buy before startTime
@@ -88,7 +102,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         _mint(msg.sender, rand);
         _setClaimed(rand);
         emit Mint(msg.sender, rand);
-        require(block.timestamp < startTime, "GAME_IS_ALREADY_BEGIN");
+        require(block.timestamp <= nftEndTime && block.timestamp >= nftStartTime , "GAME_IS_ALREADY_BEGIN_OR_END");
         id++;
         remainOwners++;
         require(remainOwners <= MAX_PLAYERS, "SOLD_OUT");
@@ -106,7 +120,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         uint256 _remainOwners = remainOwners;
         require(_remainOwners > 0, "ALL_BURNED");
         require(ownerOf(tokenId) == msg.sender, "NO_AUTHORITY");
-        require(startTime != 0 && block.timestamp >= startTime, "GAME_IS_NOT_BEGIN");
+        require(squidStartTime != 0 && block.timestamp >= squidStartTime, "GAME_IS_NOT_BEGIN");
         _burn(tokenId);
         (uint256 withdrawAmount, uint256 bonus) = _calWithdrawAmountAndBonus();
 
@@ -165,9 +179,9 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     }
 
     function _calWithdrawAmountAndBonus() internal view returns (uint256 withdrawAmount, uint256 bonus) {
-        uint256 endTime = startTime + HALF_YEAR;
+        uint256 endTime = squidStartTime + HALF_YEAR;
         uint256 nowTime = block.timestamp;
-        uint256 diffTime = nowTime < endTime ? nowTime - startTime : endTime - startTime;
+        uint256 diffTime = nowTime < endTime ? nowTime - squidStartTime : endTime - squidStartTime;
 
         // the last one is special
         if (remainOwners == 1) {

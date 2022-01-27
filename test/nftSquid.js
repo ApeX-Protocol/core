@@ -50,7 +50,7 @@ describe("nftSquid contract", function () {
       mySet1.add(args[2].toString());
      
     }
-    console.log("set:", mySet1.size)
+    expect(mySet1.size).to.be.equal("4560");
     let token0URI = await nftSquid.tokenURI(0);
 
     await erc20.transfer(nftSquid.address, ethers.BigNumber.from(4500 * players).mul(exp1));
