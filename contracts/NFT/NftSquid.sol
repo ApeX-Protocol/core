@@ -21,6 +21,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
 
     //todo  <4560
     uint256 public remainOwners;
+    uint256 public constant MAX_PLAYERS = 4560;
     
     uint256 public id;
     address public token;
@@ -32,6 +33,8 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint16 public reservedCount;
     // if turn to false, then all reserved will become invalid
     bool public reservedOn = true;
+     // This is a packed array of booleans.
+    mapping(uint256 => uint256) private claimedBitMap;
 
     event Mint(address indexed owner, uint256 tokenId);
     event Burn(uint256 tokenId, uint256 withdrawAmount, address indexed sender);
@@ -77,17 +80,20 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     }
 
     // player can buy before startTime
-    function claimApeXNFT() external payable {
+    function claimApeXNFT(uint userSeed) external payable {
         require(msg.value == price, "value not match");
         totalEth = totalEth + price;
-        _mint(msg.sender, id);
-        emit Mint(msg.sender, id);
+        uint256 randRaw = random(userSeed);
+        uint256 rand =    getUnusedRandom(randRaw);
+        _mint(msg.sender, rand);
+        _setClaimed(rand);
+        emit Mint(msg.sender, rand);
         require(block.timestamp < startTime, "GAME_IS_ALREADY_BEGIN");
         id++;
         remainOwners++;
-        require(remainOwners <= 4560, "SOLD_OUT");
+        require(remainOwners <= MAX_PLAYERS, "SOLD_OUT");
         if (reservedOn) {
-            require(remainOwners <= 4560 - reservedCount, "SOLD_OUT_NORMAL");
+            require(remainOwners <= MAX_PLAYERS - reservedCount, "SOLD_OUT_NORMAL");
             if (reserved[msg.sender]) {
                 delete reserved[msg.sender];
                 reservedCount--;
@@ -113,6 +119,37 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         require(IERC20(token).transfer(msg.sender, withdrawAmount));
     }
 
+     function random(uint userSeed) public view returns(uint){
+    return uint(keccak256(
+        abi.encodePacked(block.timestamp, block.number, userSeed, 
+        blockhash(block.number)))) % MAX_PLAYERS;
+  }
+
+  function getUnusedRandom(uint256 randomNumber) internal view returns (uint256) {
+    
+    while (isClaimed(randomNumber)) {
+      randomNumber++;
+       if (randomNumber >= MAX_PLAYERS) {
+        randomNumber = randomNumber % MAX_PLAYERS;
+      }
+    }
+      
+    return randomNumber;
+  }
+
+ function isClaimed(uint256 index) public view  returns (bool) {
+        uint256 claimedWordIndex = index / 256;
+        uint256 claimedBitIndex = index % 256;
+        uint256 claimedWord = claimedBitMap[claimedWordIndex];
+        uint256 mask = (1 << claimedBitIndex);
+        return claimedWord & mask == mask;
+    }
+
+    function _setClaimed(uint256 index) private {
+        uint256 claimedWordIndex = index / 256;
+        uint256 claimedBitIndex = index % 256;
+        claimedBitMap[claimedWordIndex] = claimedBitMap[claimedWordIndex] | (1 << claimedBitIndex);
+    }
     function withdrawETH(address to) external onlyOwner {
         payable(to).transfer(address(this).balance);
     }
