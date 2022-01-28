@@ -298,6 +298,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 traderPosition.tradeSize = 0;
                 traderPosition.baseSize = remainBaseAmount;
             }
+            emit CloseUnhealthyPosition(trader, quoteAmount, baseAmount, fundingFee, traderPosition);
         } else {
             //healthy position, close position safely
             baseAmount = _minusPositionWithAmm(isLong, quoteAmount);
@@ -316,12 +317,11 @@ contract Margin is IMargin, IVault, Reentrant {
                 traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount) + fundingFee;
             }
+            emit ClosePosition(trader, quoteAmount, baseAmount, fundingFee, traderPosition);
         }
 
         traderCPF[trader] = _latestCPF;
         traderPositionMap[trader] = traderPosition;
-
-        emit ClosePosition(trader, quoteAmount, baseAmount, fundingFee, traderPosition);
     }
 
     function liquidate(address trader)
