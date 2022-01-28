@@ -40,6 +40,8 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
         startTime = _startTime;
         endTime = _startTime + _duration;
         cliffTime = _startTime + _cliff;
+         _mint(msg.sender, id);
+         id++;
     }
 
     function setTotalAmount(uint256 _totalAmount) external onlyOwner {
