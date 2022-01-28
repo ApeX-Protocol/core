@@ -2,31 +2,26 @@
 pragma solidity ^0.8.0;
 
 contract Invitation {
-    event Invite(address indexed user, address indexed upper, uint256 height);
+    event Invite(address indexed user, address indexed upper, uint256 time);
 
     struct UserInvitation {
         address upper; //上级
         address[] lowers; //下级
-        uint256 startBlock; //邀请块高
+        uint256 startTime; //邀请时间
     }
 
-    uint256 public startBlock;
     mapping(address => UserInvitation) public userInvitations;
     uint256 public totalRegisterCount = 0;
 
-    constructor()  {
-        startBlock = block.number;
-    }
-
     function register() external returns (bool) {
         UserInvitation storage user = userInvitations[msg.sender];
-        require(0 == user.startBlock, "REGISTERED");
+        require(0 == user.startTime, "REGISTERED");
 
         user.upper = address(0);
-        user.startBlock = block.number;
+        user.startTime = block.timestamp;
         totalRegisterCount++;
 
-        emit Invite(msg.sender, user.upper, user.startBlock);
+        emit Invite(msg.sender, user.upper, user.startTime);
 
         return true;
     }
@@ -36,17 +31,17 @@ contract Invitation {
         UserInvitation storage sender = userInvitations[msg.sender];
 
         // ensure not registered
-        require(0 == sender.startBlock, "REGISTERED");
+        require(0 == sender.startTime, "REGISTERED");
         UserInvitation storage upper = userInvitations[inviter];
         
-        require(upper.startBlock != 0, "INVITER_NOT_EXIST!");
+        require(upper.startTime != 0, "INVITER_NOT_EXIST!");
 
         sender.upper = inviter;
         upper.lowers.push(msg.sender);
-        sender.startBlock = block.number;
+        sender.startTime = block.timestamp;
         totalRegisterCount++;
 
-        emit Invite(msg.sender, sender.upper, sender.startBlock);
+        emit Invite(msg.sender, sender.upper, sender.startTime);
 
         return true;
     }

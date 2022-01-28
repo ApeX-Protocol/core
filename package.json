@@ -1,8 +1,31 @@
 {
-  "name": "apex-protocol",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "@apex-protocol/core",
+  "version": "0.0.2",
+  "description": "Smart contracts of ApeX Protocol",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ApeX-Protocol/apex-protocol"
+  },
+  "keywords": [
+    "apex"
+  ],
+  "author": "",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/ApeX-Protocol/apex-protocol/issues"
+  },
+  "homepage": "https://apex.exchange",
+  "files": [
+    "contracts/core",
+    "artifacts/contracts/core/**/*.json",
+    "!artifacts/contracts/core/**/*.dbg.json"
+  ],
+  "engines": {
+    "node": ">=10"
+  },
   "scripts": {
     "compile": "npx hardhat compile",
     "compile_watch": "npx hardhat watch compilation",
@@ -17,17 +40,6 @@
     "deploy_nft": "hardhat run scripts/deploy_nft.js --network l2rinkeby",
     "simulate_price": "hardhat run scripts/simulate_price.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/ApeX-Protocol/apex-protocol.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/ApeX-Protocol/apex-protocol/issues"
-  },
-  "homepage": "https://github.com/ApeX-Protocol/apex-protocol#readme",
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@nomiclabs/hardhat-etherscan": "^2.1.7",
@@ -47,8 +59,11 @@
     "solidity-coverage": "^0.7.17"
   },
   "dependencies": {
+    "@apex-protocol/core": "0.0.2",
+    "@apex-protocol/v0": "^0.0.1",
     "@openzeppelin/contracts": "^4.3.2",
     "@uniswap/lib": "^4.0.1-alpha",
+    "@uniswap/v3-core": "^1.0.0",
     "dotenv": "^10.0.0",
     "hardhat-watcher": "^2.1.1"
   }

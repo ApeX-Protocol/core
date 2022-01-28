@@ -5,7 +5,7 @@ const verifyStr = "npx hardhat verify --network";
 // for PriceOracle
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
 // const v2FactoryAddress = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"; // SushiV2Factory address
-const v2FactoryAddress = "0x0000000000000000000000000000000000000000";
+const v2FactoryAddress = "0x9ef193943E14D83BcdAD9e3d782DBafA93bd25A1"; // Self deploy UniswapV2Factory address
 const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mock WETH
 
 // transfer to pcvTreasury
@@ -23,6 +23,7 @@ const endTimestamp = 1673288342;
 const lockTime = 120;
 // transfer for staking
 const apeXAmountForStaking = BigNumber.from("10000000000000000000000");
+const apeXAmountForReward = BigNumber.from("10000000000000000000000");
 
 let signer;
 let apeXToken;
@@ -36,6 +37,8 @@ let router;
 let bondPriceOracle;
 let bondPoolFactory;
 let stakingPoolFactory;
+let invitation;
+let reward;
 let multicall2;
 
 /// below variables only for testnet
@@ -50,15 +53,18 @@ let bondPool;
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  await createApeXToken();
-  await createPriceOracle();
-  await createConfig();
-  await createPairFactory();
-  await createPCVTreasury();
-  await createRouter();
-  await createBondPriceOracle();
-  await createBondPoolFactory();
-  await createStakingPoolFactory();
+  // await createApeXToken();
+  // await createPriceOracle();
+  // await createConfig();
+  // await createPairFactory();
+  // await createPCVTreasury();
+  // await createRouter();
+  // await createBondPriceOracle();
+  // await createBondPoolFactory();
+  // await createStakingPoolFactory();
+  // await createInvitation();
+  // await createReward();
+  await createNftSquid();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -170,6 +176,9 @@ async function createRouter() {
 
 async function createBondPriceOracle() {
   let apeXAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+  if (apeXToken != null) {
+    apeXAddress = apeXToken.address;
+  }
   const BondPriceOracle = await ethers.getContractFactory("BondPriceOracle");
   bondPriceOracle = await BondPriceOracle.deploy();
   await bondPriceOracle.initialize(apeXAddress, wethAddress, v3FactoryAddress, v2FactoryAddress);
@@ -179,7 +188,13 @@ async function createBondPriceOracle() {
 
 async function createBondPoolFactory() {
   let apeXAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+  if (apeXToken != null) {
+    apeXAddress = apeXToken.address;
+  }
   let pcvTreasuryAddress = "0xcb186F6bbB2Df145ff450ee0A4Ec6aF4baadEec7";
+  if (pcvTreasury != null) {
+    pcvTreasuryAddress = pcvTreasury.address;
+  }
   if (priceOracle == null) {
     let priceOracleAddress = "0x15C20c6c673c3B2244b465FC7736eAA0E8bd6DF6";
     const PriceOracle = await ethers.getContractFactory("PriceOracle");
@@ -234,6 +249,52 @@ async function createStakingPoolFactory() {
   await apeXToken.transfer(stakingPoolFactory.address, apeXAmountForStaking);
   console.log("StakingPoolFactory:", stakingPoolFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
+}
+
+async function createInvitation() {
+  const Invitation = await ethers.getContractFactory("Invitation");
+  invitation = await Invitation.deploy();
+  await invitation.initialize();
+  console.log("Invitation:", invitation.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, invitation.address);
+}
+
+async function createReward() {
+  if (apeXToken == null) {
+    let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+    const ApeXToken = await ethers.getContractFactory("ApeXToken");
+    apeXToken = await ApeXToken.attach(apeXTokenAddress);
+  }
+  const Reward = await ethers.getContractFactory("Reward");
+  reward = await Reward.deploy(apeXToken.address);
+  console.log("Reward:", reward.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, reward.address, apeXToken.address);
+  await apeXToken.transfer(reward.address, apeXAmountForReward);
+}
+
+async function createNftSquid() {
+  if (apeXToken == null) {
+    let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+    const ApeXToken = await ethers.getContractFactory("ApeXToken");
+    apeXToken = await ApeXToken.attach(apeXTokenAddress);
+  }
+  const NftSquid = await ethers.getContractFactory("NftSquid");
+  let nftSquid = await NftSquid.deploy("APEX-NFT", "ANFT", "https://google.com", apeXToken.address);
+  console.log("NftSquid:", nftSquid.address);
+  console.log(
+    verifyStr,
+    process.env.HARDHAT_NETWORK,
+    nftSquid.address,
+    "APEX-NFT",
+    "ANFT",
+    "https://google.com",
+    apeXToken.address
+  );
+
+  await nftSquid.setStartTime(1645868268);
+  await nftSquid.setReservedOff();
+  let reservedOn = await nftSquid.reservedOn();
+  console.log("reservedOn:", reservedOn.toString());
 }
 
 async function createMulticall2() {
