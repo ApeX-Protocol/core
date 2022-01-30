@@ -8,11 +8,13 @@ interface IPriceOracle {
 
     function updateAmmTwap(address pair) external ;
 
+    // index price maybe get from different oracle, like UniswapV3 TWAP,Chainklink, or others
+    // source represents which oracle used. 0 = UniswapV3 TWAP
     function quote(
         address baseToken,
         address quoteToken,
         uint256 baseAmount
-    ) external view returns (uint256 quoteAmount);
+    ) external view returns (uint256 quoteAmount, uint8 source);
 
     function getIndexPrice(address amm) external view returns (uint256);
 
