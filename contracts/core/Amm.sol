@@ -88,7 +88,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
         if (_totalSupply == 0) {
-            quoteAmount = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, baseAmount);
+            (quoteAmount, ) = IPriceOracle(IConfig(config).priceOracle()).quote(baseToken, quoteToken, baseAmount);
 
             require(quoteAmount > 0, "Amm.mint: INSUFFICIENT_QUOTE_AMOUNT");
             liquidity = Math.sqrt(baseAmount * quoteAmount) - MINIMUM_LIQUIDITY;
@@ -135,7 +135,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
         baseAmount = (liquidity * realBaseReserve) / _totalSupply; // using balances ensures pro-rata distribution
-
         // quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
 
@@ -150,6 +149,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
     /// @notice
     function swap(
+        address trader,
         address inputToken,
         address outputToken,
         uint256 inputAmount,
@@ -161,11 +161,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         _checkTradeSlippage(reserves[0], reserves[1], baseReserve, quoteReserve);
         _update(reserves[0], reserves[1], baseReserve, quoteReserve, false);
 
-        emit Swap(inputToken, outputToken, amounts[0], amounts[1]);
+        emit Swap(trader, inputToken, outputToken, amounts[0], amounts[1]);
     }
 
     /// @notice  use in the situation  of forcing closing position
     function forceSwap(
+        address trader,
         address inputToken,
         address outputToken,
         uint256 inputAmount,
@@ -188,10 +189,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         }
 
         _update(reserve0, reserve1, _baseReserve, _quoteReserve, true);
-
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
-        emit ForceSwap(inputToken, outputToken, inputAmount, outputAmount);
+        emit ForceSwap(trader, inputToken, outputToken, inputAmount, outputAmount);
     }
 
     /// @notice  invoke when price gap is larger  than  "gap" percent;
@@ -202,31 +202,31 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(block.timestamp - rebaseTimestampLast >= 3600, "Amm.rebase: REBASE_INTERVAL_MUST_LARGER_THAN_ONE_HOUR");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
-        uint256 quoteReserveAmmTwap = IPriceOracle(IConfig(config).priceOracle()).quoteFromAmmTwap(address(this), _baseReserve);
-        uint256 quoteReserveExternalTwap = IPriceOracle(IConfig(config).priceOracle()).quote(
+        uint256 quoteReserveFromInternal;
+        (uint256 quoteReserveFromExternal, uint8 priceSource) = IPriceOracle(IConfig(config).priceOracle()).quote(
             baseToken,
             quoteToken,
             _baseReserve
         );
+        if (priceSource == 0) { // external price use UniswapV3Twap, internal price use ammTwap
+            quoteReserveFromInternal = IPriceOracle(IConfig(config).priceOracle()).quoteFromAmmTwap(address(this), _baseReserve);
+        } else { // otherwise, use lastPrice as internal price
+            quoteReserveFromInternal = lastPrice * _baseReserve / 2**112;
+        }
 
         uint256 gap = IConfig(config).rebasePriceGap();
-
         require(
-            quoteReserveExternalTwap * 100 >= uint256(quoteReserveAmmTwap) * (100 + gap) ||
-                quoteReserveExternalTwap * 100 <= uint256(quoteReserveAmmTwap) * (100 - gap),
+            quoteReserveFromExternal * 100 >= uint256(quoteReserveFromInternal) * (100 + gap) ||
+                quoteReserveFromExternal * 100 <= uint256(quoteReserveFromInternal) * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-        //todo check  rebase price gap
-        quoteReserveAfter = (_quoteReserve * quoteReserveExternalTwap) / quoteReserveAmmTwap;
-
+        //todo check rebase price gap
+        quoteReserveAfter = (_quoteReserve * quoteReserveFromExternal) / quoteReserveFromInternal;
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
-
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
-
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
         emit Rebase(_quoteReserve, quoteReserveAfter);
@@ -391,7 +391,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
 
             // update twap
-
             IPriceOracle(IConfig(config).priceOracle()).updateAmmTwap(address(this));
         }
 

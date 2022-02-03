@@ -115,9 +115,9 @@ contract PriceOracle is IPriceOracle, Initializable {
         address baseToken,
         address quoteToken,
         uint256 baseAmount
-    ) public view override returns (uint256 quoteAmount) {
+    ) public view override returns (uint256 quoteAmount, uint8 source) {
         address pool = v3Pools[baseToken][quoteToken];
-        if (pool == address(0)) return 0;
+        if (pool == address(0)) return (0, 0);
         uint160 sqrtPriceX96 = UniswapV3TwapGetter.getSqrtTwapX96(pool, twapInterval);
         // priceX96 = token1/token0, this price is scaled by 2^96
         uint256 priceX96 = UniswapV3TwapGetter.getPriceX96FromSqrtPriceX96(sqrtPriceX96);
@@ -134,7 +134,7 @@ contract PriceOracle is IPriceOracle, Initializable {
         address quoteToken = IAmm(amm).quoteToken();
         uint256 baseDecimals = IERC20(baseToken).decimals();
         uint256 quoteDecimals = IERC20(quoteToken).decimals();
-        uint256 quoteAmount = quote(baseToken, quoteToken, 10**baseDecimals);
+        (uint256 quoteAmount, ) = quote(baseToken, quoteToken, 10**baseDecimals);
         return quoteAmount * (10**(18 - quoteDecimals));
     }
 
