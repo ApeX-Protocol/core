@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 interface IAmm {
     event Mint(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount, uint256 liquidity);
     event Burn(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount, uint256 liquidity);
-    event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
-    event ForceSwap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
+    event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
+    event ForceSwap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
     event Rebase(uint256 quoteReserveBefore, uint256 quoteReserveAfter);
     event Sync(uint112 reserveBase, uint112 reserveQuote);
 
@@ -34,6 +34,7 @@ interface IAmm {
 
     // only binding margin can call this function
     function swap(
+        address trader,
         address inputToken,
         address outputToken,
         uint256 inputAmount,
@@ -42,6 +43,7 @@ interface IAmm {
 
     // only binding margin can call this function
     function forceSwap(
+        address trader,
         address inputToken,
         address outputToken,
         uint256 inputAmount,
