@@ -36,7 +36,7 @@ contract PriceOracleForTest is IPriceOracle {
         address baseToken,
         address quoteToken,
         uint256 baseAmount
-    ) public view override returns (uint256 quoteAmount) {
+    ) public view override returns (uint256 quoteAmount, uint8 source) {
         Reserves memory reserves = getReserves[baseToken][quoteToken];
         require(baseAmount > 0, "INSUFFICIENT_AMOUNT");
         require(reserves.base > 0 && reserves.quote > 0, "INSUFFICIENT_LIQUIDITY");
@@ -56,7 +56,7 @@ contract PriceOracleForTest is IPriceOracle {
         address quoteToken = IAmm(amm).quoteToken();
         uint256 baseDecimals = IERC20(baseToken).decimals();
         uint256 quoteDecimals = IERC20(quoteToken).decimals();
-        uint256 quoteAmount = quote(baseToken, quoteToken, 10**baseDecimals);
+        (uint256 quoteAmount, ) = quote(baseToken, quoteToken, 10**baseDecimals);
         return quoteAmount * (10**(18 - quoteDecimals));
     }
 
