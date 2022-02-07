@@ -21,9 +21,9 @@ interface IERC20 {
 
     function balanceOf(address owner) external view returns (uint256);
 
-    function name() external pure returns (string memory);
+    function name() external view returns (string memory);
 
-    function symbol() external pure returns (string memory);
+    function symbol() external view returns (string memory);
 
     function decimals() external pure returns (uint8);
 }
