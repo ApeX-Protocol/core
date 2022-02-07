@@ -42,7 +42,7 @@ describe("VIPNFT contract", function () {
     let vipNFTAlice = vipNFT.connect(Alice);
     let i = 0;
     let overrides = {
-      value: ethers.utils.parseEther("30"),
+      value: ethers.utils.parseEther("50"),
     };
 
     await ethers.provider.send("evm_setNextBlockTimestamp", [ct + 600]);

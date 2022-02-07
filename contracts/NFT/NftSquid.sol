@@ -53,6 +53,7 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         token = _token;
         nftStartTime = _nftStartTime;
         nftEndTime = _nftEndTime;
+        _mint(msg.sender, MAX_PLAYERS);
     }
 
     function setReservedOff() external onlyOwner {
