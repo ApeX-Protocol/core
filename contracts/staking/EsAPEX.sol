@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 import "../core/interfaces/IERC20.sol";
 
 contract EsAPEX is IERC20 {
-    string public constant override name = "esAPEX Token";
-    string public constant override symbol = "esAPEX";
+    string public constant override name = "esApeX Token";
+    string public constant override symbol = "esApeX";
     uint8 public constant override decimals = 18;
 
     address public stakingPoolFactory;
@@ -18,13 +18,13 @@ contract EsAPEX is IERC20 {
     }
 
     function mint(address to, uint256 value) external returns (bool) {
-        require(msg.sender == stakingPoolFactory, "no authority");
+        require(msg.sender == stakingPoolFactory, "esApeX: NO_AUTHORITY");
         _mint(to, value);
         return true;
     }
 
     function burn(address from, uint256 value) external returns (bool) {
-        require(msg.sender == stakingPoolFactory, "no authority");
+        require(msg.sender == stakingPoolFactory, "esApeX: NO_AUTHORITY");
         _burn(from, value);
         return true;
     }
@@ -35,7 +35,7 @@ contract EsAPEX is IERC20 {
     }
 
     function transfer(address to, uint256 value) external override returns (bool) {
-        require(msg.sender == stakingPoolFactory, "no authority");
+        require(msg.sender == stakingPoolFactory, "esApeX: NO_AUTHORITY");
         _transfer(msg.sender, to, value);
         return true;
     }
@@ -45,7 +45,7 @@ contract EsAPEX is IERC20 {
         address to,
         uint256 value
     ) external override returns (bool) {
-        require(msg.sender == stakingPoolFactory, "no authority");
+        require(msg.sender == stakingPoolFactory, "esApeX: NO_AUTHORITY");
         if (allowance[from][msg.sender] != type(uint256).max) {
             allowance[from][msg.sender] = allowance[from][msg.sender] - value;
         }

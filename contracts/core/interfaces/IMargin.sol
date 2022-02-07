@@ -25,13 +25,6 @@ interface IMargin {
         int256 fundingFee,
         Position position
     );
-    event CloseUnhealthyPosition(
-        address indexed trader,
-        uint256 quoteAmount,
-        uint256 baseAmount,
-        int256 fundingFee,
-        Position position
-    );
     event Liquidate(
         address indexed liquidator,
         address indexed trader,

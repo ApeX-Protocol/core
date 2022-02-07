@@ -300,7 +300,6 @@ contract Margin is IMargin, IVault, Reentrant {
                 traderPosition.tradeSize = 0;
                 traderPosition.baseSize = remainBaseAmount;
             }
-            emit CloseUnhealthyPosition(trader, quoteAmount, baseAmount, fundingFee, traderPosition);
         } else {
             //healthy position, close position safely
             baseAmount = _minusPositionWithAmm(trader, isLong, quoteAmount);
@@ -319,11 +318,12 @@ contract Margin is IMargin, IVault, Reentrant {
                 traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount) + fundingFee;
             }
-            emit ClosePosition(trader, quoteAmount, baseAmount, fundingFee, traderPosition);
         }
 
         traderCPF[trader] = _latestCPF;
         traderPositionMap[trader] = traderPosition;
+
+        emit ClosePosition(trader, quoteAmount, baseAmount, fundingFee, traderPosition);
     }
 
     function liquidate(address trader)
@@ -370,7 +370,8 @@ contract Margin is IMargin, IVault, Reentrant {
             bonus = (remainBaseAmountAfterLiquidate.abs() * IConfig(config).liquidateFeeRatio()) / 10000;
         }
 
-        { // avoid stack too deep
+        {
+            // avoid stack too deep
             address _trader = trader;
             int256 _baseSize = baseSize;
             uint256 _bonus = bonus;
@@ -445,7 +446,11 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     //swap exact quote to base
-    function _addPositionWithAmm(address trader, bool isLong, uint256 quoteAmount) internal returns (uint256 baseAmount) {
+    function _addPositionWithAmm(
+        address trader,
+        bool isLong,
+        uint256 quoteAmount
+    ) internal returns (uint256 baseAmount) {
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             !isLong,
             quoteAmount
@@ -456,7 +461,11 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     //close position, swap base to get exact quoteAmount, the base has contained pnl
-    function _minusPositionWithAmm(address trader, bool isLong, uint256 quoteAmount) internal returns (uint256 baseAmount) {
+    function _minusPositionWithAmm(
+        address trader,
+        bool isLong,
+        uint256 quoteAmount
+    ) internal returns (uint256 baseAmount) {
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             isLong,
             quoteAmount
