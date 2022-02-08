@@ -2,6 +2,7 @@ const { ethers, upgrades } = require("hardhat");
 const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
+const apeXTokenAddress = "0x2fDa6b46e5A549CA9E1C2559FC6b2Bb40447B635";
 // for PriceOracle
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
 // const v2FactoryAddress = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"; // SushiV2Factory address
@@ -53,7 +54,7 @@ let bondPool;
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  // await createApeXToken();
+  // await attachApeXToken();
   // await createPriceOracle();
   // await createConfig();
   // await createPairFactory();
@@ -74,11 +75,10 @@ const main = async () => {
   // await createMockStakingPool();
 };
 
-async function createApeXToken() {
+async function attachApeXToken() {
   const ApeXToken = await ethers.getContractFactory("ApeXToken");
-  apeXToken = await ApeXToken.deploy();
+  apeXToken = await ApeXToken.attach(apeXTokenAddress);
   console.log("ApeXToken:", apeXToken.address);
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, apeXToken.address);
 }
 
 async function createPriceOracle() {
