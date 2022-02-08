@@ -21,7 +21,6 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 public nftStartTime;
     uint256 public nftEndTime;
 
-
     uint256 public remainOwners;
     uint256 public constant MAX_PLAYERS = 4560;
 
