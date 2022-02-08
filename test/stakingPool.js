@@ -16,6 +16,8 @@ describe("stakingPool contract", function () {
   let slpStakingPool;
   let lockUntil = 0;
   let invalidLockUntil = 10;
+  let lockTime = 10;
+  let esApeX;
 
   beforeEach(async function () {
     [owner, addr1] = await ethers.getSigners();
@@ -23,6 +25,7 @@ describe("stakingPool contract", function () {
     const MockToken = await ethers.getContractFactory("MockToken");
     const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
     const StakingPool = await ethers.getContractFactory("StakingPool");
+    const EsAPEX = await ethers.getContractFactory("EsAPEX");
 
     apexToken = await MockToken.deploy("apex token", "at");
     slpToken = await MockToken.deploy("slp token", "slp");
@@ -32,8 +35,11 @@ describe("stakingPool contract", function () {
       secSpanPerUpdate,
       initTimestamp,
       endTimestamp,
+      lockTime,
     ]);
+    esApeX = await EsAPEX.deploy(stakingPoolFactory.address);
 
+    await stakingPoolFactory.setEsApeX(esApeX.address);
     await stakingPoolFactory.createPool(apexToken.address, initTimestamp, 21);
     apexStakingPool = StakingPool.attach((await stakingPoolFactory.pools(apexToken.address))[0]);
 
@@ -45,7 +51,6 @@ describe("stakingPool contract", function () {
     await apexToken.mint(stakingPoolFactory.address, 100_0000);
     await slpToken.mint(owner.address, 100_0000);
     await slpToken.approve(slpStakingPool.address, 100_0000);
-    await stakingPoolFactory.setLockTime(10);
   });
 
   describe("stake", function () {
@@ -80,9 +85,10 @@ describe("stakingPool contract", function () {
       await apexStakingPool.stake(20000, 0);
 
       let user = await apexStakingPool.users(owner.address);
-      expect(user.tokenAmount.toNumber()).to.equal(30020);
+      expect(user.tokenAmount.toNumber()).to.equal(30000);
       expect(user.totalWeight.toNumber()).to.equal(30000 * 1e6);
       expect(user.subYieldRewards.toNumber()).to.equal(60);
+      expect((await esApeX.balanceOf(owner.address)).toNumber()).to.equal(20);
     });
 
     it("stake twice, with one year lock", async function () {
@@ -97,7 +103,7 @@ describe("stakingPool contract", function () {
       halfYearLockUntil = await halfYearLater();
       await apexStakingPool.stake(20000, halfYearLockUntil);
       user = await apexStakingPool.users(owner.address);
-      expect(user.tokenAmount.toNumber()).to.equal(30019);
+      expect(user.tokenAmount.toNumber()).to.equal(30000);
       expect(user.totalWeight.toNumber()).to.be.at.most(60037990000);
       expect(user.subYieldRewards.toNumber()).to.be.at.most(60);
     });
@@ -113,20 +119,60 @@ describe("stakingPool contract", function () {
     it("stake, process reward, unstake, transfer apeX ", async function () {
       await network.provider.send("evm_mine");
       await apexStakingPool.processRewards();
+      let amount = (await esApeX.balanceOf(owner.address)).toNumber();
+      await esApeX.approve(stakingPoolFactory.address, 10000000);
+
+      await apexStakingPool.vest(amount);
       await network.provider.send("evm_mine");
-      await apexStakingPool.batchWithdraw([0], [10000], [], []);
-      await expect(apexStakingPool.batchWithdraw([], [], [1], [10000])).to.be.revertedWith(
+      await apexStakingPool.batchWithdraw([0], [10000], [], [], [], []);
+      await expect(apexStakingPool.batchWithdraw([], [], [0], [100], [], [])).to.be.revertedWith(
         "sp.batchWithdraw: YIELD_LOCKED"
       );
       await mineBlocks(100);
+      await expect(apexStakingPool.batchWithdraw([], [], [0], [amount + 1], [], [])).to.be.revertedWith(
+        "sp.batchWithdraw: EXCEED_YIELD_STAKED"
+      );
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      await apexStakingPool.batchWithdraw([], [], [1], [9]);
+      await apexStakingPool.batchWithdraw([], [], [0], [amount], [], []);
       let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      expect(oldBalance + 9).to.be.equal(newBalance);
+      expect(oldBalance + amount).to.be.equal(newBalance);
     });
   });
 
-  describe("stakeAsPool", function () {
+  describe("batchWithdraw", function () {
+    beforeEach(async function () {
+      await apexStakingPool.stake(10000, 0);
+      await apexStakingPool.processRewards();
+      await esApeX.approve(stakingPoolFactory.address, 10000000);
+      console.log(await esApeX.balanceOf(owner.address));
+      await stakingPoolFactory.setLockTime(15758000);
+    });
+
+    it("batchWithdraw unlocked deposit", async function () {
+      await apexStakingPool.batchWithdraw([0], [10000], [], [], [], []);
+    });
+
+    it("batchWithdraw unlocked esDeposit", async function () {
+      await apexStakingPool.stakeEsApeX(10, 0);
+      await apexStakingPool.batchWithdraw([], [], [], [], [0], [10]);
+    });
+
+    it("batchWithdraw locked deposit", async function () {
+      await apexStakingPool.stake(20000, await halfYearLater());
+      await expect(apexStakingPool.batchWithdraw([1], [10000], [], [], [], [])).to.be.revertedWith(
+        "sp.batchWithdraw: DEPOSIT_LOCKED"
+      );
+    });
+
+    it("batchWithdraw locked esDeposit", async function () {
+      await apexStakingPool.stakeEsApeX(10, await halfYearLater());
+      await expect(apexStakingPool.batchWithdraw([], [], [], [], [0], [10])).to.be.revertedWith(
+        "sp.batchWithdraw: ESDEPOSIT_LOCKED"
+      );
+    });
+  });
+
+  describe("vest", function () {
     beforeEach(async function () {
       await slpStakingPool.stake(10000, 0);
     });
@@ -135,7 +181,7 @@ describe("stakingPool contract", function () {
       await stakingPoolFactory.setLockTime(15768000);
       let halfYearLockUntil = await halfYearLater();
       await slpStakingPool.stake(10000, halfYearLockUntil);
-      await expect(slpStakingPool.batchWithdraw([1], [10000], [], [])).to.be.revertedWith(
+      await expect(slpStakingPool.batchWithdraw([1], [10000], [], [], [], [])).to.be.revertedWith(
         "sp.batchWithdraw: DEPOSIT_LOCKED"
       );
     });
@@ -143,14 +189,17 @@ describe("stakingPool contract", function () {
     it("stake, process reward to apeXPool, unstake from slpPool, unstake from apeXPool", async function () {
       await network.provider.send("evm_mine");
       await slpStakingPool.processRewards();
+      await esApeX.approve(stakingPoolFactory.address, 10000000);
 
+      let amount = (await esApeX.balanceOf(owner.address)).toNumber();
+      await apexStakingPool.vest(amount);
       await network.provider.send("evm_mine");
-      await slpStakingPool.batchWithdraw([0], [10000], [], []);
+      await slpStakingPool.batchWithdraw([0], [10000], [], [], [], []);
       await mineBlocks(100);
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      await apexStakingPool.batchWithdraw([], [], [0], [1]);
+      await apexStakingPool.batchWithdraw([], [], [0], [amount], [], []);
       let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      expect(oldBalance + 1).to.be.equal(newBalance);
+      expect(oldBalance + amount).to.be.equal(newBalance);
     });
   });
 
@@ -202,19 +251,63 @@ describe("stakingPool contract", function () {
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
 
       await slpStakingPool.processRewards();
+      await esApeX.approve(stakingPoolFactory.address, 10000000);
+      let amount = (await esApeX.balanceOf(owner.address)).toNumber();
+      await apexStakingPool.vest(amount);
+
       let oldUser = await apexStakingPool.users(owner.address);
       let oldUsersLockingWeight = await apexStakingPool.usersLockingWeight();
       expect(await apexStakingPool.getDepositsLength(owner.address)).to.be.equal(1);
+      expect(await apexStakingPool.getYieldsLength(owner.address)).to.be.equal(1);
       await apexStakingPool.forceWithdraw([0]);
       expect(await apexStakingPool.getDepositsLength(owner.address)).to.be.equal(1);
+      expect(await apexStakingPool.getYieldsLength(owner.address)).to.be.equal(1);
 
       let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      expect(newBalance).to.be.equal(oldBalance + 327);
+      expect(newBalance).to.be.equal(oldBalance + 285);
       let newUser = await apexStakingPool.users(owner.address);
       let newUsersLockingWeight = await apexStakingPool.usersLockingWeight();
-      expect(oldUser.tokenAmount.toNumber()).to.be.equal(newUser.tokenAmount.toNumber() + 579);
+      expect(oldUser.tokenAmount.toNumber()).to.be.equal(newUser.tokenAmount.toNumber() + 503);
       expect(oldUser.totalWeight.toNumber()).to.be.equal(newUser.totalWeight.toNumber());
       expect(oldUsersLockingWeight.toNumber()).to.be.equal(newUsersLockingWeight.toNumber());
+    });
+  });
+
+  describe("stApeXBalance", function () {
+    beforeEach(async function () {
+      await apexStakingPool.stake(10000, 0);
+      await apexStakingPool.processRewards();
+      await esApeX.approve(stakingPoolFactory.address, 10000000);
+    });
+
+    it("vest dont change stApeXBalance", async function () {
+      let stApeXBalance = await apexStakingPool.stApeXBalance(owner.address);
+      expect(stApeXBalance.toNumber()).to.be.equal(10000);
+
+      await apexStakingPool.vest(5);
+      stApeXBalance = await apexStakingPool.stApeXBalance(owner.address);
+      expect(stApeXBalance.toNumber()).to.be.equal(10000);
+    });
+
+    it("stake, stakeEsApeX, batchWithdraw change stApeXBalance", async function () {
+      let amount = (await esApeX.balanceOf(owner.address)).toNumber();
+      expect(amount).to.greaterThan(5);
+      let stApeXBalance = await apexStakingPool.stApeXBalance(owner.address);
+      expect(stApeXBalance.toNumber()).to.be.equal(10000);
+
+      await stakingPoolFactory.setLockTime(1);
+      await apexStakingPool.stakeEsApeX(5, 0);
+      stApeXBalance = await apexStakingPool.stApeXBalance(owner.address);
+      expect(stApeXBalance.toNumber()).to.be.equal(10005);
+
+      await mineBlocks(100);
+      await apexStakingPool.batchWithdraw([], [], [], [], [0], [5]);
+      stApeXBalance = await apexStakingPool.stApeXBalance(owner.address);
+      expect(stApeXBalance.toNumber()).to.be.equal(10000);
+
+      await apexStakingPool.batchWithdraw([0], [10000], [], [], [], []);
+      stApeXBalance = await apexStakingPool.stApeXBalance(owner.address);
+      expect(stApeXBalance.toNumber()).to.be.equal(0);
     });
   });
 });

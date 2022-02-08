@@ -25,6 +25,8 @@ interface IStakingPoolFactory {
 
     function apeX() external view returns (address);
 
+    function esApeX() external view returns (address);
+
     function lastUpdateTimestamp() external view returns (uint256);
 
     function secSpanPerUpdate() external view returns (uint256);
