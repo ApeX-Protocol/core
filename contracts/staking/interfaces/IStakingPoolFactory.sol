@@ -19,6 +19,10 @@ interface IStakingPoolFactory {
 
     event TransferYieldTo(address by, address to, uint256 amount);
 
+    event TransferEsApeXTo(address by, address to, uint256 amount);
+
+    event TransferEsApeXFrom(address from, address to, uint256 amount);
+
     function apeX() external view returns (address);
 
     function lastUpdateTimestamp() external view returns (uint256);
@@ -87,4 +91,16 @@ interface IStakingPoolFactory {
 
     /// @notice set minimum reward ratio when force withdraw locked rewards
     function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external;
+
+    function mintEsApeX(address to, uint256 _amount) external;
+
+    function burnEsApeX(address from, uint256 amount) external;
+
+    function transferEsApeXTo(address to, uint256 amount) external;
+
+    function transferEsApeXFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external;
 }
