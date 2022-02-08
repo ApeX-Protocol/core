@@ -42,9 +42,9 @@ contract StakingPool is IStakingPool, Reentrant {
         IERC20(poolToken).transferFrom(msg.sender, address(this), _amount);
     }
 
-    function stakeEsApeX(uint256 _amount) external override {
+    function stakeEsApeX(uint256 _amount, uint256 _lockUntil) external override {
         require(poolToken == apeX, "sp.stakeEsApeX: INVALID_POOL_TOKEN");
-        _stake(_amount, 0, true);
+        _stake(_amount, _lockUntil, true);
         factory.transferEsApeXFrom(msg.sender, address(factory), _amount);
     }
 
@@ -58,11 +58,8 @@ contract StakingPool is IStakingPool, Reentrant {
         uint256 lockTime = factory.lockTime();
         require(
             _lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + lockTime),
-            "sp._stake: INVALID_LOCK_INTERVAL"
+            "sp._stake: INVALID_LOCK_UNTIL"
         );
-        if (isEsApeX) {
-            _lockUntil = now256 + lockTime;
-        }
 
         address _staker = msg.sender;
         User storage user = users[_staker];
@@ -163,7 +160,10 @@ contract StakingPool is IStakingPool, Reentrant {
                 _id = esDepositIds[i];
                 require(_amount != 0, "sp.batchWithdraw: INVALID_ESDEPOSIT_AMOUNT");
                 stakeDeposit = user.esDeposits[_id];
-                require(block.timestamp > stakeDeposit.lockUntil, "sp.batchWithdraw: ESDEPOSIT_LOCKED");
+                require(
+                    stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockUntil,
+                    "sp.batchWithdraw: ESDEPOSIT_LOCKED"
+                );
                 require(stakeDeposit.amount >= _amount, "sp.batchWithdraw: EXCEED_ESDEPOSIT_STAKED");
 
                 newWeight =
@@ -201,10 +201,7 @@ contract StakingPool is IStakingPool, Reentrant {
                 _id = yieldIds[i];
                 require(_amount != 0, "sp.batchWithdraw: INVALID_YIELD_AMOUNT");
                 stakeYield = user.yields[_id];
-                require(
-                    stakeYield.lockFrom == 0 || block.timestamp > stakeYield.lockUntil,
-                    "sp.batchWithdraw: YIELD_LOCKED"
-                );
+                require(block.timestamp > stakeYield.lockUntil, "sp.batchWithdraw: YIELD_LOCKED");
                 require(stakeYield.amount >= _amount, "sp.batchWithdraw: EXCEED_YIELD_STAKED");
 
                 yieldAmount += _amount;
