@@ -83,7 +83,7 @@ interface IStakingPool {
     /// @param lockUntil time to lock.
     function stake(uint256 amount, uint256 lockUntil) external;
 
-    function stakeEsApeX(uint256 amount, uint256 _lockUntil) external;
+    function stakeEsApeX(uint256 amount, uint256 lockUntil) external;
 
     function vest(uint256 amount) external;
 

@@ -58,7 +58,7 @@ contract StakingPool is IStakingPool, Reentrant {
         uint256 lockTime = factory.lockTime();
         require(
             _lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + lockTime),
-            "sp._stake: INVALID_LOCK_UNTIL"
+            "sp._stake: INVALID_LOCK_INTERVAL"
         );
 
         address _staker = msg.sender;

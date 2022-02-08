@@ -65,7 +65,9 @@ describe("stakingPool contract", function () {
     });
 
     it("reverted when exceed balance", async function () {
-      await expect(apexStakingPool.stake(10000, invalidLockUntil)).to.be.revertedWith("sp._stake: INVALID_LOCK_UNTIL");
+      await expect(apexStakingPool.stake(10000, invalidLockUntil)).to.be.revertedWith(
+        "sp._stake: INVALID_LOCK_INTERVAL"
+      );
     });
 
     it("stake successfully", async function () {
