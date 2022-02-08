@@ -42,10 +42,10 @@ contract StakingPool is IStakingPool, Reentrant {
         IERC20(poolToken).transferFrom(msg.sender, address(this), _amount);
     }
 
-    function stakeEsApeX(uint256 _amount, uint256 _lockUntil) external override {
+    function stakeEsApeX(uint256 _amount) external override {
         require(poolToken == apeX, "sp.stakeEsApeX: INVALID_POOL_TOKEN");
-        _stake(_amount, _lockUntil, true);
-        factory.transferEsApeXFrom(msg.sender, address(this), _amount);
+        _stake(_amount, 0, true);
+        factory.transferEsApeXFrom(msg.sender, address(factory), _amount);
     }
 
     function _stake(
@@ -60,6 +60,9 @@ contract StakingPool is IStakingPool, Reentrant {
             _lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + lockTime),
             "sp._stake: INVALID_LOCK_INTERVAL"
         );
+        if (isEsApeX) {
+            _lockUntil = now256 + lockTime;
+        }
 
         address _staker = msg.sender;
         User storage user = users[_staker];
@@ -160,10 +163,7 @@ contract StakingPool is IStakingPool, Reentrant {
                 _id = esDepositIds[i];
                 require(_amount != 0, "sp.batchWithdraw: INVALID_ESDEPOSIT_AMOUNT");
                 stakeDeposit = user.esDeposits[_id];
-                require(
-                    stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockUntil,
-                    "sp.batchWithdraw: ESDEPOSIT_LOCKED"
-                );
+                require(block.timestamp > stakeDeposit.lockUntil, "sp.batchWithdraw: ESDEPOSIT_LOCKED");
                 require(stakeDeposit.amount >= _amount, "sp.batchWithdraw: EXCEED_ESDEPOSIT_STAKED");
 
                 newWeight =
@@ -224,7 +224,9 @@ contract StakingPool is IStakingPool, Reentrant {
         }
 
         if (stakeAmount > 0) {
-            stApeXBalance[msg.sender] -= stakeAmount;
+            if (poolToken == apeX) {
+                stApeXBalance[msg.sender] -= stakeAmount;
+            }
             user.tokenAmount -= stakeAmount;
             IERC20(poolToken).transfer(msg.sender, stakeAmount);
         }
@@ -381,8 +383,7 @@ contract StakingPool is IStakingPool, Reentrant {
         uint256 lockUntil = now256 + factory.lockTime();
         emit YieldClaimed(msg.sender, user.yields.length, vestAmount, now256, lockUntil);
 
-        Yield memory newYield = Yield({amount: vestAmount, lockFrom: now256, lockUntil: lockUntil});
-        user.yields.push(newYield);
+        user.yields.push(Yield({amount: vestAmount, lockFrom: now256, lockUntil: lockUntil}));
         user.tokenAmount += vestAmount;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
 
