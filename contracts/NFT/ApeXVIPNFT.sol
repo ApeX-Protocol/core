@@ -3,14 +3,13 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC721/presets/ERC721PresetMinterPauserAutoId.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-
 import "../core/interfaces/IERC20.sol";
 
 contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
   
-    uint256 public totalEth = 0;
+    uint256 public totalEth;
     uint256 public remainOwners = 20;
-    uint256 public id = 0;
+    uint256 public id;
 
     mapping(address => bool) public whitelist;
     mapping(address => bool) public buyer;
@@ -40,8 +39,8 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
         startTime = _startTime;
         endTime = _startTime + _duration;
         cliffTime = _startTime + _cliff;
-         _mint(msg.sender, id);
-         id++;
+        _mint(msg.sender, id);
+        id++;
     }
 
     function setTotalAmount(uint256 _totalAmount) external onlyOwner {
