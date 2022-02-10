@@ -49,6 +49,8 @@ interface IStakingPoolFactory {
     /// @notice get minimum remain ratio after force withdraw
     function minRemainRatioAfterBurn() external view returns (uint256);
 
+    function remainForOtherVest() external view returns (uint256);
+
     /// @notice get stakingPool's poolToken
     function poolTokenMap(address pool) external view returns (address);
 
@@ -101,6 +103,8 @@ interface IStakingPoolFactory {
 
     /// @notice set minimum reward ratio when force withdraw locked rewards
     function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external;
+
+    function setRemainForOtherVest(uint256 _remainForOtherVest) external;
 
     function mintEsApeX(address to, uint256 _amount) external;
 

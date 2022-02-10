@@ -20,6 +20,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     uint256 public override endTimestamp;
     uint256 public override lockTime;
     uint256 public override minRemainRatioAfterBurn; //10k-based
+    uint256 public override remainForOtherVest = 50; //100-based
     mapping(address => PoolInfo) public pools;
     mapping(address => address) public override poolTokenMap;
 
@@ -157,6 +158,11 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external override onlyOwner {
         require(_minRemainRatioAfterBurn <= 10000, "cpf.setMinRemainRatioAfterBurn: INVALID_VALUE");
         minRemainRatioAfterBurn = _minRemainRatioAfterBurn;
+    }
+
+    function setRemainForOtherVest(uint256 _remainForOtherVest) external override onlyOwner {
+        require(_remainForOtherVest <= 100, "cpf.setRemainForOtherVest: INVALID_VALUE");
+        remainForOtherVest = _remainForOtherVest;
     }
 
     function calStakingPoolApeXReward(uint256 _lastYieldDistribution, address _poolToken)
