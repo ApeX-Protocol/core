@@ -31,6 +31,7 @@ describe("stakingPool contract", function () {
     slpToken = await MockToken.deploy("slp token", "slp");
     stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
       apexToken.address,
+      addr1.address,
       apeXPerSec,
       secSpanPerUpdate,
       initTimestamp,
@@ -144,7 +145,6 @@ describe("stakingPool contract", function () {
       await apexStakingPool.stake(10000, 0);
       await apexStakingPool.processRewards();
       await esApeX.approve(stakingPoolFactory.address, 10000000);
-      console.log(await esApeX.balanceOf(owner.address));
       await stakingPoolFactory.setLockTime(15758000);
     });
 
@@ -226,6 +226,7 @@ describe("stakingPool contract", function () {
       await apexToken.approve(apexStakingPool.address, 20000);
 
       await stakingPoolFactory.setMinRemainRatioAfterBurn(5000);
+      await stakingPoolFactory.setRemainForOtherVest(50);
       await apexStakingPool.stake(10000, 0);
     });
 
@@ -249,6 +250,7 @@ describe("stakingPool contract", function () {
       await network.provider.send("evm_mine");
       await network.provider.send("evm_mine");
       let oldBalance = (await apexToken.balanceOf(owner.address)).toNumber();
+      let treasuryOldBalance = (await apexToken.balanceOf(addr1.address)).toNumber();
 
       await slpStakingPool.processRewards();
       await esApeX.approve(stakingPoolFactory.address, 10000000);
@@ -264,10 +266,12 @@ describe("stakingPool contract", function () {
       expect(await apexStakingPool.getYieldsLength(owner.address)).to.be.equal(1);
 
       let newBalance = (await apexToken.balanceOf(owner.address)).toNumber();
-      expect(newBalance).to.be.equal(oldBalance + 285);
+      let treasuryNewBalance = (await apexToken.balanceOf(addr1.address)).toNumber();
+      expect(newBalance).to.be.equal(oldBalance + 325);
+      expect(treasuryNewBalance).to.be.equal(treasuryOldBalance + 134);
       let newUser = await apexStakingPool.users(owner.address);
       let newUsersLockingWeight = await apexStakingPool.usersLockingWeight();
-      expect(oldUser.tokenAmount.toNumber()).to.be.equal(newUser.tokenAmount.toNumber() + 503);
+      expect(oldUser.tokenAmount.toNumber()).to.be.equal(newUser.tokenAmount.toNumber() + 575);
       expect(oldUser.totalWeight.toNumber()).to.be.equal(newUser.totalWeight.toNumber());
       expect(oldUsersLockingWeight.toNumber()).to.be.equal(newUsersLockingWeight.toNumber());
     });

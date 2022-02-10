@@ -29,6 +29,7 @@ describe("stakingPoolFactory contract", function () {
     slpToken = await MockToken.deploy("slp token", "slp");
     stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
       apexToken.address,
+      addr1.address,
       apeXPerSec,
       secSpanPerUpdate,
       initTimestamp,

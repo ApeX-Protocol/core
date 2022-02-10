@@ -266,12 +266,18 @@ contract StakingPool is IStakingPool, Reentrant {
             user.subYieldRewards;
         yieldAmount += ((deltaNewYieldReward * minRemainRatio) / 10000);
 
-        //remaining apeX to boost remaining staker
+        //half of remaining apeX to boost remain vester
+        uint256 remainApeX = deltaTotalAmount + deltaNewYieldReward - yieldAmount;
+        uint256 remainForOtherVest = factory.remainForOtherVest();
         uint256 newYieldRewardsPerWeight = _yieldRewardsPerWeight +
-            ((deltaTotalAmount + deltaNewYieldReward - yieldAmount) * REWARD_PER_WEIGHT_MULTIPLIER) /
+            ((remainApeX * REWARD_PER_WEIGHT_MULTIPLIER) * remainForOtherVest) /
+            100 /
             usersLockingWeight;
         yieldRewardsPerWeight = newYieldRewardsPerWeight;
         user.subYieldRewards = (user.totalWeight * newYieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
+
+        //half of remaining apeX to transfer to treasury
+        factory.transferYieldToTreasury(remainApeX - (remainApeX * remainForOtherVest) / 100);
 
         user.tokenAmount -= deltaTotalAmount;
         factory.burnEsApeX(address(this), deltaTotalAmount);
