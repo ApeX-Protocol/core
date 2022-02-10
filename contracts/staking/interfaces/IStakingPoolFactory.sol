@@ -19,13 +19,19 @@ interface IStakingPoolFactory {
 
     event TransferYieldTo(address by, address to, uint256 amount);
 
+    event TransferYieldToTreasury(address by, address to, uint256 amount);
+
     event TransferEsApeXTo(address by, address to, uint256 amount);
 
     event TransferEsApeXFrom(address from, address to, uint256 amount);
 
+    event SetEsApeX(address esApeX);
+
     function apeX() external view returns (address);
 
     function esApeX() external view returns (address);
+
+    function treasury() external view returns (address);
 
     function lastUpdateTimestamp() external view returns (uint256);
 
@@ -86,6 +92,8 @@ interface IStakingPoolFactory {
     /// @param _amount apex amount.
     function transferYieldTo(address _to, uint256 _amount) external;
 
+    function transferYieldToTreasury(uint256 _amount) external;
+
     /// @notice change a pool's weight
     /// @param poolAddr the pool.
     /// @param weight new weight.
@@ -105,4 +113,6 @@ interface IStakingPoolFactory {
         address to,
         uint256 amount
     ) external;
+
+    function setEsApeX(address _esApeX) external;
 }

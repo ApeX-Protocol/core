@@ -69,15 +69,12 @@ contract Margin is IMargin, IVault, Reentrant {
         address to,
         uint256 withdrawAmount
     ) external override nonReentrant {
-        //tocheck can remove this require?
         require(withdrawAmount > 0, "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT");
         if (msg.sender != trader) {
-            //tocheck if new router is harmful
             require(IConfig(config).routerMap(msg.sender), "Margin.removeMargin: FORBIDDEN");
         }
         int256 _latestCPF = updateCPF();
 
-        //tocheck test carefully if withdraw margin more than withdrawable
         Position memory traderPosition = traderPositionMap[trader];
 
         int256 baseAmountFunding;
@@ -413,7 +410,6 @@ contract Margin is IMargin, IVault, Reentrant {
         require(msg.sender == amm, "Margin.deposit: REQUIRE_AMM");
         require(amount > 0, "Margin.deposit: AMOUNT_IS_ZERO");
         uint256 balance = IERC20(baseToken).balanceOf(address(this));
-        //tocheck if balance contains protocol profit?
         require(amount <= balance - reserve, "Margin.deposit: INSUFFICIENT_AMOUNT");
 
         reserve = reserve + amount;
@@ -436,7 +432,6 @@ contract Margin is IMargin, IVault, Reentrant {
         address receiver,
         uint256 amount
     ) internal {
-        //tocheck can remove this following two require?
         require(amount > 0, "Margin._withdraw: AMOUNT_IS_ZERO");
         require(amount <= reserve, "Margin._withdraw: NOT_ENOUGH_RESERVE");
         reserve = reserve - amount;
@@ -652,7 +647,6 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 b = (10000 - IConfig(config).initMarginRatio());
             //calculate how many base needed to maintain current position
             uint256 baseNeeded = a / b;
-            //tocheck need to consider this case
             if (a % b != 0) {
                 baseNeeded += 1;
             }
@@ -675,8 +669,6 @@ contract Margin is IMargin, IVault, Reentrant {
         }
     }
 
-    //debt*10000/asset
-    //tocheck if no repair the MarkPriceAcc equation, have chance to liquidate a little bit late when debtRatio triggered
     function _calDebtRatio(int256 quoteSize, int256 baseSize) internal view returns (uint256 debtRatio) {
         if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
             debtRatio = 0;
@@ -692,7 +684,6 @@ contract Margin is IMargin, IVault, Reentrant {
                 false
             );
 
-            //tocheck debtRatio range?
             debtRatio = baseAmount == 0 ? 10000 : (baseSize.abs() * 10000) / baseAmount;
         } else {
             uint256 quoteAmount = quoteSize.abs();
@@ -705,7 +696,6 @@ contract Margin is IMargin, IVault, Reentrant {
             );
 
             uint256 ratio = (baseAmount * 10000) / baseSize.abs();
-            //tocheck debtRatio range?
             debtRatio = 10000 < ratio ? 10000 : ratio;
         }
     }
@@ -808,7 +798,6 @@ contract Margin is IMargin, IVault, Reentrant {
                 false
             );
 
-            //tocheck debtRatio range?
             debtRatio = baseAmount == 0 ? 10000 : (baseSize.abs() * 10000) / baseAmount;
         } else {
             uint256 quoteAmount = quoteSize.abs();
@@ -821,7 +810,6 @@ contract Margin is IMargin, IVault, Reentrant {
             );
 
             uint256 ratio = (baseAmount * 10000) / baseSize.abs();
-            //tocheck debtRatio range?
             debtRatio = 10000 < ratio ? 10000 : ratio;
         }
     }
@@ -856,7 +844,6 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 b = (10000 - IConfig(config).initMarginRatio());
             //calculate how many base needed to maintain current position
             baseNeeded = a / b;
-            //tocheck need to consider this case
             if (a % b != 0) {
                 baseNeeded += 1;
             }
