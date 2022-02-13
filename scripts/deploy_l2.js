@@ -60,7 +60,7 @@ const main = async () => {
   // await createPairFactory();
   // await createPCVTreasury();
   // await createRouter();
-  await createBondPriceOracle();
+  // await createBondPriceOracle();
   // await createBondPoolFactory();
   // await createStakingPoolFactory();
   // await createInvitation();
@@ -70,7 +70,7 @@ const main = async () => {
   // await createMockTokens();
   // await createPairForVerify();
   // await createMockPair();
-  // await createMockBondPool();
+  await createMockBondPool();
   // await bond();
   // await createMockStakingPool();
 };
@@ -182,7 +182,7 @@ async function createBondPoolFactory() {
     pcvTreasuryAddress = pcvTreasury.address;
   }
   if (bondPriceOracle == null) {
-    let priceOracleAddress = "0x8B9e655aFfe0ea849Fb869D11cC50B64E21770c6";
+    let priceOracleAddress = "0xa9fdC25153A5f8a7F31c129626043D09B606bf87";
     const BondPriceOracle = await ethers.getContractFactory("BondPriceOracle");
     bondPriceOracle = await BondPriceOracle.attach(priceOracleAddress);
   }
@@ -302,7 +302,7 @@ async function createMockPair() {
 async function createMockBondPool() {
   ammAddress = "0xE5140fE7eEE8D522464a542767c6B14Cf1251051";
   if (bondPoolFactory == null) {
-    let bondPoolFactoryAddress = "0xfe89b5434a27273152927f60e244451058F06256";
+    let bondPoolFactoryAddress = "0x757e06E3B4B9b28CeCD4c11b0E8267428A0ad29D";
     const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
     bondPoolFactory = await BondPoolFactory.attach(bondPoolFactoryAddress);
   }
