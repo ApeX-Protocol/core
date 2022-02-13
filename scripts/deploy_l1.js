@@ -16,7 +16,7 @@ let vipNftDuration = 36000;
 
 let squidNftName = "ApeX-Squid-NFT";
 let squidNftSymbol = "APEX-SQU-NFT";
-let squidNftBaseURI = "https://gateway.pinata.cloud/ipfs/QmPdTKdcm9KNHpS6jYFX2P2SyGeF5xcrw7MAWZFeVM4YgC";
+let squidNftBaseURI = "https://testapex.mypinata.cloud/ipfs/Qmb7MB92bUNvroCEnU1G972sbyaB1dYYdZtBWqmg1BiLES";
 let squidNftStartTime = Math.round(new Date().getTime() / 1000) + 3600;
 let squidNftEndTime = squidNftStartTime + 36000;
 let squidStartTime = squidNftEndTime + 36000;
@@ -24,9 +24,10 @@ let squidStartTime = squidNftEndTime + 36000;
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  await createApeXToken();
-  await createVipNft();
-  await createNftSquid();
+  // await createApeXToken();
+  // await createVipNft();
+  // await createNftSquid();
+  await createMulticall2();
 };
 
 async function createApeXToken() {
@@ -38,7 +39,7 @@ async function createApeXToken() {
 
 async function createVipNft() {
   if (apeXToken == null) {
-    let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+    let apeXTokenAddress = "0xf5233793F07cC3a229F498744De6eEA7c52B2dAe";
     const ApeXToken = await ethers.getContractFactory("ApeXToken");
     apeXToken = await ApeXToken.attach(apeXTokenAddress);
   }
@@ -69,7 +70,7 @@ async function createVipNft() {
 
 async function createNftSquid() {
   if (apeXToken == null) {
-    let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+    let apeXTokenAddress = "0xf5233793F07cC3a229F498744De6eEA7c52B2dAe";
     const ApeXToken = await ethers.getContractFactory("ApeXToken");
     apeXToken = await ApeXToken.attach(apeXTokenAddress);
   }
@@ -95,6 +96,13 @@ async function createNftSquid() {
     squidNftStartTime,
     squidNftEndTime
   );
+}
+
+async function createMulticall2() {
+  const Multicall2 = await ethers.getContractFactory("Multicall2");
+  multicall2 = await Multicall2.deploy();
+  console.log("Multicall2:", multicall2.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, multicall2.address);
 }
 
 main()

@@ -11,7 +11,7 @@ contract Invitation {
     }
 
     mapping(address => UserInvitation) public userInvitations;
-    uint256 public totalRegisterCount = 0;
+    uint256 public totalRegisterCount;
 
     function register() external returns (bool) {
         UserInvitation storage user = userInvitations[msg.sender];
