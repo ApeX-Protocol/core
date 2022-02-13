@@ -45,7 +45,7 @@ contract StakingPool is IStakingPool, Reentrant {
     function stakeEsApeX(uint256 _amount, uint256 _lockUntil) external override {
         require(poolToken == apeX, "sp.stakeEsApeX: INVALID_POOL_TOKEN");
         _stake(_amount, _lockUntil, true);
-        factory.transferEsApeXFrom(msg.sender, address(this), _amount);
+        factory.transferEsApeXFrom(msg.sender, address(factory), _amount);
     }
 
     function _stake(
@@ -201,10 +201,7 @@ contract StakingPool is IStakingPool, Reentrant {
                 _id = yieldIds[i];
                 require(_amount != 0, "sp.batchWithdraw: INVALID_YIELD_AMOUNT");
                 stakeYield = user.yields[_id];
-                require(
-                    stakeYield.lockFrom == 0 || block.timestamp > stakeYield.lockUntil,
-                    "sp.batchWithdraw: YIELD_LOCKED"
-                );
+                require(block.timestamp > stakeYield.lockUntil, "sp.batchWithdraw: YIELD_LOCKED");
                 require(stakeYield.amount >= _amount, "sp.batchWithdraw: EXCEED_YIELD_STAKED");
 
                 yieldAmount += _amount;
@@ -224,7 +221,9 @@ contract StakingPool is IStakingPool, Reentrant {
         }
 
         if (stakeAmount > 0) {
-            stApeXBalance[msg.sender] -= stakeAmount;
+            if (poolToken == apeX) {
+                stApeXBalance[msg.sender] -= stakeAmount;
+            }
             user.tokenAmount -= stakeAmount;
             IERC20(poolToken).transfer(msg.sender, stakeAmount);
         }
@@ -267,12 +266,18 @@ contract StakingPool is IStakingPool, Reentrant {
             user.subYieldRewards;
         yieldAmount += ((deltaNewYieldReward * minRemainRatio) / 10000);
 
-        //remaining apeX to boost remaining staker
+        //half of remaining apeX to boost remain vester
+        uint256 remainApeX = deltaTotalAmount + deltaNewYieldReward - yieldAmount;
+        uint256 remainForOtherVest = factory.remainForOtherVest();
         uint256 newYieldRewardsPerWeight = _yieldRewardsPerWeight +
-            ((deltaTotalAmount + deltaNewYieldReward - yieldAmount) * REWARD_PER_WEIGHT_MULTIPLIER) /
+            ((remainApeX * REWARD_PER_WEIGHT_MULTIPLIER) * remainForOtherVest) /
+            100 /
             usersLockingWeight;
         yieldRewardsPerWeight = newYieldRewardsPerWeight;
         user.subYieldRewards = (user.totalWeight * newYieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
+
+        //half of remaining apeX to transfer to treasury
+        factory.transferYieldToTreasury(remainApeX - (remainApeX * remainForOtherVest) / 100);
 
         user.tokenAmount -= deltaTotalAmount;
         factory.burnEsApeX(address(this), deltaTotalAmount);
@@ -381,8 +386,7 @@ contract StakingPool is IStakingPool, Reentrant {
         uint256 lockUntil = now256 + factory.lockTime();
         emit YieldClaimed(msg.sender, user.yields.length, vestAmount, now256, lockUntil);
 
-        Yield memory newYield = Yield({amount: vestAmount, lockFrom: now256, lockUntil: lockUntil});
-        user.yields.push(newYield);
+        user.yields.push(Yield({amount: vestAmount, lockFrom: now256, lockUntil: lockUntil}));
         user.tokenAmount += vestAmount;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
 

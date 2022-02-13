@@ -6,32 +6,40 @@ describe("stakingPoolFactory contract", function () {
   let owner;
   let stakingPoolFactory;
   let slpToken;
+  let esApeX;
   let mockStakingPool;
   let initTimestamp = 1641781192;
   let endTimestamp = 1673288342;
   let secSpanPerUpdate = 2;
   let apeXPerSec = 100;
+  let lockTime = 3600 * 24 * 180;
   let apexStakingPool;
   let addr1;
+  let addr2;
 
   beforeEach(async function () {
-    [owner, addr1] = await ethers.getSigners();
+    [owner, addr1, addr2] = await ethers.getSigners();
 
     const MockToken = await ethers.getContractFactory("MockToken");
     const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
     const StakingPool = await ethers.getContractFactory("StakingPool");
+    const EsAPEX = await ethers.getContractFactory("EsAPEX");
 
     apexToken = await MockToken.deploy("apex token", "at");
     slpToken = await MockToken.deploy("slp token", "slp");
     stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
       apexToken.address,
+      addr1.address,
       apeXPerSec,
       secSpanPerUpdate,
       initTimestamp,
       endTimestamp,
+      lockTime,
     ]);
     mockStakingPool = await StakingPool.deploy(stakingPoolFactory.address, slpToken.address, apexToken.address, 10);
+    esApeX = await EsAPEX.deploy(stakingPoolFactory.address);
 
+    await stakingPoolFactory.setEsApeX(esApeX.address);
     await stakingPoolFactory.createPool(apexToken.address, initTimestamp, 21);
     let apexStakingPoolAddr = (await stakingPoolFactory.pools(apexToken.address))[0];
     apexStakingPool = await StakingPool.attach(apexStakingPoolAddr);
@@ -112,6 +120,38 @@ describe("stakingPoolFactory contract", function () {
     it("reverted when transfer apeX by unauthorized account", async function () {
       await expect(stakingPoolFactory.transferYieldTo(addr1.address, 10)).to.be.revertedWith(
         "cpf.transferYieldTo: ACCESS_DENIED"
+      );
+    });
+  });
+
+  describe("transferEsApeXTo", function () {
+    it("reverted when transfer EsApeX by unauthorized account", async function () {
+      await expect(stakingPoolFactory.transferEsApeXTo(addr1.address, 10)).to.be.revertedWith(
+        "cpf.transferEsApeXTo: ACCESS_DENIED"
+      );
+    });
+  });
+
+  describe("transferEsApeXFrom", function () {
+    it("reverted when transfer EsApeX by unauthorized account", async function () {
+      await expect(stakingPoolFactory.transferEsApeXFrom(addr1.address, addr2.address, 10)).to.be.revertedWith(
+        "cpf.transferEsApeXFrom: ACCESS_DENIED"
+      );
+    });
+  });
+
+  describe("burnEsApeX", function () {
+    it("reverted when burn EsApeX by unauthorized account", async function () {
+      await expect(stakingPoolFactory.burnEsApeX(addr1.address, 10)).to.be.revertedWith(
+        "cpf.burnEsApeX: ACCESS_DENIED"
+      );
+    });
+  });
+
+  describe("mintEsApeX", function () {
+    it("reverted when mint EsApeX by unauthorized account", async function () {
+      await expect(stakingPoolFactory.mintEsApeX(addr1.address, 10)).to.be.revertedWith(
+        "cpf.mintEsApeX: ACCESS_DENIED"
       );
     });
   });

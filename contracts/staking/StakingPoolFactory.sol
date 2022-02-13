@@ -11,7 +11,8 @@ import "./interfaces/IERC20Extend.sol";
 //this is a stakingPool factory to create and register stakingPool, distribute ApeX token according to pools' weight
 contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     address public override apeX;
-    address public esApeX;
+    address public override esApeX;
+    address public override treasury;
     uint256 public override lastUpdateTimestamp;
     uint256 public override secSpanPerUpdate;
     uint256 public override apeXPerSec;
@@ -19,13 +20,14 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     uint256 public override endTimestamp;
     uint256 public override lockTime;
     uint256 public override minRemainRatioAfterBurn; //10k-based
+    uint256 public override remainForOtherVest = 50; //100-based
     mapping(address => PoolInfo) public pools;
     mapping(address => address) public override poolTokenMap;
 
     //upgradableProxy StakingPoolFactory only initialized once
     function initialize(
         address _apeX,
-        address _esApeX,
+        address _treasury,
         uint256 _apeXPerSec,
         uint256 _secSpanPerUpdate,
         uint256 _initTimestamp,
@@ -33,7 +35,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         uint256 _lockTime
     ) public initializer {
         require(_apeX != address(0), "cpf.initialize: INVALID_APEX");
-        require(_esApeX != address(0), "cpf.initialize: INVALID_ESAPEX");
+        require(_treasury != address(0), "cpf.initialize: INVALID_TREASURY");
         require(_apeXPerSec > 0, "cpf.initialize: INVALID_PER_SEC");
         require(_secSpanPerUpdate > 0, "cpf.initialize: INVALID_UPDATE_SPAN");
         require(_initTimestamp > 0, "cpf.initialize: INVALID_INIT_TIMESTAMP");
@@ -42,7 +44,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
 
         owner = msg.sender;
         apeX = _apeX;
-        esApeX = _esApeX;
+        treasury = _treasury;
         apeXPerSec = _apeXPerSec;
         secSpanPerUpdate = _secSpanPerUpdate;
         lastUpdateTimestamp = _initTimestamp;
@@ -95,14 +97,22 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     }
 
     function transferYieldTo(address _to, uint256 _amount) external override {
-        require(pools[apeX].pool != msg.sender, "cpf.transferYieldTo: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "cpf.transferYieldTo: ACCESS_DENIED");
 
         emit TransferYieldTo(msg.sender, _to, _amount);
         IERC20(apeX).transfer(_to, _amount);
     }
 
+    function transferYieldToTreasury(uint256 _amount) external override {
+        require(poolTokenMap[msg.sender] != address(0), "cpf.transferYieldToTreasury: ACCESS_DENIED");
+
+        address _treasury = treasury;
+        emit TransferYieldToTreasury(msg.sender, _treasury, _amount);
+        IERC20(apeX).transfer(_treasury, _amount);
+    }
+
     function transferEsApeXTo(address _to, uint256 _amount) external override {
-        require(pools[apeX].pool != msg.sender, "cpf.transferEsApeXTo: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "cpf.transferEsApeXTo: ACCESS_DENIED");
 
         emit TransferEsApeXTo(msg.sender, _to, _amount);
         IERC20(esApeX).transfer(_to, _amount);
@@ -113,19 +123,19 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         address _to,
         uint256 _amount
     ) external override {
-        require(pools[apeX].pool != msg.sender, "cpf.transferEsApeXFrom: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "cpf.transferEsApeXFrom: ACCESS_DENIED");
 
         emit TransferEsApeXFrom(_from, _to, _amount);
         IERC20(esApeX).transferFrom(_from, _to, _amount);
     }
 
     function burnEsApeX(address from, uint256 amount) external override {
-        require(pools[apeX].pool != msg.sender, "cpf.burnEsApeX: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "cpf.burnEsApeX: ACCESS_DENIED");
         IERC20Extend(esApeX).burn(from, amount);
     }
 
     function mintEsApeX(address to, uint256 amount) external override {
-        require(pools[apeX].pool != msg.sender, "cpf.mintEsApeX: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "cpf.mintEsApeX: ACCESS_DENIED");
         IERC20Extend(esApeX).mint(to, amount);
     }
 
@@ -140,7 +150,6 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     }
 
     function setLockTime(uint256 _lockTime) external onlyOwner {
-        require(_lockTime > lockTime, "cpf.setLockTime: INVALID_LOCK_TIME");
         lockTime = _lockTime;
 
         emit SetYieldLockTime(_lockTime);
@@ -149,6 +158,11 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external override onlyOwner {
         require(_minRemainRatioAfterBurn <= 10000, "cpf.setMinRemainRatioAfterBurn: INVALID_VALUE");
         minRemainRatioAfterBurn = _minRemainRatioAfterBurn;
+    }
+
+    function setRemainForOtherVest(uint256 _remainForOtherVest) external override onlyOwner {
+        require(_remainForOtherVest <= 100, "cpf.setRemainForOtherVest: INVALID_VALUE");
+        remainForOtherVest = _remainForOtherVest;
     }
 
     function calStakingPoolApeXReward(uint256 _lastYieldDistribution, address _poolToken)
@@ -174,7 +188,14 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         return pools[_poolToken].pool;
     }
 
-    //just for dev use
+    function setEsApeX(address _esApeX) external override onlyOwner {
+        require(esApeX == address(0), "cpf.setEsApeX: INVALID_ADDRESS");
+        esApeX = _esApeX;
+
+        emit SetEsApeX(_esApeX);
+    }
+
+    //tocheck just for dev use
     function setApeXPerSec(uint256 _apeXPerSec) external onlyOwner {
         apeXPerSec = _apeXPerSec;
     }
