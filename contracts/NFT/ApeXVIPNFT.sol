@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "../core/interfaces/IERC20.sol";
 
 contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
-  
     uint256 public totalEth;
     uint256 public remainOwners = 20;
     uint256 public id;
@@ -20,7 +19,8 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
     // every buyer get
     uint256 public totalAmount = 1041666;
     // nft per price 
-    uint256 public price = 50 ether;
+    // uint256 public price = 50 ether;
+    uint256 public price = 0.01 ether; // for test
     mapping(address => uint256) public claimed;
     address public token;
 

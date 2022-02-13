@@ -27,7 +27,7 @@ contract BondPriceOracle is IBondPriceOracle, Initializable {
     address public v2Factory;
     uint24[3] public v3Fees;
 
-    uint16 public constant cardinality = 120;
+    uint16 public constant cardinality = 12;
     uint32 public constant twapInterval = 3600; // 1 hour
     uint256 public constant periodSize = 300; // 5 min
     
@@ -44,6 +44,7 @@ contract BondPriceOracle is IBondPriceOracle, Initializable {
         v3Fees[1] = 3000;
         v3Fees[2] = 10000;
         v2Pair = IUniswapV2Factory(v2Factory).getPair(apeX, WETH);
+        v2Observations.update(v2Pair, periodSize, cardinality);
     }
 
     function setupTwap(address bondPool) external override {
