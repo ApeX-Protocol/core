@@ -9,18 +9,15 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 private constant HALF_YEAR = 180 days;
     uint256 private constant MULTIPLIER = 1e18;
     uint256 internal constant BURN_DISCOUNT = 40;
-    //todo
     uint256 internal constant BONUS_PERPAX = 1500 * 10**18;
-    //todo
     uint256 internal constant BASE_AMOUNT = 3000 * 10**18;
-    //todo
-    uint256 public constant price = 0.45 ether;
+    // uint256 public constant price = 0.45 ether;
+    uint256 public constant price = 0.001 ether; // for test
 
     uint256 public vaultAmount;
     uint256 public squidStartTime;
     uint256 public nftStartTime;
     uint256 public nftEndTime;
-
 
     uint256 public remainOwners;
     uint256 public constant MAX_PLAYERS = 4560;
@@ -41,7 +38,6 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     event Mint(address indexed owner, uint256 tokenId);
     event Burn(uint256 tokenId, uint256 withdrawAmount, address indexed sender);
 
-    //"APEX NFT", "APEXNFT", "https://apexNFT/"
     constructor(
         string memory _name,
         string memory _symbol,

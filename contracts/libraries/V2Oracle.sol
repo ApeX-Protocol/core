@@ -36,7 +36,7 @@ library V2Oracle {
 
         // get the observation for the current period
         uint16 observationIndex = observationIndexOf(block.timestamp, periodSize, granularity);
-        Observation storage observation = self[observationIndex];
+        Observation memory observation = self[observationIndex];
 
         // we only want to commit updates once per period (i.e. windowSize / granularity)
         uint timeElapsed = block.timestamp - observation.timestamp;
@@ -45,6 +45,7 @@ library V2Oracle {
             observation.timestamp = block.timestamp;
             observation.price0Cumulative = price0Cumulative;
             observation.price1Cumulative = price1Cumulative;
+            self[observationIndex] = observation;
         }
     }
 
@@ -75,7 +76,7 @@ library V2Oracle {
         uint256 periodSize, 
         uint16 granularity
     ) internal view returns (uint256 amountOut) {
-        Observation storage firstObservation = getFirstObservationInWindow(self, periodSize, granularity);
+        Observation memory firstObservation = getFirstObservationInWindow(self, periodSize, granularity);
 
         uint timeElapsed = block.timestamp - firstObservation.timestamp;
         require(timeElapsed <= windowSize, 'V2Oracle: MISSING_HISTORICAL_OBSERVATION');
