@@ -60,7 +60,7 @@ const main = async () => {
   // await createPairFactory();
   // await createPCVTreasury();
   // await createRouter();
-  // await createBondPriceOracle();
+  await createBondPriceOracle();
   // await createBondPoolFactory();
   // await createStakingPoolFactory();
   // await createInvitation();

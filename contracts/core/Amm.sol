@@ -157,10 +157,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     ) external override nonReentrant onlyMargin returns (uint256[2] memory amounts) {
         uint256[2] memory reserves;
         (reserves, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
-        emit Swap(trader, inputToken, outputToken, amounts[0], amounts[1]);
         //check trade slippage
         _checkTradeSlippage(reserves[0], reserves[1], baseReserve, quoteReserve);
         _update(reserves[0], reserves[1], baseReserve, quoteReserve, false);
+
+        emit Swap(trader, inputToken, outputToken, amounts[0], amounts[1]);
     }
 
     /// @notice  use in the situation  of forcing closing position
@@ -186,9 +187,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             reserve0 = _baseReserve - outputAmount;
             reserve1 = _quoteReserve + inputAmount;
         }
-        emit ForceSwap(trader, inputToken, outputToken, inputAmount, outputAmount);
+
         _update(reserve0, reserve1, _baseReserve, _quoteReserve, true);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
+
+        emit ForceSwap(trader, inputToken, outputToken, inputAmount, outputAmount);
     }
 
     /// @notice  invoke when price gap is larger  than  "gap" percent;
