@@ -19,7 +19,19 @@ interface IStakingPoolFactory {
 
     event TransferYieldTo(address by, address to, uint256 amount);
 
+    event TransferYieldToTreasury(address by, address to, uint256 amount);
+
+    event TransferEsApeXTo(address by, address to, uint256 amount);
+
+    event TransferEsApeXFrom(address from, address to, uint256 amount);
+
+    event SetEsApeX(address esApeX);
+
     function apeX() external view returns (address);
+
+    function esApeX() external view returns (address);
+
+    function treasury() external view returns (address);
 
     function lastUpdateTimestamp() external view returns (uint256);
 
@@ -36,6 +48,8 @@ interface IStakingPoolFactory {
 
     /// @notice get minimum remain ratio after force withdraw
     function minRemainRatioAfterBurn() external view returns (uint256);
+
+    function remainForOtherVest() external view returns (uint256);
 
     /// @notice get stakingPool's poolToken
     function poolTokenMap(address pool) external view returns (address);
@@ -80,6 +94,8 @@ interface IStakingPoolFactory {
     /// @param _amount apex amount.
     function transferYieldTo(address _to, uint256 _amount) external;
 
+    function transferYieldToTreasury(uint256 _amount) external;
+
     /// @notice change a pool's weight
     /// @param poolAddr the pool.
     /// @param weight new weight.
@@ -87,4 +103,20 @@ interface IStakingPoolFactory {
 
     /// @notice set minimum reward ratio when force withdraw locked rewards
     function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external;
+
+    function setRemainForOtherVest(uint256 _remainForOtherVest) external;
+
+    function mintEsApeX(address to, uint256 _amount) external;
+
+    function burnEsApeX(address from, uint256 amount) external;
+
+    function transferEsApeXTo(address to, uint256 amount) external;
+
+    function transferEsApeXFrom(
+        address from,
+        address to,
+        uint256 amount
+    ) external;
+
+    function setEsApeX(address _esApeX) external;
 }

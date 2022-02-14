@@ -42,7 +42,7 @@ describe("VIPNFT contract", function () {
     let vipNFTAlice = vipNFT.connect(Alice);
     let i = 0;
     let overrides = {
-      value: ethers.utils.parseEther("40"),
+      value: ethers.utils.parseEther("50"),
     };
 
     await ethers.provider.send("evm_setNextBlockTimestamp", [ct + 600]);
@@ -51,7 +51,7 @@ describe("VIPNFT contract", function () {
     for (i = 0; i < players; i++) {
       await vipNFTAlice.claimApeXVIPNFT(overrides);
     }
-    await vipNFT.setTotalAmount(ethers.BigNumber.from(100000).mul(exp1));
+    await vipNFT.setTotalAmount(ethers.BigNumber.from(625000).mul(exp1));
 
     await erc20.transfer(vipNFT.address, ethers.BigNumber.from(100000 * players).mul(exp1));
     await ethers.provider.send("evm_setNextBlockTimestamp", [ct + 3600 * 24 * 200]);
@@ -60,8 +60,8 @@ describe("VIPNFT contract", function () {
     await vipNFTAlice.claimAPEX();
 
     let balanceAfter = await ethers.provider.getBalance(vipNFT.address);
-    expect(balanceAfter.div(exp1).toString()).to.be.equal("40");
+    expect(balanceAfter.div(exp1).toString()).to.be.equal("30");
     let apexBalance = await erc20.balanceOf(Alice.address);
-    expect(apexBalance.div(exp1).toString()).to.be.equal("11087");
+    expect(apexBalance.div(exp1).toString()).to.be.equal("69299");
   });
 });

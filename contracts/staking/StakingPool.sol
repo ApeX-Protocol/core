@@ -11,32 +11,48 @@ contract StakingPool is IStakingPool, Reentrant {
     uint256 internal constant MAX_TIME_STAKE_WEIGHT_MULTIPLIER = 2 * WEIGHT_MULTIPLIER;
     uint256 internal constant REWARD_PER_WEIGHT_MULTIPLIER = 1e12;
 
-    address public immutable apex;
+    address public immutable apeX;
     address public immutable override poolToken;
     IStakingPoolFactory public immutable factory;
     uint256 public lastYieldDistribution; //timestamp
     uint256 public yieldRewardsPerWeight;
     uint256 public usersLockingWeight;
     mapping(address => User) public users;
+    mapping(address => uint256) public stApeXBalance;
 
     constructor(
         address _factory,
         address _poolToken,
-        address _apex,
+        address _apeX,
         uint256 _initTimestamp
     ) {
         require(_factory != address(0), "cp: INVALID_FACTORY");
-        require(_apex != address(0), "cp: INVALID_APEX_TOKEN");
+        require(_apeX != address(0), "cp: INVALID_APEX_TOKEN");
         require(_initTimestamp > 0, "cp: INVALID_INIT_TIMESTAMP");
         require(_poolToken != address(0), "cp: INVALID_POOL_TOKEN");
 
-        apex = _apex;
+        apeX = _apeX;
         factory = IStakingPoolFactory(_factory);
         poolToken = _poolToken;
         lastYieldDistribution = _initTimestamp;
     }
 
     function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
+        _stake(_amount, _lockUntil, false);
+        IERC20(poolToken).transferFrom(msg.sender, address(this), _amount);
+    }
+
+    function stakeEsApeX(uint256 _amount, uint256 _lockUntil) external override {
+        require(poolToken == apeX, "sp.stakeEsApeX: INVALID_POOL_TOKEN");
+        _stake(_amount, _lockUntil, true);
+        factory.transferEsApeXFrom(msg.sender, address(factory), _amount);
+    }
+
+    function _stake(
+        uint256 _amount,
+        uint256 _lockUntil,
+        bool isEsApeX
+    ) internal {
         require(_amount > 0, "sp.stake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
         uint256 lockTime = factory.lockTime();
@@ -60,38 +76,57 @@ contract StakingPool is IStakingPool, Reentrant {
             lockUntil: _lockUntil
         });
 
-        user.deposits.push(deposit);
+        if (isEsApeX) {
+            user.esDeposits.push(deposit);
+            stApeXBalance[_staker] += _amount;
+        } else {
+            user.deposits.push(deposit);
+            if (poolToken == apeX) {
+                stApeXBalance[_staker] += _amount;
+            }
+        }
+
         user.tokenAmount += _amount;
         user.totalWeight += stakeWeight;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight += stakeWeight;
 
-        emit Staked(_staker, depositId, _amount, lockFrom, _lockUntil);
-        IERC20(poolToken).transferFrom(_staker, address(this), _amount);
+        emit Staked(_staker, depositId, isEsApeX, _amount, lockFrom, _lockUntil);
     }
 
     function batchWithdraw(
         uint256[] memory depositIds,
-        uint256[] memory amounts,
+        uint256[] memory depositAmounts,
         uint256[] memory yieldIds,
-        uint256[] memory yieldAmounts
+        uint256[] memory yieldAmounts,
+        uint256[] memory esDepositIds,
+        uint256[] memory esDepositAmounts
     ) external override {
-        require(depositIds.length == amounts.length, "sp.batchWithdraw: INVALID_DEPOSITS_AMOUNTS");
+        require(depositIds.length == depositAmounts.length, "sp.batchWithdraw: INVALID_DEPOSITS_AMOUNTS");
         require(yieldIds.length == yieldAmounts.length, "sp.batchWithdraw: INVALID_YIELDS_AMOUNTS");
+        require(esDepositIds.length == esDepositAmounts.length, "sp.batchWithdraw: INVALID_ESDEPOSITS_AMOUNTS");
+
         User storage user = users[msg.sender];
         _processRewards(msg.sender, user);
-        emit BatchWithdraw(msg.sender, depositIds, amounts, yieldIds, yieldAmounts);
+        emit BatchWithdraw(
+            msg.sender,
+            depositIds,
+            depositAmounts,
+            yieldIds,
+            yieldAmounts,
+            esDepositIds,
+            esDepositAmounts
+        );
         uint256 lockTime = factory.lockTime();
 
-        uint256 yieldAmount;
-        uint256 stakeAmount;
         uint256 _amount;
         uint256 _id;
+        uint256 stakeAmount;
         uint256 newWeight;
         uint256 deltaUsersLockingWeight;
         Deposit memory stakeDeposit;
         for (uint256 i = 0; i < depositIds.length; i++) {
-            _amount = amounts[i];
+            _amount = depositAmounts[i];
             _id = depositIds[i];
             require(_amount != 0, "sp.batchWithdraw: INVALID_DEPOSIT_AMOUNT");
             stakeDeposit = user.deposits[_id];
@@ -118,44 +153,84 @@ contract StakingPool is IStakingPool, Reentrant {
                 user.deposits[_id] = stakeDeposit;
             }
         }
+        {
+            uint256 esStakeAmount;
+            for (uint256 i = 0; i < esDepositIds.length; i++) {
+                _amount = esDepositAmounts[i];
+                _id = esDepositIds[i];
+                require(_amount != 0, "sp.batchWithdraw: INVALID_ESDEPOSIT_AMOUNT");
+                stakeDeposit = user.esDeposits[_id];
+                require(
+                    stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockUntil,
+                    "sp.batchWithdraw: ESDEPOSIT_LOCKED"
+                );
+                require(stakeDeposit.amount >= _amount, "sp.batchWithdraw: EXCEED_ESDEPOSIT_STAKED");
+
+                newWeight =
+                    (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
+                        lockTime +
+                        WEIGHT_MULTIPLIER) *
+                    (stakeDeposit.amount - _amount);
+
+                esStakeAmount += _amount;
+                deltaUsersLockingWeight += (stakeDeposit.weight - newWeight);
+
+                if (stakeDeposit.amount == _amount) {
+                    delete user.esDeposits[_id];
+                } else {
+                    stakeDeposit.amount -= _amount;
+                    stakeDeposit.weight = newWeight;
+                    user.esDeposits[_id] = stakeDeposit;
+                }
+            }
+            if (esStakeAmount > 0) {
+                stApeXBalance[msg.sender] -= esStakeAmount;
+                user.tokenAmount -= esStakeAmount;
+                factory.transferEsApeXTo(msg.sender, esStakeAmount);
+            }
+        }
         user.totalWeight -= deltaUsersLockingWeight;
         usersLockingWeight -= deltaUsersLockingWeight;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
 
-        Yield memory stakeYield;
-        for (uint256 i = 0; i < yieldIds.length; i++) {
-            _amount = yieldAmounts[i];
-            _id = yieldIds[i];
-            require(_amount != 0, "sp.batchWithdraw: INVALID_YIELD_AMOUNT");
-            stakeYield = user.yields[_id];
-            require(
-                stakeYield.lockFrom == 0 || block.timestamp > stakeYield.lockUntil,
-                "sp.batchWithdraw: YIELD_LOCKED"
-            );
-            require(stakeYield.amount >= _amount, "sp.batchWithdraw: EXCEED_YIELD_STAKED");
+        {
+            uint256 yieldAmount;
+            Yield memory stakeYield;
+            for (uint256 i = 0; i < yieldIds.length; i++) {
+                _amount = yieldAmounts[i];
+                _id = yieldIds[i];
+                require(_amount != 0, "sp.batchWithdraw: INVALID_YIELD_AMOUNT");
+                stakeYield = user.yields[_id];
+                require(block.timestamp > stakeYield.lockUntil, "sp.batchWithdraw: YIELD_LOCKED");
+                require(stakeYield.amount >= _amount, "sp.batchWithdraw: EXCEED_YIELD_STAKED");
 
-            yieldAmount += _amount;
+                yieldAmount += _amount;
 
-            if (stakeYield.amount == _amount) {
-                delete user.yields[_id];
-            } else {
-                stakeYield.amount -= _amount;
-                user.yields[_id] = stakeYield;
+                if (stakeYield.amount == _amount) {
+                    delete user.yields[_id];
+                } else {
+                    stakeYield.amount -= _amount;
+                    user.yields[_id] = stakeYield;
+                }
+            }
+
+            if (yieldAmount > 0) {
+                user.tokenAmount -= yieldAmount;
+                factory.transferYieldTo(msg.sender, yieldAmount);
             }
         }
 
-        if (yieldAmount > 0) {
-            user.tokenAmount -= yieldAmount;
-            factory.transferYieldTo(msg.sender, yieldAmount);
-        }
         if (stakeAmount > 0) {
+            if (poolToken == apeX) {
+                stApeXBalance[msg.sender] -= stakeAmount;
+            }
             user.tokenAmount -= stakeAmount;
             IERC20(poolToken).transfer(msg.sender, stakeAmount);
         }
     }
 
     function forceWithdraw(uint256[] memory _yieldIds) external override {
-        require(poolToken == apex, "sp.forceWithdraw: INVALID_POOL_TOKEN");
+        require(poolToken == apeX, "sp.forceWithdraw: INVALID_POOL_TOKEN");
         uint256 minRemainRatio = factory.minRemainRatioAfterBurn();
         address _staker = msg.sender;
         uint256 now256 = block.timestamp;
@@ -165,7 +240,7 @@ contract StakingPool is IStakingPool, Reentrant {
         uint256 deltaTotalAmount;
         uint256 yieldAmount;
 
-        //force withdraw existing rewards
+        //force withdraw vesting rewards
         Yield memory yield;
         for (uint256 i = 0; i < _yieldIds.length; i++) {
             yield = user.yields[_yieldIds[i]];
@@ -191,14 +266,21 @@ contract StakingPool is IStakingPool, Reentrant {
             user.subYieldRewards;
         yieldAmount += ((deltaNewYieldReward * minRemainRatio) / 10000);
 
-        //remaining apeX to boost remaining staker
+        //half of remaining apeX to boost remain vester
+        uint256 remainApeX = deltaTotalAmount + deltaNewYieldReward - yieldAmount;
+        uint256 remainForOtherVest = factory.remainForOtherVest();
         uint256 newYieldRewardsPerWeight = _yieldRewardsPerWeight +
-            ((deltaTotalAmount + deltaNewYieldReward - yieldAmount) * REWARD_PER_WEIGHT_MULTIPLIER) /
+            ((remainApeX * REWARD_PER_WEIGHT_MULTIPLIER) * remainForOtherVest) /
+            100 /
             usersLockingWeight;
         yieldRewardsPerWeight = newYieldRewardsPerWeight;
         user.subYieldRewards = (user.totalWeight * newYieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
 
+        //half of remaining apeX to transfer to treasury
+        factory.transferYieldToTreasury(remainApeX - (remainApeX * remainForOtherVest) / 100);
+
         user.tokenAmount -= deltaTotalAmount;
+        factory.burnEsApeX(address(this), deltaTotalAmount);
         if (yieldAmount > 0) {
             factory.transferYieldTo(_staker, yieldAmount);
         }
@@ -206,31 +288,12 @@ contract StakingPool is IStakingPool, Reentrant {
         emit ForceWithdraw(_staker, _yieldIds);
     }
 
-    //called by other staking pool to stake yield rewards into apeX pool
-    function stakeAsPool(address _staker, uint256 _amount) external override {
-        require(factory.poolTokenMap(msg.sender) != address(0), "sp.stakeAsPool: ACCESS_DENIED");
-        syncWeightPrice();
-
-        User storage user = users[_staker];
-
-        uint256 latestYieldReward = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
-        uint256 pendingYield = latestYieldReward - user.subYieldRewards;
-        user.subYieldRewards = latestYieldReward;
-
-        uint256 yieldAmount = _amount + pendingYield;
-        uint256 now256 = block.timestamp;
-        uint256 lockUntil = now256 + factory.lockTime();
-        uint256 yieldId = user.yields.length;
-        Yield memory newYield = Yield({amount: yieldAmount, lockFrom: now256, lockUntil: lockUntil});
-        user.yields.push(newYield);
-
-        user.tokenAmount += yieldAmount;
-
-        emit StakeAsPool(msg.sender, _staker, yieldId, _amount, yieldAmount, now256, lockUntil);
-    }
-
     //only can extend lock time
-    function updateStakeLock(uint256 _depositId, uint256 _lockUntil) external override {
+    function updateStakeLock(
+        uint256 _id,
+        uint256 _lockUntil,
+        bool isEsApeX
+    ) external override {
         uint256 now256 = block.timestamp;
         require(_lockUntil > now256, "sp.updateStakeLock: INVALID_LOCK_UNTIL");
 
@@ -239,7 +302,13 @@ contract StakingPool is IStakingPool, Reentrant {
         User storage user = users[_staker];
         _processRewards(_staker, user);
 
-        Deposit storage stakeDeposit = user.deposits[_depositId];
+        Deposit storage stakeDeposit;
+        if (isEsApeX) {
+            require(poolToken == apeX, "sp.updateStakeLock: INVALID_POOL_TOKEN");
+            stakeDeposit = user.esDeposits[_id];
+        } else {
+            stakeDeposit = user.deposits[_id];
+        }
         require(_lockUntil > stakeDeposit.lockUntil, "sp.updateStakeLock: INVALID_NEW_LOCK");
 
         if (stakeDeposit.lockFrom == 0) {
@@ -260,7 +329,7 @@ contract StakingPool is IStakingPool, Reentrant {
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight = usersLockingWeight - oldWeight + newWeight;
 
-        emit UpdateStakeLock(_staker, _depositId, stakeDeposit.lockFrom, _lockUntil);
+        emit UpdateStakeLock(_staker, _id, isEsApeX, stakeDeposit.lockFrom, _lockUntil);
     }
 
     function processRewards() external override {
@@ -286,45 +355,50 @@ contract StakingPool is IStakingPool, Reentrant {
             return;
         }
 
-        uint256 apexReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
-        yieldRewardsPerWeight += (apexReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
+        uint256 apeXReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
+        yieldRewardsPerWeight += (apeXReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
         lastYieldDistribution = currentTimestamp > endTimestamp ? endTimestamp : currentTimestamp;
 
         emit Synchronized(msg.sender, yieldRewardsPerWeight, lastYieldDistribution);
     }
 
-    //update weight price, then if apex, add deposits; if not, stake as pool.
+    //update weight price, then if apeX, add deposits; if not, stake as pool.
     function _processRewards(address _staker, User storage user) internal {
         syncWeightPrice();
 
         //if no yield
-        if (user.tokenAmount == 0) return;
+        if (user.totalWeight == 0) return;
         uint256 yieldAmount = (user.totalWeight * yieldRewardsPerWeight) /
             REWARD_PER_WEIGHT_MULTIPLIER -
             user.subYieldRewards;
         if (yieldAmount == 0) return;
 
-        //if self is apeX pool, lock the yield reward; if not, stake the yield reward to apeX pool.
-        if (poolToken == apex) {
-            uint256 now256 = block.timestamp;
-            uint256 lockUntil = now256 + factory.lockTime();
-            uint256 yieldId = user.yields.length;
-            Yield memory newYield = Yield({amount: yieldAmount, lockFrom: now256, lockUntil: lockUntil});
-            user.yields.push(newYield);
-            user.tokenAmount += yieldAmount;
-            emit YieldClaimed(_staker, yieldId, yieldAmount, now256, lockUntil);
-        } else {
-            address apexStakingPool = factory.getPoolAddress(apex);
-            IStakingPool(apexStakingPool).stakeAsPool(_staker, yieldAmount);
-        }
+        //mint esApeX to _staker
+        factory.mintEsApeX(_staker, yieldAmount);
+    }
+
+    function vest(uint256 vestAmount) external override {
+        require(poolToken == apeX, "invalid pool");
+        User storage user = users[msg.sender];
+        _processRewards(msg.sender, user);
+
+        uint256 now256 = block.timestamp;
+        uint256 lockUntil = now256 + factory.lockTime();
+        emit YieldClaimed(msg.sender, user.yields.length, vestAmount, now256, lockUntil);
+
+        user.yields.push(Yield({amount: vestAmount, lockFrom: now256, lockUntil: lockUntil}));
+        user.tokenAmount += vestAmount;
+        user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
+
+        factory.transferEsApeXFrom(msg.sender, address(this), vestAmount);
     }
 
     function pendingYieldRewards(address _staker) external view returns (uint256 pending) {
         uint256 newYieldRewardsPerWeight = yieldRewardsPerWeight;
 
         if (block.timestamp > lastYieldDistribution && usersLockingWeight != 0) {
-            uint256 apexReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
-            newYieldRewardsPerWeight += (apexReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
+            uint256 apeXReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
+            newYieldRewardsPerWeight += (apeXReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
         }
 
         User memory user = users[_staker];
@@ -345,8 +419,8 @@ contract StakingPool is IStakingPool, Reentrant {
         return (user.tokenAmount, user.totalWeight, user.subYieldRewards);
     }
 
-    function getDeposit(address _user, uint256 _depositId) external view override returns (Deposit memory) {
-        return users[_user].deposits[_depositId];
+    function getDeposit(address _user, uint256 _id) external view override returns (Deposit memory) {
+        return users[_user].deposits[_id];
     }
 
     function getDepositsLength(address _user) external view override returns (uint256) {
@@ -359,5 +433,13 @@ contract StakingPool is IStakingPool, Reentrant {
 
     function getYieldsLength(address _user) external view override returns (uint256) {
         return users[_user].yields.length;
+    }
+
+    function getEsDeposit(address _user, uint256 _id) external view override returns (Deposit memory) {
+        return users[_user].esDeposits[_id];
+    }
+
+    function getEsDepositsLength(address _user) external view override returns (uint256) {
+        return users[_user].esDeposits.length;
     }
 }

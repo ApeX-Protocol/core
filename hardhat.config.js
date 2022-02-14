@@ -4,7 +4,6 @@ require("@nomiclabs/hardhat-waffle");
 require("hardhat-watcher");
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-etherscan");
-
 require("hardhat-gas-reporter");
 require("solidity-coverage");
 require("@openzeppelin/hardhat-upgrades");
@@ -23,31 +22,43 @@ module.exports = {
       },
     ],
   },
+  mocha: {
+    timeout: 600000,
+  },
 
   networks: {
     hardhat: {
       allowUnlimitedContractSize: true,
     },
-
     localhost: {
       url: "http://localhost:8545",
     },
-    l1rinkeby: {
-      url: process.env.L1RPC,
-      chainId: 4,
+    mainnet: {
+      url: process.env.MAINNET_RPC,
       accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
     },
-    l2rinkeby: {
-      url: process.env.L2RPC,
+    rinkeby: {
+      url: process.env.RINKEBY_RPC,
       accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
     },
-    optimismKovan: {
-      url: process.env.OPTIMISM_KOVAN,
+    arbitrumOne: {
+      url: process.env.ARBITRUM_ONE_RPC,
+      accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
+    },
+    arbitrumTestnet: {
+      url: process.env.ARBITRUM_TESTNET_RPC,
       accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
     },
   },
   etherscan: {
-    apiKey: process.env["ETHERSCAN_APIKEY"],
+    apiKey: process.env.ARBISCAN_API_KEY,
+    // apiKey: {
+    //   mainnet: process.env.ETHERSCAN_API_KEY,
+    //   rinkeby: process.env.ETHERSCAN_API_KEY,
+    //   // arbitrum
+    //   arbitrumOne: process.env.ARBISCAN_API_KEY,
+    //   arbitrumTestnet: process.env.ARBISCAN_API_KEY,
+    // },
   },
   watcher: {
     compilation: {

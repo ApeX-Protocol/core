@@ -69,15 +69,12 @@ contract Margin is IMargin, IVault, Reentrant {
         address to,
         uint256 withdrawAmount
     ) external override nonReentrant {
-        //tocheck can remove this require?
         require(withdrawAmount > 0, "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT");
         if (msg.sender != trader) {
-            //tocheck if new router is harmful
             require(IConfig(config).routerMap(msg.sender), "Margin.removeMargin: FORBIDDEN");
         }
         int256 _latestCPF = updateCPF();
 
-        //tocheck test carefully if withdraw margin more than withdrawable
         Position memory traderPosition = traderPositionMap[trader];
 
         int256 baseAmountFunding;
@@ -187,7 +184,7 @@ contract Margin is IMargin, IVault, Reentrant {
         }
 
         bool isLong = side == 0;
-        baseAmount = _addPositionWithAmm(isLong, quoteAmount);
+        baseAmount = _addPositionWithAmm(trader, isLong, quoteAmount);
         require(baseAmount > 0, "Margin.openPosition: TINY_QUOTE_AMOUNT");
 
         if (
@@ -267,8 +264,9 @@ contract Margin is IMargin, IVault, Reentrant {
                 remainBaseAmount = traderPosition.baseSize.subU(baseAmount) + fundingFee;
                 if (remainBaseAmount < 0) {
                     IAmm(amm).forceSwap(
-                        address(baseToken),
-                        address(quoteToken),
+                        trader,
+                        baseToken,
+                        quoteToken,
                         (traderPosition.baseSize + fundingFee).abs(),
                         quoteSizeAbs
                     );
@@ -282,8 +280,9 @@ contract Margin is IMargin, IVault, Reentrant {
                 remainBaseAmount = traderPosition.baseSize.addU(baseAmount) + fundingFee;
                 if (remainBaseAmount < 0) {
                     IAmm(amm).forceSwap(
-                        address(quoteToken),
-                        address(baseToken),
+                        trader,
+                        quoteToken,
+                        baseToken,
                         quoteSizeAbs,
                         (traderPosition.baseSize + fundingFee).abs()
                     );
@@ -293,14 +292,14 @@ contract Margin is IMargin, IVault, Reentrant {
                 }
             }
             if (remainBaseAmount >= 0) {
-                _minusPositionWithAmm(isLong, quoteSizeAbs);
+                _minusPositionWithAmm(trader, isLong, quoteSizeAbs);
                 traderPosition.quoteSize = 0;
                 traderPosition.tradeSize = 0;
                 traderPosition.baseSize = remainBaseAmount;
             }
         } else {
             //healthy position, close position safely
-            baseAmount = _minusPositionWithAmm(isLong, quoteAmount);
+            baseAmount = _minusPositionWithAmm(trader, isLong, quoteAmount);
 
             //when close position, keep quoteSize/tradeSize not change, cant sub baseAmount because baseAmount contains pnl
             traderPosition.tradeSize -= (quoteAmount * traderPosition.tradeSize) / quoteSizeAbs;
@@ -341,6 +340,7 @@ contract Margin is IMargin, IVault, Reentrant {
 
         int256 _latestCPF = updateCPF();
         Position memory traderPosition = traderPositionMap[trader];
+        int256 baseSize = traderPosition.baseSize;
         int256 quoteSize = traderPosition.quoteSize;
         require(quoteSize != 0, "Margin.liquidate: ZERO_POSITION");
 
@@ -352,39 +352,48 @@ contract Margin is IMargin, IVault, Reentrant {
 
         int256 fundingFee = (baseAmountFunding * (_latestCPF - traderCPF[trader])).divU(1e18);
         require(
-            _calDebtRatio(quoteSize, traderPosition.baseSize + fundingFee) >= IConfig(config).liquidateThreshold(),
+            _calDebtRatio(quoteSize, baseSize + fundingFee) >= IConfig(config).liquidateThreshold(),
             "Margin.liquidate: NOT_LIQUIDATABLE"
         );
 
         baseAmount = _querySwapBaseWithAmm(isLong, quoteAmount);
         //calc remain base after liquidate
         int256 remainBaseAmountAfterLiquidate = isLong
-            ? traderPosition.baseSize.subU(baseAmount) + fundingFee
-            : traderPosition.baseSize.addU(baseAmount) + fundingFee;
+            ? baseSize.subU(baseAmount) + fundingFee
+            : baseSize.addU(baseAmount) + fundingFee;
 
         if (remainBaseAmountAfterLiquidate > 0) {
             //calc liquidate reward
             bonus = (remainBaseAmountAfterLiquidate.abs() * IConfig(config).liquidateFeeRatio()) / 10000;
         }
 
-        if (isLong) {
-            totalQuoteLong = totalQuoteLong - quoteAmount;
-            netPosition = netPosition.subU(baseAmount);
-            IAmm(amm).forceSwap(
-                address(baseToken),
-                address(quoteToken),
-                (traderPosition.baseSize.subU(bonus) + fundingFee).abs(),
-                quoteAmount
-            );
-        } else {
-            totalQuoteShort = totalQuoteShort - quoteAmount;
-            netPosition = netPosition.addU(baseAmount);
-            IAmm(amm).forceSwap(
-                address(quoteToken),
-                address(baseToken),
-                quoteAmount,
-                (traderPosition.baseSize.subU(bonus) + fundingFee).abs()
-            );
+        {
+            // avoid stack too deep
+            address _trader = trader;
+            int256 _baseSize = baseSize;
+            uint256 _bonus = bonus;
+            uint256 _quoteAmount = quoteAmount;
+            if (isLong) {
+                totalQuoteLong = totalQuoteLong - _quoteAmount;
+                netPosition = netPosition.subU(baseAmount);
+                IAmm(amm).forceSwap(
+                    _trader,
+                    baseToken,
+                    quoteToken,
+                    (_baseSize.subU(_bonus) + fundingFee).abs(),
+                    _quoteAmount
+                );
+            } else {
+                totalQuoteShort = totalQuoteShort - _quoteAmount;
+                netPosition = netPosition.addU(baseAmount);
+                IAmm(amm).forceSwap(
+                    _trader,
+                    quoteToken,
+                    baseToken,
+                    _quoteAmount,
+                    (_baseSize.subU(_bonus) + fundingFee).abs()
+                );
+            }
         }
 
         traderCPF[trader] = _latestCPF;
@@ -401,7 +410,6 @@ contract Margin is IMargin, IVault, Reentrant {
         require(msg.sender == amm, "Margin.deposit: REQUIRE_AMM");
         require(amount > 0, "Margin.deposit: AMOUNT_IS_ZERO");
         uint256 balance = IERC20(baseToken).balanceOf(address(this));
-        //tocheck if balance contains protocol profit?
         require(amount <= balance - reserve, "Margin.deposit: INSUFFICIENT_AMOUNT");
 
         reserve = reserve + amount;
@@ -424,7 +432,6 @@ contract Margin is IMargin, IVault, Reentrant {
         address receiver,
         uint256 amount
     ) internal {
-        //tocheck can remove this following two require?
         require(amount > 0, "Margin._withdraw: AMOUNT_IS_ZERO");
         require(amount <= reserve, "Margin._withdraw: NOT_ENOUGH_RESERVE");
         reserve = reserve - amount;
@@ -434,24 +441,32 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     //swap exact quote to base
-    function _addPositionWithAmm(bool isLong, uint256 quoteAmount) internal returns (uint256 baseAmount) {
+    function _addPositionWithAmm(
+        address trader,
+        bool isLong,
+        uint256 quoteAmount
+    ) internal returns (uint256 baseAmount) {
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             !isLong,
             quoteAmount
         );
 
-        uint256[2] memory result = IAmm(amm).swap(inputToken, outputToken, inputAmount, outputAmount);
+        uint256[2] memory result = IAmm(amm).swap(trader, inputToken, outputToken, inputAmount, outputAmount);
         return isLong ? result[1] : result[0];
     }
 
     //close position, swap base to get exact quoteAmount, the base has contained pnl
-    function _minusPositionWithAmm(bool isLong, uint256 quoteAmount) internal returns (uint256 baseAmount) {
+    function _minusPositionWithAmm(
+        address trader,
+        bool isLong,
+        uint256 quoteAmount
+    ) internal returns (uint256 baseAmount) {
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(
             isLong,
             quoteAmount
         );
 
-        uint256[2] memory result = IAmm(amm).swap(inputToken, outputToken, inputAmount, outputAmount);
+        uint256[2] memory result = IAmm(amm).swap(trader, inputToken, outputToken, inputAmount, outputAmount);
         return isLong ? result[0] : result[1];
     }
 
@@ -632,7 +647,6 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 b = (10000 - IConfig(config).initMarginRatio());
             //calculate how many base needed to maintain current position
             uint256 baseNeeded = a / b;
-            //tocheck need to consider this case
             if (a % b != 0) {
                 baseNeeded += 1;
             }
@@ -655,8 +669,6 @@ contract Margin is IMargin, IVault, Reentrant {
         }
     }
 
-    //debt*10000/asset
-    //tocheck if no repair the MarkPriceAcc equation, have chance to liquidate a little bit late when debtRatio triggered
     function _calDebtRatio(int256 quoteSize, int256 baseSize) internal view returns (uint256 debtRatio) {
         if (quoteSize == 0 || (quoteSize > 0 && baseSize >= 0)) {
             debtRatio = 0;
@@ -672,7 +684,6 @@ contract Margin is IMargin, IVault, Reentrant {
                 false
             );
 
-            //tocheck debtRatio range?
             debtRatio = baseAmount == 0 ? 10000 : (baseSize.abs() * 10000) / baseAmount;
         } else {
             uint256 quoteAmount = quoteSize.abs();
@@ -685,7 +696,6 @@ contract Margin is IMargin, IVault, Reentrant {
             );
 
             uint256 ratio = (baseAmount * 10000) / baseSize.abs();
-            //tocheck debtRatio range?
             debtRatio = 10000 < ratio ? 10000 : ratio;
         }
     }
@@ -788,7 +798,6 @@ contract Margin is IMargin, IVault, Reentrant {
                 false
             );
 
-            //tocheck debtRatio range?
             debtRatio = baseAmount == 0 ? 10000 : (baseSize.abs() * 10000) / baseAmount;
         } else {
             uint256 quoteAmount = quoteSize.abs();
@@ -801,7 +810,6 @@ contract Margin is IMargin, IVault, Reentrant {
             );
 
             uint256 ratio = (baseAmount * 10000) / baseSize.abs();
-            //tocheck debtRatio range?
             debtRatio = 10000 < ratio ? 10000 : ratio;
         }
     }
@@ -836,7 +844,6 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 b = (10000 - IConfig(config).initMarginRatio());
             //calculate how many base needed to maintain current position
             baseNeeded = a / b;
-            //tocheck need to consider this case
             if (a % b != 0) {
                 baseNeeded += 1;
             }
