@@ -695,8 +695,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 true
             );
 
-            uint256 ratio = (baseAmount * 10000) / baseSize.abs();
-            debtRatio = 10000 < ratio ? 10000 : ratio;
+            debtRatio = (baseAmount * 10000) / baseSize.abs();
         }
     }
 
