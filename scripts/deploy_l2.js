@@ -8,6 +8,7 @@ const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // Uniswa
 // const v2FactoryAddress = "0xc35DADB65012eC5796536bD9864eD8773aBc74C4"; // SushiV2Factory address
 const v2FactoryAddress = "0x9ef193943E14D83BcdAD9e3d782DBafA93bd25A1"; // Self deploy UniswapV2Factory address
 const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mock WETH
+const usdcAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526"; // mock USDC
 
 // transfer to pcvTreasury
 const apeXAmountForBonding = BigNumber.from("1000000000000000000000000");
@@ -61,7 +62,7 @@ const main = async () => {
   // await createPCVTreasury();
   // await createRouter();
   await createBondPriceOracle();
-  // await createBondPoolFactory();
+  await createBondPoolFactory();
   // await createStakingPoolFactory();
   // await createInvitation();
   // await createReward();
@@ -172,6 +173,7 @@ async function createBondPriceOracle() {
   const BondPriceOracle = await ethers.getContractFactory("BondPriceOracle");
   bondPriceOracle = await BondPriceOracle.deploy();
   await bondPriceOracle.initialize(apeXToken.address, wethAddress, v3FactoryAddress, v2FactoryAddress);
+  await bondPriceOracle.setupTwap(usdcAddress);
   console.log("BondPriceOracle:", bondPriceOracle.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, bondPriceOracle.address);
 }
