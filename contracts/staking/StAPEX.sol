@@ -2,9 +2,9 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/ERC20VotesComp.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
-contract StAPEX is ERC20VotesComp {
+contract StAPEX is ERC20Votes {
     address public stakingPoolFactory;
 
     constructor(address _stakingPoolFactory) ERC20("stApeX token", "stApeX") ERC20Permit("stApeX token") {
