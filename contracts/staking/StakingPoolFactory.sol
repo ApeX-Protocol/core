@@ -12,6 +12,7 @@ import "./interfaces/IERC20Extend.sol";
 contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     address public override apeX;
     address public override esApeX;
+    address public override stApeX;
     address public override treasury;
     uint256 public override lastUpdateTimestamp;
     uint256 public override secSpanPerUpdate;
@@ -20,7 +21,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     uint256 public override endTimestamp;
     uint256 public override lockTime;
     uint256 public override minRemainRatioAfterBurn; //10k-based
-    uint256 public override remainForOtherVest = 50; //100-based
+    uint256 public override remainForOtherVest; //100-based
     mapping(address => PoolInfo) public pools;
     mapping(address => address) public override poolTokenMap;
 
@@ -139,6 +140,16 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         IERC20Extend(esApeX).mint(to, amount);
     }
 
+    function burnStApeX(address from, uint256 amount) external override {
+        require(poolTokenMap[msg.sender] != address(0), "cpf.burnStApeX: ACCESS_DENIED");
+        IERC20Extend(stApeX).burn(from, amount);
+    }
+
+    function mintStApeX(address to, uint256 amount) external override {
+        require(poolTokenMap[msg.sender] != address(0), "cpf.mintStApeX: ACCESS_DENIED");
+        IERC20Extend(stApeX).mint(to, amount);
+    }
+
     function changePoolWeight(address _pool, uint256 _weight) external override onlyOwner {
         address poolToken = poolTokenMap[_pool];
         require(poolToken != address(0), "cpf.changePoolWeight: POOL_NOT_EXIST");
@@ -193,6 +204,13 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         esApeX = _esApeX;
 
         emit SetEsApeX(_esApeX);
+    }
+
+    function setStApeX(address _stApeX) external override onlyOwner {
+        require(stApeX == address(0), "cpf.setStApeX: INVALID_ADDRESS");
+        stApeX = _stApeX;
+
+        emit SetStApeX(_stApeX);
     }
 
     //tocheck just for dev use
