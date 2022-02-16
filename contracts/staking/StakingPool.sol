@@ -78,12 +78,11 @@ contract StakingPool is IStakingPool, Reentrant {
 
         if (isEsApeX) {
             user.esDeposits.push(deposit);
-            stApeXBalance[_staker] += _amount;
         } else {
             user.deposits.push(deposit);
-            if (poolToken == apeX) {
-                stApeXBalance[_staker] += _amount;
-            }
+        }
+        if (poolToken == apeX) {
+            factory.mintStApeX(_staker, stakeWeight / WEIGHT_MULTIPLIER);
         }
 
         user.tokenAmount += _amount;
@@ -184,10 +183,12 @@ contract StakingPool is IStakingPool, Reentrant {
                 }
             }
             if (esStakeAmount > 0) {
-                stApeXBalance[msg.sender] -= esStakeAmount;
                 user.tokenAmount -= esStakeAmount;
                 factory.transferEsApeXTo(msg.sender, esStakeAmount);
             }
+        }
+        if (poolToken == apeX) {
+            factory.burnStApeX(msg.sender, deltaUsersLockingWeight / WEIGHT_MULTIPLIER);
         }
         user.totalWeight -= deltaUsersLockingWeight;
         usersLockingWeight -= deltaUsersLockingWeight;
@@ -323,6 +324,9 @@ contract StakingPool is IStakingPool, Reentrant {
             lockTime +
             WEIGHT_MULTIPLIER) * stakeDeposit.amount;
 
+        if (poolToken == apeX) {
+            factory.mintStApeX(_staker, (newWeight - oldWeight) / WEIGHT_MULTIPLIER);
+        }
         stakeDeposit.lockUntil = _lockUntil;
         stakeDeposit.weight = newWeight;
         user.totalWeight = user.totalWeight - oldWeight + newWeight;

@@ -6,6 +6,7 @@ import "./interfaces/IBondPoolFactory.sol";
 import "./interfaces/IPCVTreasury.sol";
 import "./interfaces/IBondPriceOracle.sol";
 import "../utils/Ownable.sol";
+import "../core/interfaces/IAmm.sol";
 
 contract BondPoolFactory is IBondPoolFactory, Ownable {
     address public immutable override apeXToken;
@@ -59,7 +60,8 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         address pool = address(new BondPool(owner, apeXToken, treasury, priceOracle, amm, maxPayout, discount, vestingTerm));
         getPool[amm] = pool;
         allPools.push(pool);
-        IBondPriceOracle(priceOracle).setupTwap(pool);
+        address baseToken = IAmm(amm).baseToken();
+        IBondPriceOracle(priceOracle).setupTwap(baseToken);
         emit BondPoolCreated(amm, pool);
         return pool;
     }

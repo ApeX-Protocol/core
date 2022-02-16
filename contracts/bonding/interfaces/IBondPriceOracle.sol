@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface IBondPriceOracle {
-    function setupTwap(address bondPool) external;
+    function setupTwap(address baseToken) external;
 
     function updateV2() external;
 

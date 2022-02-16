@@ -24,6 +24,7 @@ describe("stakingPoolFactory contract", function () {
     const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
     const StakingPool = await ethers.getContractFactory("StakingPool");
     const EsAPEX = await ethers.getContractFactory("EsAPEX");
+    const StAPEX = await ethers.getContractFactory("StAPEX");
 
     apexToken = await MockToken.deploy("apex token", "at");
     slpToken = await MockToken.deploy("slp token", "slp");
@@ -38,8 +39,11 @@ describe("stakingPoolFactory contract", function () {
     ]);
     mockStakingPool = await StakingPool.deploy(stakingPoolFactory.address, slpToken.address, apexToken.address, 10);
     esApeX = await EsAPEX.deploy(stakingPoolFactory.address);
+    stApeX = await StAPEX.deploy(stakingPoolFactory.address);
 
+    await stakingPoolFactory.setRemainForOtherVest(50);
     await stakingPoolFactory.setEsApeX(esApeX.address);
+    await stakingPoolFactory.setStApeX(stApeX.address);
     await stakingPoolFactory.createPool(apexToken.address, initTimestamp, 21);
     let apexStakingPoolAddr = (await stakingPoolFactory.pools(apexToken.address))[0];
     apexStakingPool = await StakingPool.attach(apexStakingPoolAddr);
@@ -152,6 +156,22 @@ describe("stakingPoolFactory contract", function () {
     it("reverted when mint EsApeX by unauthorized account", async function () {
       await expect(stakingPoolFactory.mintEsApeX(addr1.address, 10)).to.be.revertedWith(
         "cpf.mintEsApeX: ACCESS_DENIED"
+      );
+    });
+  });
+
+  describe("mintStApeX", function () {
+    it("reverted when mint StApeX by unauthorized account", async function () {
+      await expect(stakingPoolFactory.mintStApeX(addr1.address, 10)).to.be.revertedWith(
+        "cpf.mintStApeX: ACCESS_DENIED"
+      );
+    });
+  });
+
+  describe("burnStApeX", function () {
+    it("reverted when burn StApeX by unauthorized account", async function () {
+      await expect(stakingPoolFactory.burnStApeX(addr1.address, 10)).to.be.revertedWith(
+        "cpf.burnStApeX: ACCESS_DENIED"
       );
     });
   });
