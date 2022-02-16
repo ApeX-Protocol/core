@@ -61,17 +61,17 @@ const main = async () => {
   // await createPairFactory();
   // await createPCVTreasury();
   // await createRouter();
-  await createBondPriceOracle();
-  await createBondPoolFactory();
+  // await createBondPriceOracle();
+  // await createBondPoolFactory();
   // await createStakingPoolFactory();
-  // await createInvitation();
+  await createInvitation();
   // await createReward();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createPairForVerify();
   // await createMockPair();
-  await createMockBondPool();
+  // await createMockBondPool();
   // await bond();
   // await createMockStakingPool();
 };
