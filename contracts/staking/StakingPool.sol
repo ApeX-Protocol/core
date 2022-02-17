@@ -18,7 +18,6 @@ contract StakingPool is IStakingPool, Reentrant {
     uint256 public yieldRewardsPerWeight;
     uint256 public usersLockingWeight;
     mapping(address => User) public users;
-    mapping(address => uint256) public stApeXBalance;
 
     constructor(
         address _factory,
@@ -222,9 +221,6 @@ contract StakingPool is IStakingPool, Reentrant {
         }
 
         if (stakeAmount > 0) {
-            if (poolToken == apeX) {
-                stApeXBalance[msg.sender] -= stakeAmount;
-            }
             user.tokenAmount -= stakeAmount;
             IERC20(poolToken).transfer(msg.sender, stakeAmount);
         }
