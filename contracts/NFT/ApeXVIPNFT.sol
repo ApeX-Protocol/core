@@ -17,7 +17,7 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 public cliffTime;
     uint256 public endTime;
     // every buyer get
-    uint256 public totalAmount = 1041666;
+    uint256 public totalAmount = 1041666 * 10**18;
     // nft per price 
     // uint256 public price = 50 ether;
     uint256 public price = 0.01 ether; // for test
