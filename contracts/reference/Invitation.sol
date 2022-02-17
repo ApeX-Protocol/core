@@ -11,38 +11,28 @@ contract Invitation {
     }
 
     mapping(address => UserInvitation) public userInvitations;
-    uint256 public totalRegisterCount;
 
-    function register() external returns (bool) {
-        UserInvitation storage user = userInvitations[msg.sender];
-        require(0 == user.startTime, "REGISTERED");
-
-        user.upper = address(0);
-        user.startTime = block.timestamp;
-        totalRegisterCount++;
-
-        emit Invite(msg.sender, user.upper, user.startTime);
-
-        return true;
-    }
-
+    // Allow: A invite B, then B invite C, then C invite A
+    // Forbidden: A invite B, then B invite A
     function acceptInvitation(address inviter) external returns (bool) {
-        require(msg.sender != inviter, "FORBIDDEN");
+        require(msg.sender != inviter, "FORBID_INVITE_YOURSLEF");
         UserInvitation storage sender = userInvitations[msg.sender];
-
-        // ensure not registered
-        require(0 == sender.startTime, "REGISTERED");
         UserInvitation storage upper = userInvitations[inviter];
-        
-        require(upper.startTime != 0, "INVITER_NOT_EXIST!");
+
+        require(sender.upper == address(0), "ALREADY_HAS_UPPER");
+        require(upper.upper != msg.sender, "FORBID_CIRCLE_INVITE");
 
         sender.upper = inviter;
         upper.lowers.push(msg.sender);
-        sender.startTime = block.timestamp;
-        totalRegisterCount++;
+
+        if (sender.startTime == 0) {
+            sender.startTime = block.timestamp;
+        }
+        if (upper.startTime == 0) {
+            upper.startTime = block.timestamp;
+        }
 
         emit Invite(msg.sender, sender.upper, sender.startTime);
-
         return true;
     }
 

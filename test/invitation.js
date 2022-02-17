@@ -18,24 +18,34 @@ describe("Invitation", function () {
     console.log("invitation address: ", invitation.address);
   });
 
-  it("register", async function () {
-    console.log("---------test begin---------");
-    console.log(await invitation.totalRegisterCount());
+  // it("register", async function () {
+  //   console.log("---------test begin---------");
+  //   console.log(await invitation.totalRegisterCount());
 
-    await expect(invitation.register())
-      .to.emit(invitation, "Invite")
-      .withArgs(owner.address, "0x0000000000000000000000000000000000000000", 2);
-    expect(await invitation.totalRegisterCount()).to.equal(1);
+  //   await expect(invitation.register())
+  //     .to.emit(invitation, "Invite")
+  //     .withArgs(owner.address, "0x0000000000000000000000000000000000000000", 2);
+  //   expect(await invitation.totalRegisterCount()).to.equal(1);
 
+  //   const invitationAlice = invitation.connect(alice);
+
+  //   await invitationAlice.acceptInvitation(owner.address);
+
+  //   expect(await invitation.totalRegisterCount()).to.equal(2);
+
+  //   console.log(await invitationAlice.getLowers1(owner.address));
+
+  //   expect((await invitationAlice.getLowers1(owner.address))[0]).equal(alice.address);
+  //   expect(await invitationAlice.getUpper1(alice.address)).equal(owner.address);
+  // });
+
+  it("A invite B, then B invite C, then C invite A", async function() {
     const invitationAlice = invitation.connect(alice);
-
     await invitationAlice.acceptInvitation(owner.address);
 
-    expect(await invitation.totalRegisterCount()).to.equal(2);
+    const invitationBob = invitation.connect(bob);
+    await invitationBob.acceptInvitation(alice.address);
 
-    console.log(await invitationAlice.getLowers1(owner.address));
-
-    expect((await invitationAlice.getLowers1(owner.address))[0]).equal(alice.address);
-    expect(await invitationAlice.getUpper1(alice.address)).equal(owner.address);
+    await invitation.acceptInvitation(bob.address);
   });
 });

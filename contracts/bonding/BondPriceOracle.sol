@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IBondPriceOracle.sol";
 import "./interfaces/IBondPool.sol";
-import "../core/interfaces/IAmm.sol";
 import "../core/interfaces/uniswapV3/IUniswapV3Factory.sol";
 import "../core/interfaces/uniswapV3/IUniswapV3Pool.sol";
 import "../core/interfaces/uniswapV2/IUniswapV2Factory.sol";
@@ -27,9 +26,9 @@ contract BondPriceOracle is IBondPriceOracle, Initializable {
     address public v2Factory;
     uint24[3] public v3Fees;
 
-    uint16 public constant cardinality = 12;
-    uint32 public constant twapInterval = 3600; // 1 hour
-    uint256 public constant periodSize = 300; // 5 min
+    uint16 public constant cardinality = 24;
+    uint32 public constant twapInterval = 86400; // 24 hour
+    uint256 public constant periodSize = 3600; // 1 hour
     
     V2Oracle.Observation[] public v2Observations;
     // baseToken => v3Pool
@@ -47,8 +46,7 @@ contract BondPriceOracle is IBondPriceOracle, Initializable {
         v2Observations.update(v2Pair, periodSize, cardinality);
     }
 
-    function setupTwap(address bondPool) external override {
-        address baseToken = IAmm(IBondPool(bondPool).amm()).baseToken();
+    function setupTwap(address baseToken) external override {
         require(baseToken != address(0) && baseToken != apeX, "BondPriceOracle.setupTwap: FORBIDDEN");
         if (baseToken == WETH) return;
         if (v3Pools[baseToken] != address(0)) return;

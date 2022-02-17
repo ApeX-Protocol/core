@@ -27,9 +27,13 @@ interface IStakingPoolFactory {
 
     event SetEsApeX(address esApeX);
 
+    event SetStApeX(address stApeX);
+
     function apeX() external view returns (address);
 
     function esApeX() external view returns (address);
+
+    function stApeX() external view returns (address);
 
     function treasury() external view returns (address);
 
@@ -118,5 +122,11 @@ interface IStakingPoolFactory {
         uint256 amount
     ) external;
 
+    function mintStApeX(address to, uint256 amount) external;
+
+    function burnStApeX(address from, uint256 amount) external;
+
     function setEsApeX(address _esApeX) external;
+
+    function setStApeX(address _stApeX) external;
 }
