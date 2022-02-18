@@ -6,6 +6,9 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "../core/interfaces/IERC20.sol";
 
 contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
+    event Claimed(address indexed user, uint256 amount);
+    event StartTimeChanged(uint256 startTime, uint256 cliffTime, uint256 endTime);
+
     uint256 public totalEth;
     uint256 public remainOwners = 20;
     uint256 public id;
@@ -23,9 +26,6 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 public price = 0.01 ether; // for test
     mapping(address => uint256) public claimed;
     address public token;
-
-    event Claimed(address indexed user, uint256 amount);
-
     constructor(
         string memory _name,
         string memory _symbol,
@@ -43,6 +43,14 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
         id++;
     }
 
+    function setStartTime(uint256 _startTime, uint256 cliff, uint256 duration) external onlyOwner {
+        require(duration > cliff, "CLIFF < DURATION");
+        startTime = _startTime;
+        cliffTime = _startTime + cliff;
+        endTime = _startTime + duration;
+        emit StartTimeChanged(startTime, cliffTime, endTime);
+    }
+
     function setTotalAmount(uint256 _totalAmount) external onlyOwner {
         totalAmount = _totalAmount;
     }
@@ -58,7 +66,7 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
     }
 
     function claimApeXVIPNFT() external payable isWhitelisted(msg.sender) {
-        require(msg.value == price, "value not match");
+        require(msg.value == price, "VALUE_NOT_MATCH");
         totalEth = totalEth + price;
         require(remainOwners > 0, "SOLD_OUT");
         _mint(msg.sender, id);
