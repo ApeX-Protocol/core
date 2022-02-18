@@ -6,11 +6,13 @@ import "./interfaces/IPCVTreasury.sol";
 import "./interfaces/IBondPriceOracle.sol";
 import "../core/interfaces/IAmm.sol";
 import "../core/interfaces/IERC20.sol";
+import "../core/interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/FullMath.sol";
 import "../utils/Ownable.sol";
 
 contract BondPool is IBondPool, Ownable {
+    address public immutable override WETH;
     address public immutable override apeXToken;
     address public immutable override treasury;
     address public immutable override amm;
@@ -24,6 +26,7 @@ contract BondPool is IBondPool, Ownable {
 
     constructor(
         address owner_,
+        address WETH_,
         address apeXToken_,
         address treasury_,
         address priceOracle_,
@@ -33,18 +36,13 @@ contract BondPool is IBondPool, Ownable {
         uint256 vestingTerm_
     ) {
         owner = owner_;
-        require(apeXToken_ != address(0), "BondPool: ZERO_ADDRESS");
+        WETH = WETH_;
         apeXToken = apeXToken_;
-        require(treasury_ != address(0), "BondPool: ZERO_ADDRESS");
         treasury = treasury_;
-        require(priceOracle_ != address(0), "BondPool: ZERO_ADDRESS");
         priceOracle = priceOracle_;
-        require(amm_ != address(0), "BondPool: ZERO_ADDRESS");
         amm = amm_;
         maxPayout = maxPayout_;
-        require(discount_ <= 10000, "BondPool: DISCOUNT_OVER_100%");
         discount = discount_;
-        require(vestingTerm_ >= 129600, "BondPool: MUST_BE_LONGER_THAN_36_HOURS");
         vestingTerm = vestingTerm_;
     }
 
@@ -81,28 +79,14 @@ contract BondPool is IBondPool, Ownable {
         uint256 depositAmount,
         uint256 minPayout
     ) external override returns (uint256 payout) {
-        require(!bondPaused, "BondPool.deposit: BOND_PAUSED");
-        require(depositor != address(0), "BondPool.deposit: ZERO_ADDRESS");
-        require(depositAmount > 0, "BondPool.deposit: ZERO_AMOUNT");
+        return _depositInternal(msg.sender, depositor, depositAmount, minPayout);
+    }
 
-        TransferHelper.safeTransferFrom(IAmm(amm).baseToken(), msg.sender, amm, depositAmount);
-        (uint256 actualDepositAmount, , uint256 liquidity) = IAmm(amm).mint(address(this));
-        require(actualDepositAmount == depositAmount, "BondPool.deposit: AMOUNT_NOT_MATCH");
-
-        payout = payoutFor(depositAmount);
-        require(payout >= minPayout, "BondPool.deposit: UNDER_MIN_LAYOUT");
-        require(payout <= maxPayout, "BondPool.deposit: OVER_MAX_PAYOUT");
-        maxPayout -= payout;
-        TransferHelper.safeApprove(amm, treasury, liquidity);
-        IPCVTreasury(treasury).deposit(amm, liquidity, payout);
-
-        bondInfo[depositor] = Bond({
-            payout: bondInfo[depositor].payout + payout,
-            vesting: vestingTerm,
-            lastBlockTime: block.timestamp,
-            paidAmount: bondInfo[depositor].paidAmount + depositAmount
-        });
-        emit BondCreated(depositor, depositAmount, payout, block.timestamp + vestingTerm);
+    function depositETH(address depositor, uint256 minPayout) external payable override returns (uint256 ethAmount, uint256 payout) {
+        require(IAmm(amm).baseToken() == WETH, "BondPool.depositETH: ETH_NOT_SUPPORTED");
+        ethAmount = msg.value;
+        IWETH(WETH).deposit{value: ethAmount}();
+        payout = _depositInternal(address(this), depositor, ethAmount, minPayout);
     }
 
     function redeem(address depositor) external override returns (uint256 payout) {
@@ -156,5 +140,35 @@ contract BondPool is IBondPool, Ownable {
         } else {
             percentVested = 0;
         }
+    }
+
+    function _depositInternal(
+        address from,
+        address depositor,
+        uint256 depositAmount,
+        uint256 minPayout
+    ) internal returns (uint256 payout) {
+        require(!bondPaused, "BondPool._depositInternal: BOND_PAUSED");
+        require(depositor != address(0), "BondPool._depositInternal: ZERO_ADDRESS");
+        require(depositAmount > 0, "BondPool._depositInternal: ZERO_AMOUNT");
+
+        TransferHelper.safeTransferFrom(IAmm(amm).baseToken(), from, amm, depositAmount);
+        (uint256 actualDepositAmount, , uint256 liquidity) = IAmm(amm).mint(address(this));
+        require(actualDepositAmount == depositAmount, "BondPool._depositInternal: AMOUNT_NOT_MATCH");
+
+        payout = payoutFor(depositAmount);
+        require(payout >= minPayout, "BondPool._depositInternal: UNDER_MIN_LAYOUT");
+        require(payout <= maxPayout, "BondPool._depositInternal: OVER_MAX_PAYOUT");
+        maxPayout -= payout;
+        TransferHelper.safeApprove(amm, treasury, liquidity);
+        IPCVTreasury(treasury).deposit(amm, liquidity, payout);
+
+        bondInfo[depositor] = Bond({
+            payout: bondInfo[depositor].payout + payout,
+            vesting: vestingTerm,
+            lastBlockTime: block.timestamp,
+            paidAmount: bondInfo[depositor].paidAmount + depositAmount
+        });
+        emit BondCreated(depositor, depositAmount, payout, block.timestamp + vestingTerm);
     }
 }
