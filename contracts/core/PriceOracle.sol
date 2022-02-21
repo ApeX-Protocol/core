@@ -168,12 +168,12 @@ contract PriceOracle is IPriceOracle, Initializable {
         baseAmount = quoteAmount.mulDiv(uint256(baseReserve) * quoteReserve, denominator);
     }
 
-    //premiumFraction is (markPrice - indexPrice) / 8h / indexPrice, scale by 1e18
+    //premiumFraction is (markPrice - indexPrice) / 24h / indexPrice, scale by 1e18
     function getPremiumFraction(address amm) external view override returns (int256) {
         int256 markPrice = int256(getMarkPrice(amm));
         int256 indexPrice = int256(getIndexPrice(amm));
         require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
-        return ((markPrice - indexPrice) * 1e18) / (8 * 3600) / indexPrice;
+        return ((markPrice - indexPrice) * 1e18) / (24 * 3600) / indexPrice;
     }
 
     function _blockTimestamp() internal view virtual returns (uint32) {

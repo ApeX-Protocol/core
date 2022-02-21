@@ -603,7 +603,6 @@ contract Margin is IMargin, IVault, Reentrant {
 
     //@notice returns newLatestCPF with 1e18 multiplied
     function _getNewLatestCPF() internal view returns (int256 newLatestCPF) {
-        //premiumFraction is (markPrice - indexPrice) * 1e18 / 8h / indexPrice
         int256 premiumFraction = IPriceOracle(IConfig(config).priceOracle()).getPremiumFraction(amm);
         uint256 maxCPFBoost = IConfig(config).maxCPFBoost();
         int256 delta;
