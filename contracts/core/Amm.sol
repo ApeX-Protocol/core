@@ -229,7 +229,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
-        emit Rebase(_quoteReserve, quoteReserveAfter, quoteReserveFromInternal, quoteReserveFromExternal);
+        emit Rebase(_quoteReserve, quoteReserveAfter, _baseReserve, quoteReserveFromInternal, quoteReserveFromExternal);
     }
 
     /// notice view method for estimating swap

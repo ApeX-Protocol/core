@@ -6,7 +6,7 @@ interface IAmm {
     event Burn(address indexed sender, address indexed to, uint256 baseAmount, uint256 quoteAmount, uint256 liquidity);
     event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
     event ForceSwap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);
-    event Rebase(uint256 quoteReserveBefore, uint256 quoteReserveAfter, uint256 quoteReserveFromInternal,  uint256 quoteReserveFromExternal );
+    event Rebase(uint256 quoteReserveBefore, uint256 quoteReserveAfter, uint256 _baseReserve , uint256 quoteReserveFromInternal,  uint256 quoteReserveFromExternal );
     event Sync(uint112 reserveBase, uint112 reserveQuote);
 
     // only factory can call this function
