@@ -53,8 +53,14 @@ interface IBondPool {
         uint256 minPayout
     ) external returns (uint256 payout);
 
+    /// @notice User deposit ETH to make a bond for the apeX token
+    function depositETH(address depositor, uint256 minPayout) external payable returns (uint256 ethAmount, uint256 payout);
+
     /// @notice For user to redeem the apeX
     function redeem(address depositor) external returns (uint256 payout);
+
+    /// @notice WETH address
+    function WETH() external view returns (address);
 
     /// @notice ApeXToken address
     function apeXToken() external view returns (address);

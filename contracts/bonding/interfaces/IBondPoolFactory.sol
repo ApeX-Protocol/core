@@ -17,6 +17,8 @@ interface IBondPoolFactory {
 
     function createPool(address amm) external returns (address);
 
+    function WETH() external view returns (address);
+
     function apeXToken() external view returns (address);
 
     function treasury() external view returns (address);

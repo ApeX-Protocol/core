@@ -7,15 +7,15 @@ let apeXToken;
 let vipNft;
 let squidNft;
 
-let vipNftName = "ApeX-VIP-NFT";
-let vipNftSymbol = "APEX-VIP-NFT";
+let vipNftName = "ApeX-VIP-NFT-PRE";
+let vipNftSymbol = "APEX-VIP-NFT-PRE";
 let vipNftBaseURI = "https://gateway.pinata.cloud/ipfs/QmPdTKdcm9KNHpS6jYFX2P2SyGeF5xcrw7MAWZFeVM4YgC/";
 let vipNftStartTime = Math.round(new Date().getTime() / 1000) + 60;
 let vipNftCliff = 0;
 let vipNftDuration = 36000;
 
-let squidNftName = "ApeX-Squid-NFT";
-let squidNftSymbol = "APEX-SQU-NFT";
+let squidNftName = "ApeX-Squid-NFT-PRE";
+let squidNftSymbol = "APEX-SQU-NFT-PRE";
 let squidNftBaseURI = "https://testapex.mypinata.cloud/ipfs/Qmb7MB92bUNvroCEnU1G972sbyaB1dYYdZtBWqmg1BiLES/";
 let squidNftStartTime = Math.round(new Date().getTime() / 1000) + 3600;
 let squidNftEndTime = squidNftStartTime + 36000;
@@ -24,10 +24,10 @@ let squidStartTime = squidNftEndTime + 36000;
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  // await createApeXToken();
+  await createApeXToken();
   await createVipNft();
   await createNftSquid();
-  // await createMulticall2();
+  await createMulticall2();
 };
 
 async function createApeXToken() {
