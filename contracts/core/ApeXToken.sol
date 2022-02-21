@@ -19,7 +19,7 @@ contract ApeXToken is ERC20Votes, Ownable {
         _;
     }
 
-    constructor() ERC20Permit("") ERC20("ApeX Token", "APEX") {
+    constructor() ERC20Permit("") ERC20("ApeX Token PRE", "APEX-PRE") {
         _mint(msg.sender, initTotalSupply);
     }
 

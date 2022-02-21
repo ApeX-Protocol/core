@@ -64,15 +64,15 @@ const main = async () => {
   // await createBondPriceOracle();
   // await createBondPoolFactory();
   // await createStakingPoolFactory();
-  await createInvitation();
+  // await createInvitation();
   // await createReward();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createPairForVerify();
   // await createMockPair();
-  await createMockBondPool();
-  // await bond();
+  // await createMockBondPool();
+  await bond();
   // await createMockStakingPool();
 };
 
@@ -184,12 +184,13 @@ async function createBondPoolFactory() {
     pcvTreasuryAddress = pcvTreasury.address;
   }
   if (bondPriceOracle == null) {
-    let priceOracleAddress = "0xa9fdC25153A5f8a7F31c129626043D09B606bf87";
+    let priceOracleAddress = "0x076A33AAc2fC3664dceF2AD33f414d485E4Ae898";
     const BondPriceOracle = await ethers.getContractFactory("BondPriceOracle");
     bondPriceOracle = await BondPriceOracle.attach(priceOracleAddress);
   }
   const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
   bondPoolFactory = await BondPoolFactory.deploy(
+    wethAddress,
     apeXToken.address,
     pcvTreasuryAddress,
     bondPriceOracle.address,
@@ -201,6 +202,7 @@ async function createBondPoolFactory() {
   console.log(
     verifyStr,
     process.env.HARDHAT_NETWORK,
+    wethAddress,
     bondPoolFactory.address,
     apeXToken.address,
     pcvTreasuryAddress,
@@ -304,7 +306,7 @@ async function createMockPair() {
 async function createMockBondPool() {
   ammAddress = "0xE5140fE7eEE8D522464a542767c6B14Cf1251051";
   if (bondPoolFactory == null) {
-    let bondPoolFactoryAddress = "0x757e06E3B4B9b28CeCD4c11b0E8267428A0ad29D";
+    let bondPoolFactoryAddress = "0x076A33AAc2fC3664dceF2AD33f414d485E4Ae898";
     const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
     bondPoolFactory = await BondPoolFactory.attach(bondPoolFactoryAddress);
   }
@@ -328,7 +330,7 @@ async function createMockBondPool() {
 
 async function bond() {
   if (bondPool == null) {
-    let bondPoolAddress = "0x970B9BD451914391fF1BCF328Dcde1eCD703C9e9";
+    let bondPoolAddress = "0x2F9De466963d4F26052F93D7B7665fD36C41AA97";
     const BondPool = await ethers.getContractFactory("BondPool");
     bondPool = await BondPool.attach(bondPoolAddress);
   }
@@ -337,14 +339,27 @@ async function bond() {
     let PCVTreasury = await ethers.getContractFactory("PCVTreasury");
     pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
   }
-  // let ammAddress = "0xE5140fE7eEE8D522464a542767c6B14Cf1251051";
-  // await pcvTreasury.addLiquidityToken(ammAddress);
-  // await pcvTreasury.addBondPool(bondPool.address);
+  let balance = await apeXToken.balanceOf(pcvTreasuryAddress);
+  console.log("balance:", balance.toString());
 
-  // const MockWETH = await ethers.getContractFactory("MockWETH");
-  // const weth = await MockWETH.attach("0x655e2b2244934Aea3457E3C56a7438C271778D44");
-  // await weth.approve(bondPool.address, BigNumber.from("10000000000000000000000000000000").toString());
+  let ammAddress = "0xE5140fE7eEE8D522464a542767c6B14Cf1251051";
+  await pcvTreasury.addLiquidityToken(ammAddress);
+  await pcvTreasury.addBondPool(bondPool.address);
+  let isLiquidityToken = await pcvTreasury.isLiquidityToken(ammAddress);
+  let isBondPool = await pcvTreasury.isBondPool(bondPool.address);
+  console.log("isLiquidityToken:", isLiquidityToken.toString());
+  console.log("isBondPool:", isBondPool.toString());
+
+  const MockWETH = await ethers.getContractFactory("MockWETH");
+  const weth = await MockWETH.attach("0x655e2b2244934Aea3457E3C56a7438C271778D44");
+  await weth.approve(bondPool.address, BigNumber.from("10000000000000000000000000000000").toString());
   await bondPool.deposit(signer, BigNumber.from("1000000000000000").toString(), 1);
+
+  let overrides = {
+    value: ethers.utils.parseEther("0.01"),
+  };
+  await bondPool.depositETH(signer, 1, overrides);
+
   let bondInfo = await bondPool.bondInfoFor(signer);
   console.log("payout:", bondInfo.payout.toString());
 }
