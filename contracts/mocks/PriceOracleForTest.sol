@@ -24,13 +24,11 @@ contract PriceOracleForTest is IPriceOracle {
         getReserves[baseToken][quoteToken] = Reserves(reserveBase, reserveQuote);
     }
 
-    function setupTwap(address amm) override external  {
+    function setupTwap(address amm) external override {
         return;
     }
 
-    function updateAmmTwap(address pair) override external {
-        
-    }
+    function updateAmmTwap(address pair) external override {}
 
     function quote(
         address baseToken,
@@ -41,13 +39,9 @@ contract PriceOracleForTest is IPriceOracle {
         require(baseAmount > 0, "INSUFFICIENT_AMOUNT");
         require(reserves.base > 0 && reserves.quote > 0, "INSUFFICIENT_LIQUIDITY");
         quoteAmount = (baseAmount * reserves.quote) / reserves.base;
-    } 
-    
-     function quoteFromAmmTwap(
-        address amm,
-        uint256 baseAmount
-    ) public view override returns (uint256 quoteAmount) {
-        
+    }
+
+    function quoteFromAmmTwap(address amm, uint256 baseAmount) public view override returns (uint256 quoteAmount) {
         quoteAmount = 0;
     }
 
@@ -84,11 +78,11 @@ contract PriceOracleForTest is IPriceOracle {
         }
     }
 
-    //premiumFraction is (markPrice - indexPrice) / 8h / indexPrice
+    //premiumFraction is (markPrice - indexPrice) / 24h / indexPrice
     function getPremiumFraction(address amm) public view override returns (int256) {
         int256 markPrice = int256(getMarkPrice(amm));
         int256 indexPrice = int256(getIndexPrice(amm));
         require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
-        return ((markPrice - indexPrice) * 1e18) / (8 * 3600) / indexPrice;
+        return ((markPrice - indexPrice) * 1e18) / (24 * 3600) / indexPrice;
     }
 }
