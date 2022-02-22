@@ -26,6 +26,7 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 public price = 0.01 ether; // for test
     mapping(address => uint256) public claimed;
     address public token;
+
     constructor(
         string memory _name,
         string memory _symbol,
@@ -93,6 +94,13 @@ contract ApeXVIPNFT is ERC721PresetMinterPauserAutoId, Ownable {
 
     function withdrawETH(address to) external onlyOwner {
         payable(to).transfer(address(this).balance);
+    }
+
+    function withdrawERC20Token(address token_, address to, uint256 amount) external onlyOwner returns (bool) {
+        uint256 balance = IERC20(token_).balanceOf(address(this));
+        require(balance >= amount, "NOT_ENOUGH_BALANCE");
+        require(IERC20(token_).transfer(to, amount));
+        return true;
     }
 
     function claimableAmount(address user) public view returns (uint256) {

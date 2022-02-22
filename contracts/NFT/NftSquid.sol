@@ -166,9 +166,10 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
         payable(to).transfer(address(this).balance);
     }
 
-    function withdrawERC20Token(address to) external onlyOwner returns (bool) {
-        require(IERC20(token).balanceOf(address(this)) >= 0);
-        require(IERC20(token).transfer(to, IERC20(token).balanceOf(address(this))));
+    function withdrawERC20Token(address token_, address to, uint256 amount) external onlyOwner returns (bool) {
+        uint256 balance = IERC20(token_).balanceOf(address(this));
+        require(balance >= amount, "NOT_ENOUGH_BALANCE");
+        require(IERC20(token_).transfer(to, amount));
         return true;
     }
 

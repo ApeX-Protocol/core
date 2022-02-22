@@ -16,18 +16,23 @@ let vipNftDuration = 36000;
 
 let squidNftName = "ApeX-Squid-NFT-PRE";
 let squidNftSymbol = "APEX-SQU-NFT-PRE";
-let squidNftBaseURI = "https://testapex.mypinata.cloud/ipfs/Qmb7MB92bUNvroCEnU1G972sbyaB1dYYdZtBWqmg1BiLES/";
+let squidNftBaseURI = "https://testapex.mypinata.cloud/ipfs/QmapaMVk6Zw6ieFgE9442d6g2i9LVFPMsM1xR51EzZ1nbC/";
 let squidNftStartTime = Math.round(new Date().getTime() / 1000) + 3600;
 let squidNftEndTime = squidNftStartTime + 36000;
 let squidStartTime = squidNftEndTime + 36000;
+
+let genesisNftName = "ApeX-gNFT-PRE";
+let genesisNftSymbol = "APEX-GNFT-PRE";
+let genesisNftBaseURI = "https://gateway.pinata.cloud/ipfs/QmPdTKdcm9KNHpS6jYFX2P2SyGeF5xcrw7MAWZFeVM4YgC/";
 
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   await createApeXToken();
-  await createVipNft();
+  // await createVipNft();
   await createNftSquid();
-  await createMulticall2();
+  // await createGenesisNFT();
+  // await createMulticall2();
 };
 
 async function createApeXToken() {
@@ -96,11 +101,20 @@ async function createNftSquid() {
     squidNftStartTime,
     squidNftEndTime
   );
+  await squidNft.transferOwnership("0xec13762918E512e022964Fc542D89FF81376455d");
+}
+
+async function createGenesisNFT() {
+  const GenesisNFT = await ethers.getContractFactory("GenesisNFT");
+  let genesisNFT = await GenesisNFT.deploy(genesisNftName, genesisNftSymbol, genesisNftBaseURI);
+  await genesisNFT.mint(signer);
+  console.log("GenesisNFT:", genesisNFT.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, genesisNFT.address);
 }
 
 async function createMulticall2() {
   const Multicall2 = await ethers.getContractFactory("Multicall2");
-  multicall2 = await Multicall2.deploy();
+  let multicall2 = await Multicall2.deploy();
   console.log("Multicall2:", multicall2.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, multicall2.address);
 }
