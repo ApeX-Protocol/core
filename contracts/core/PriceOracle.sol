@@ -183,7 +183,7 @@ contract PriceOracle is IPriceOracle, Initializable {
 
     function _getSqrtPriceX96(address amm) internal view returns (uint160) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        uint256 priceX192 = uint256(quoteReserve) * 2**192 / baseReserve;
+        uint256 priceX192 = uint256(quoteReserve).mulDiv(2**192, baseReserve);
         return uint160(priceX192.sqrt());
     }
 }
