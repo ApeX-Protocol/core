@@ -6,10 +6,12 @@ let signer;
 let apeXToken;
 let vipNft;
 let squidNft;
+let apeXToVipNFT = BigNumber.from("20833320000000000000000000");
+let apeXToSquidNFT = BigNumber.from("20520000000000000000000000");
 
 let vipNftName = "ApeX-VIP-NFT-PRE";
 let vipNftSymbol = "APEX-VIP-NFT-PRE";
-let vipNftBaseURI = "https://gateway.pinata.cloud/ipfs/QmPdTKdcm9KNHpS6jYFX2P2SyGeF5xcrw7MAWZFeVM4YgC/";
+let vipNftBaseURI = "https://testapex.mypinata.cloud/ipfs/Qmevfgfzbc7sLEZgQSmp9TSM7iTUffweG65qve25bwEsF1/";
 let vipNftStartTime = Math.round(new Date().getTime() / 1000) + 60;
 let vipNftCliff = 0;
 let vipNftDuration = 36000;
@@ -28,9 +30,9 @@ let genesisNftBaseURI = "https://gateway.pinata.cloud/ipfs/QmPdTKdcm9KNHpS6jYFX2
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  await createApeXToken();
-  // await createVipNft();
-  await createNftSquid();
+  // await createApeXToken();
+  await createVipNft();
+  // await createNftSquid();
   // await createGenesisNFT();
   // await createMulticall2();
 };
@@ -44,7 +46,7 @@ async function createApeXToken() {
 
 async function createVipNft() {
   if (apeXToken == null) {
-    let apeXTokenAddress = "0xf5233793F07cC3a229F498744De6eEA7c52B2dAe";
+    let apeXTokenAddress = "0xF9546a61548602aFfA721d32597326eE4AdD3e55";
     const ApeXToken = await ethers.getContractFactory("ApeXToken");
     apeXToken = await ApeXToken.attach(apeXTokenAddress);
   }
@@ -71,11 +73,15 @@ async function createVipNft() {
     vipNftCliff,
     vipNftDuration
   );
+
+  // await apeXToken.transfer(vipNft.address, apeXToVipNFT);
+  // let balanceInVip = await apeXToken.balanceOf(vipNft.address);
+  // console.log("ApeX in VIPNFT:", balanceInVip.toString());
 }
 
 async function createNftSquid() {
   if (apeXToken == null) {
-    let apeXTokenAddress = "0xf5233793F07cC3a229F498744De6eEA7c52B2dAe";
+    let apeXTokenAddress = "0xF9546a61548602aFfA721d32597326eE4AdD3e55";
     const ApeXToken = await ethers.getContractFactory("ApeXToken");
     apeXToken = await ApeXToken.attach(apeXTokenAddress);
   }
@@ -101,7 +107,10 @@ async function createNftSquid() {
     squidNftStartTime,
     squidNftEndTime
   );
-  await squidNft.transferOwnership("0xec13762918E512e022964Fc542D89FF81376455d");
+
+  // await apeXToken.transfer(squidNft.address, apeXToSquidNFT);
+  // let balance = await apeXToken.balanceOf(squidNft.address);
+  // console.log("ApeX in SquidNft:", balance.toString());
 }
 
 async function createGenesisNFT() {

@@ -30,16 +30,16 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   await attachApeXToken();
-  await createPriceOracle();
-  await createConfig();
-  await createPairFactory();
-  await createPCVTreasury();
-  await createRouter();
-  await createMulticall2();
+  // await createPriceOracle();
+  // await createConfig();
+  // await createPairFactory();
+  // await createPCVTreasury();
+  // await createRouter();
+  // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createPairForVerify();
-  // await createMockPair();
+  await createMockPair();
 };
 
 async function attachApeXToken() {
@@ -172,7 +172,7 @@ async function createMockPair() {
   let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526";
 
   if (pairFactory == null) {
-    let pairFactoryAddress = "0xFb32d5327f17Bb5b10f76D453768b39a2C020D3a";
+    let pairFactoryAddress = "0xd4dD1661593dbAbe18FDCE4d3346223Fe4cc9aCF";
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }
