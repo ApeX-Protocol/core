@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 interface IConfig {
     event PriceOracleChanged(address indexed oldOracle, address indexed newOracle);
     event RebasePriceGapChanged(uint256 oldGap, uint256 newGap);
+    event RebaseIntervalChanged(uint256 oldInterval, uint256 newInterval);
     event TradingSlippageChanged(uint256 oldTradingSlippage, uint256 newTradingSlippage);
     event RouterRegistered(address indexed router);
     event RouterUnregistered(address indexed router);
@@ -38,6 +39,8 @@ interface IConfig {
     /// @notice get rebase gap of amm.
     function rebasePriceGap() external view returns (uint256);
 
+    function rebaseInterval() external view returns (uint256);
+
     function routerMap(address) external view returns (bool);
 
     function maxCPFBoost() external view returns (uint256);
@@ -57,6 +60,8 @@ interface IConfig {
     /// @notice Set a new rebase gap of amm
     /// @param newGap new gap.
     function setRebasePriceGap(uint256 newGap) external;
+
+    function setRebaseInterval(uint256 interval) external;
 
     /// @notice Set a new trading slippage of amm
     /// @param newTradingSlippage .

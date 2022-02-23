@@ -12,6 +12,7 @@ contract Config is IConfig, Ownable {
     uint8 public override beta = 50; // 50-200，50 means 0.5
     uint256 public override maxCPFBoost = 10; // default 10
     uint256 public override rebasePriceGap = 5; //0-100 , if 5 means 5%
+    uint256 public override rebaseInterval = 3600; // in seconds
     uint256 public override tradingSlippage = 5; //0-100, if 5 means 5%
     uint256 public override initMarginRatio = 800; //if 1000, means margin ratio >= 10%
     uint256 public override liquidateThreshold = 10000; //if 10000, means debt ratio < 100%
@@ -39,6 +40,11 @@ contract Config is IConfig, Ownable {
         require(newGap > 0 && newGap < 100, "Config: ZERO_GAP");
         emit RebasePriceGapChanged(rebasePriceGap, newGap);
         rebasePriceGap = newGap;
+    }
+
+    function setRebaseInterval(uint256 interval) external override onlyOwner {
+        emit RebaseIntervalChanged(rebaseInterval, interval);
+        rebaseInterval = interval;
     }
 
     function setTradingSlippage(uint256 newTradingSlippage) external override onlyOwner {

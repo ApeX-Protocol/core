@@ -194,12 +194,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit ForceSwap(trader, inputToken, outputToken, inputAmount, outputAmount);
     }
 
-    /// @notice  invoke when price gap is larger  than  "gap" percent;
+    /// @notice invoke when price gap is larger than "gap" percent;
     /// @notice gap is in config contract
     function rebase() external override nonReentrant returns (uint256 quoteReserveAfter) {
         require(msg.sender == tx.origin, "Amm.rebase: ONLY_EOA");
-        // todo 1h
-        require(block.timestamp - rebaseTimestampLast >= 3600, "Amm.rebase: REBASE_INTERVAL_MUST_LARGER_THAN_ONE_HOUR");
+        uint256 interval = IConfig(config).rebaseInterval();
+        require(block.timestamp - rebaseTimestampLast >= interval, "Amm.rebase: NOT_REACH_NEXT_REBASE_TIME");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
@@ -218,13 +218,16 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         uint256 gap = IConfig(config).rebasePriceGap();
         require(
-            quoteReserveFromExternal * 100 >= uint256(quoteReserveFromInternal) * (100 + gap) ||
-                quoteReserveFromExternal * 100 <= uint256(quoteReserveFromInternal) * (100 - gap),
+            quoteReserveFromExternal * 100 >= quoteReserveFromInternal * (100 + gap) ||
+                quoteReserveFromExternal * 100 <= quoteReserveFromInternal * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-        //todo check rebase price gap
-        quoteReserveAfter = (_quoteReserve * quoteReserveFromExternal) / quoteReserveFromInternal;
+        if (quoteReserveFromExternal * 100 >= quoteReserveFromInternal * (100 + gap)) {
+            quoteReserveAfter = uint256(_quoteReserve) * (100 + gap) / 100;
+        } else {
+            quoteReserveAfter = uint256(_quoteReserve) * (100 - gap) / 100;
+        }
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
