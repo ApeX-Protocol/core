@@ -17,7 +17,14 @@ interface IMargin {
         uint256 withdrawAmountFromMargin,
         Position position
     );
-    event OpenPosition(address indexed trader, uint8 side, uint256 baseAmount, uint256 quoteAmount, Position position);
+    event OpenPosition(
+        address indexed trader,
+        uint8 side,
+        uint256 baseAmount,
+        uint256 quoteAmount,
+        int256 fundingFee,
+        Position position
+    );
     event ClosePosition(
         address indexed trader,
         uint256 quoteAmount,
@@ -31,6 +38,7 @@ interface IMargin {
         uint256 quoteAmount,
         uint256 baseAmount,
         uint256 bonus,
+        int256 fundingFee,
         Position position
     );
     event UpdateCPF(uint256 timeStamp, int256 cpf);
