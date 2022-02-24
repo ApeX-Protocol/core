@@ -2,10 +2,10 @@ const { ethers, upgrades } = require("hardhat");
 const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
-const apeXTokenAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD"; // Layer2 ApeX Token
+const apeXTokenAddress = "0x48A57f8F32Fd10895CdA24A6bd15D14Caa1Bd969"; // Layer2 ApeX Token
 // for PriceOracle
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
-const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // WETH address
+const wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH address
 
 let signer;
 let apeXToken;
@@ -31,11 +31,11 @@ const main = async () => {
   signer = accounts[0].address;
   await attachApeXToken();
   await createPriceOracle();
-  // await createConfig();
-  // await createPairFactory();
-  // await createPCVTreasury();
-  // await createRouter();
-  // await createMulticall2();
+  await createConfig();
+  await createPairFactory();
+  await createPCVTreasury();
+  await createRouter();
+  await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createPairForVerify();
@@ -63,7 +63,7 @@ async function createConfig() {
   console.log(verifyStr, process.env.HARDHAT_NETWORK, config.address);
 
   if (priceOracle == null) {
-    let priceOracleAddress = "0x15C20c6c673c3B2244b465FC7736eAA0E8bd6DF6";
+    let priceOracleAddress = "0x713D7e019eC5e48F4D6BE8b640D5ed88b95023Bc";
     const PriceOracle = await ethers.getContractFactory("PriceOracle");
     priceOracle = await PriceOracle.attach(priceOracleAddress);
   }
@@ -72,7 +72,7 @@ async function createConfig() {
 
 async function createPairFactory() {
   if (config == null) {
-    let configAddress = "0x1e4298C82061FAdd05096Ff04487A28E41820a94";
+    let configAddress = "0xF1D5FC94A3cA88644E0D05195fbb2db1E60B9e75";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
   }
@@ -104,12 +104,12 @@ async function createPCVTreasury() {
 
 async function createRouter() {
   if (pairFactory == null) {
-    let pairFactoryAddress = "0x61Ef918F64665a499dFe9FDA667F96bE2B2E504B";
+    let pairFactoryAddress = "0x7c65916580A1d715466310A8216D4BE493d38126";
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }
   if (pcvTreasury == null) {
-    let pcvTreasuryAddress = "0xcb186F6bbB2Df145ff450ee0A4Ec6aF4baadEec7";
+    let pcvTreasuryAddress = "0x9a1Ecf2D2C523A69028BDBAb6Fce8A0549addfE7";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
     pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
   }
@@ -128,7 +128,7 @@ async function createRouter() {
 
   // need to regiter router in config
   if (config == null) {
-    let configAddress = "0x7565D4B79f2e43Fb02770A075a749cad6a91C213";
+    let configAddress = "0xF1D5FC94A3cA88644E0D05195fbb2db1E60B9e75";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
   }
@@ -168,11 +168,11 @@ async function createPairForVerify() {
 }
 
 async function createMockPair() {
-  let baseTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
-  let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526";
+  let baseTokenAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
+  let quoteTokenAddress = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8";
 
   if (pairFactory == null) {
-    let pairFactoryAddress = "0xd4dD1661593dbAbe18FDCE4d3346223Fe4cc9aCF";
+    let pairFactoryAddress = "0x7c65916580A1d715466310A8216D4BE493d38126";
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }

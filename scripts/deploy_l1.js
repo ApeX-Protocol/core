@@ -30,11 +30,11 @@ let genesisNftBaseURI = "https://gateway.pinata.cloud/ipfs/QmPdTKdcm9KNHpS6jYFX2
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  // await createApeXToken();
+  await createApeXToken();
   await createVipNft();
-  // await createNftSquid();
-  // await createGenesisNFT();
-  // await createMulticall2();
+  await createNftSquid();
+  await createGenesisNFT();
+  await createMulticall2();
 };
 
 async function createApeXToken() {
