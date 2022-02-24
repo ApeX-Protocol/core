@@ -9,22 +9,22 @@ let squidNft;
 let apeXToVipNFT = BigNumber.from("20833320000000000000000000");
 let apeXToSquidNFT = BigNumber.from("20520000000000000000000000");
 
-let vipNftName = "ApeX-VIP-NFT-PRE";
-let vipNftSymbol = "APEX-VIP-NFT-PRE";
+let vipNftName = "ApeX-VIP-NFT";
+let vipNftSymbol = "APEX-VIP-NFT";
 let vipNftBaseURI = "https://testapex.mypinata.cloud/ipfs/Qmevfgfzbc7sLEZgQSmp9TSM7iTUffweG65qve25bwEsF1/";
-let vipNftStartTime = Math.round(new Date().getTime() / 1000) + 60;
-let vipNftCliff = 0;
-let vipNftDuration = 36000;
+let vipNftStartTime = Math.round(new Date().getTime() / 1000) + 365 * 24 * 3600;
+let vipNftCliff = (365 * 24 * 3600) / 2;
+let vipNftDuration = 365 * 24 * 3600;
 
-let squidNftName = "ApeX-Squid-NFT-PRE";
-let squidNftSymbol = "APEX-SQU-NFT-PRE";
+let squidNftName = "ApeX-Squid-NFT";
+let squidNftSymbol = "APEX-SQU-NFT";
 let squidNftBaseURI = "https://testapex.mypinata.cloud/ipfs/QmapaMVk6Zw6ieFgE9442d6g2i9LVFPMsM1xR51EzZ1nbC/";
 let squidNftStartTime = Math.round(new Date().getTime() / 1000) + 3600;
-let squidNftEndTime = squidNftStartTime + 36000;
-let squidStartTime = squidNftEndTime + 36000;
+let squidNftEndTime = squidNftStartTime + 3 * 24 * 3600;
+let squidStartTime = squidNftEndTime + 365 * 24 * 3600;
 
-let genesisNftName = "ApeX-gNFT-PRE";
-let genesisNftSymbol = "APEX-GNFT-PRE";
+let genesisNftName = "ApeX-gNFT";
+let genesisNftSymbol = "APEX-GNFT";
 let genesisNftBaseURI = "https://gateway.pinata.cloud/ipfs/QmPdTKdcm9KNHpS6jYFX2P2SyGeF5xcrw7MAWZFeVM4YgC/";
 
 const main = async () => {
