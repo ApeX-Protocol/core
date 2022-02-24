@@ -22,16 +22,16 @@ describe("Amm", function () {
     const AMMFactoryContract = await ethers.getContractFactory("AmmFactory");
     const MyToken = await ethers.getContractFactory("MyToken");
     const PriceOracle = await ethers.getContractFactory("MockPriceOracle");
-    const MockConfig = await ethers.getContractFactory("Config");
+    const MockConfig = await ethers.getContractFactory("MockConfig");
     const MockMargin = await ethers.getContractFactory("MockMargin");
 
     //config
     config = await MockConfig.deploy();
     console.log("config: ", config.address);
     // await config.initialize(owner.address);
-    let admin = await config.owner();
+   
     await config.setBeta(100);
-    console.log("admin:", admin);
+  
 
     //ammFactory
     // ( upperFactory_, address config_, address feeToSetter_)
@@ -107,12 +107,15 @@ describe("Amm", function () {
     //alice swap in
     const ammAlice = amm.connect(alice);
     // alice swap 100AAA to usdt
-    let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("100").mul(exp1), 0);
+    let tx1 = await ammAlice.swap(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("100").mul(exp1), 0);
     const swapRes = await tx1.wait();
+    console.log("-----", swapRes)
     let eventabi = [
-      "event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
+      "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);"
     ];
+
     let iface1 = new ethers.utils.Interface(eventabi);
+    console.log("-----------")
     let log1 = iface1.parseLog(swapRes.logs[1]);
     let args1 = log1["args"];
     console.log("swap input AAA for vusd event input  : ", args1.inputAmount.toString());
@@ -120,7 +123,7 @@ describe("Amm", function () {
     expect(args1.outputAmount).to.equal(9989002);
 
     //alice swap out
-    let tx2 = await ammAlice.swap(AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100").mul(exp2));
+    let tx2 = await ammAlice.swap(alice.address, AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100").mul(exp2));
     // alice swap to 100 usdt
     const swapRes2 = await tx2.wait();
     let log2 = iface1.parseLog(swapRes2.logs[1]);
@@ -155,13 +158,13 @@ describe("Amm", function () {
   //  let reserver = await amm.getReserves();
   
     await expect(
-      ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0)
+      ammAlice.swap(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0)
     ).to.be.revertedWith("AMM._update: TRADINGSLIPPAGE_TOO_LARGE");
 
-    let tx1 = await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
+    let tx1 = await ammAlice.swap(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
     const swapRes = await tx1.wait();
     let eventabi = [
-      "event Swap(address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
+      "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
     ];
     let iface1 = new ethers.utils.Interface(eventabi);
     let log1 = iface1.parseLog(swapRes.logs[1]);
@@ -172,7 +175,7 @@ describe("Amm", function () {
     expect(price2).to.equal(price3);
 
     expect(args1.outputAmount).to.equal(989118704);
-    await ammAlice.swap(AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
+    await ammAlice.swap(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
 
     let price4 = await amm.lastPrice();
     
@@ -199,7 +202,7 @@ describe("Amm", function () {
     // alice swap  some AAA to 100000 usdt
     //alice swap out
     await expect(
-      ammAlice.swap(AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100000").mul(exp2))
+      ammAlice.swap(alice.address, AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100000").mul(exp2))
     ).to.be.revertedWith("AMM._estimateSwap: INSUFFICIENT_LIQUIDITY");
   });
 });
