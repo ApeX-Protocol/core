@@ -140,7 +140,7 @@ describe("Router contract", function () {
     it("openPositionWithMargin open long", async function () {
       await baseToken.mint(owner.address, 1000000);
       await baseToken.approve(router.address, 1000000);
-      await router.addLiquidity(baseToken.address, quoteToken.address, 1000, 1, 9999999999, false);
+      await router.addLiquidity(baseToken.address, quoteToken.address, 100000, 1, 9999999999, false);
       await router.deposit(baseToken.address, quoteToken.address, owner.address, 1000);
       await router.openPositionWithMargin(baseToken.address, quoteToken.address, 0, 3300, 1, 9999999999);
     });
@@ -148,7 +148,7 @@ describe("Router contract", function () {
     it("openPositionWithMargin open short", async function () {
       await baseToken.mint(owner.address, 1000000);
       await baseToken.approve(router.address, 1000000);
-      await router.addLiquidity(baseToken.address, quoteToken.address, 1000, 1, 9999999999, false);
+      await router.addLiquidity(baseToken.address, quoteToken.address, 100000, 1, 9999999999, false);
       await router.deposit(baseToken.address, quoteToken.address, owner.address, 1000);
       await router.openPositionWithMargin(baseToken.address, quoteToken.address, 1, 3300, 10000000, 9999999999);
     });
@@ -156,17 +156,17 @@ describe("Router contract", function () {
 
   describe("openPositionWithWallet", function () {
     it("openPositionWithWallet open long", async function () {
-      await baseToken.mint(owner.address, 1000000);
-      await baseToken.approve(router.address, 1000000);
-      await router.addLiquidity(baseToken.address, quoteToken.address, 10000, 1, 9999999999, false);
+      await baseToken.mint(owner.address, 10000000000);
+      await baseToken.approve(router.address, 10000000000);
+      await router.addLiquidity(baseToken.address, quoteToken.address, 1000000, 1, 9999999999, false);
       await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, 9999999999);
     });
 
     it("openPositionWithWallet open short", async function () {
-      await baseToken.mint(owner.address, 1000000);
-      await baseToken.approve(router.address, 1000000);
-      await router.addLiquidity(baseToken.address, quoteToken.address, 10000, 1, 9999999999, false);
-      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 10000000, 9999999999);
+      await baseToken.mint(owner.address, 10000000000);
+      await baseToken.approve(router.address, 10000000000);
+      await router.addLiquidity(baseToken.address, quoteToken.address, 1000000, 1, 9999999999, false);
+      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 100000, 9999999999);
     });
   });
 
@@ -190,9 +190,9 @@ describe("Router contract", function () {
 
   describe("closePosition", function () {
     it("closePosition right", async function () {
-      await baseToken.mint(owner.address, 1000000);
-      await baseToken.approve(router.address, 1000000);
-      await router.addLiquidity(baseToken.address, quoteToken.address, 10000, 1, 9999999999, false);
+      await baseToken.mint(owner.address, 10000000000);
+      await baseToken.approve(router.address, 10000000000);
+      await router.addLiquidity(baseToken.address, quoteToken.address, 1000000, 1, 9999999999, false);
       await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, 9999999999);
       await router.closePosition(baseToken.address, quoteToken.address, 10000, 9999999999, true);
     });
