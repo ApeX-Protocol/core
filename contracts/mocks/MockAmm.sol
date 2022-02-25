@@ -80,6 +80,7 @@ contract MockAmm is ERC20 {
     }
 
     function swap(
+        address trader,
         address inputToken,
         address outputToken,
         uint256 inputAmount,
@@ -104,6 +105,7 @@ contract MockAmm is ERC20 {
     }
 
     function forceSwap(
+        address trader,
         address inputToken,
         address outputToken,
         uint256 inputAmount,
