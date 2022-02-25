@@ -36,14 +36,21 @@ contract MockPriceOracle {
         address baseToken,
         address quoteToken,
         uint256 baseAmount
-    ) external view returns (uint256 quoteAmount) {
+    ) external view returns (uint256 quoteAmount, uint8 source) {
         quoteAmount = 100000 * 10**6;
+        source =0;
     }
 
   
     function updateAmmTwap(address pair)  external {
         
     }
+
+     function setupTwap(address amm) external  {
+     }
+
+     
+
 
 
 }
