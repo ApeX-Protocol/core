@@ -14,6 +14,7 @@ describe("Amm", function () {
   let exp1 = ethers.BigNumber.from("10").pow(18);
   let exp2 = ethers.BigNumber.from("10").pow(6);
   let feeToSetter;
+  // amm is only invoked by margin, if run test, please delete  the onlyMargin modifier of the swap method in amm
   beforeEach(async function () {
     [owner, alice, bob, feeToSetter] = await ethers.getSigners();
     console.log("owner:", owner.address);
@@ -89,6 +90,7 @@ describe("Amm", function () {
     expect(await config.beta()).to.equal(100);
   });
 
+   
   it("owner add liquidity", async function () {
     //owner mint 100W AAA, correspinding to generate 10W usdt
     // price AAA/usdt = 1/10
