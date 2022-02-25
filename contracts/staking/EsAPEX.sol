@@ -18,14 +18,20 @@ contract EsAPEX is IERC20 {
     }
 
     function mint(address to, uint256 value) external returns (bool) {
-        require(msg.sender == stakingPoolFactory, "esApeX: NO_AUTHORITY");
+        require(msg.sender == stakingPoolFactory, "esApeX.mint: NO_AUTHORITY");
         _mint(to, value);
         return true;
     }
 
     function burn(address from, uint256 value) external returns (bool) {
-        require(msg.sender == stakingPoolFactory, "esApeX: NO_AUTHORITY");
+        require(msg.sender == stakingPoolFactory, "esApeX.burn: NO_AUTHORITY");
         _burn(from, value);
+        return true;
+    }
+
+    function transfer(address to, uint256 value) external override returns (bool) {
+        require(msg.sender == stakingPoolFactory, "esApeX.transfer: NO_AUTHORITY");
+        _transfer(msg.sender, to, value);
         return true;
     }
 
@@ -34,18 +40,12 @@ contract EsAPEX is IERC20 {
         return true;
     }
 
-    function transfer(address to, uint256 value) external override returns (bool) {
-        require(msg.sender == stakingPoolFactory, "esApeX: NO_AUTHORITY");
-        _transfer(msg.sender, to, value);
-        return true;
-    }
-
     function transferFrom(
         address from,
         address to,
         uint256 value
     ) external override returns (bool) {
-        require(msg.sender == stakingPoolFactory, "esApeX: NO_AUTHORITY");
+        require(msg.sender == stakingPoolFactory, "esApeX.transferFrom: NO_AUTHORITY");
         if (allowance[from][msg.sender] != type(uint256).max) {
             allowance[from][msg.sender] = allowance[from][msg.sender] - value;
         }
