@@ -2,10 +2,10 @@ const { ethers, upgrades } = require("hardhat");
 const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
-const apeXTokenAddress = "0x48A57f8F32Fd10895CdA24A6bd15D14Caa1Bd969"; // Layer2 ApeX Token
+const apeXTokenAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD"; // Layer2 ApeX Token
 // for PriceOracle
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
-const wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH address
+const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // WETH address
 
 let signer;
 let apeXToken;
@@ -30,16 +30,16 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   await attachApeXToken();
-  await createPriceOracle();
-  await createConfig();
-  await createPairFactory();
-  await createPCVTreasury();
-  await createRouter();
-  await createMulticall2();
+  // await createPriceOracle();
+  // await createConfig();
+  // await createPairFactory();
+  // await createPCVTreasury();
+  // await createRouter();
+  // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
   // await createPairForVerify();
-  // await createMockPair();
+  await createMockPair();
 };
 
 async function attachApeXToken() {
@@ -168,11 +168,11 @@ async function createPairForVerify() {
 }
 
 async function createMockPair() {
-  let baseTokenAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
-  let quoteTokenAddress = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8";
+  let baseTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
+  let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526";
 
   if (pairFactory == null) {
-    let pairFactoryAddress = "0x7c65916580A1d715466310A8216D4BE493d38126";
+    let pairFactoryAddress = "0xe208eB60F4778a711a55Ec4A5658b1D84e21a05b";
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }

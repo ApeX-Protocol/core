@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-or-later
+// SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.0;
 
 import "./interfaces/IERC20.sol";
@@ -9,7 +9,7 @@ import "../utils/Ownable.sol";
 contract Config is IConfig, Ownable {
     address public override priceOracle;
 
-    uint8 public override beta = 50; // 50-200，50 means 0.5
+    uint8 public override beta = 70; // 50-200，50 means 0.5
     uint256 public override maxCPFBoost = 10; // default 10
     uint256 public override rebasePriceGap = 5; //0-100 , if 5 means 5%
     uint256 public override rebaseInterval = 3600; // in seconds
