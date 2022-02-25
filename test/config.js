@@ -7,17 +7,11 @@ describe("Config contract", function () {
     [owner, addr1, liquidator, ...addrs] = await ethers.getSigners();
 
     const Config = await ethers.getContractFactory("Config");
-    config = await upgrades.deployProxy(Config, [owner.address]);
-    await config.deployed();
+    config = await Config.deploy();
     await config.setBeta(100);
     await config.setInitMarginRatio(909);
     await config.setLiquidateThreshold(10000);
     await config.setLiquidateFeeRatio(2000);
-  });
-  describe("initialize", async function () {
-    it("reverted initialize again", async function () {
-      await expect(config.initialize(owner.address)).to.be.reverted;
-    });
   });
 
   describe("set initMarginRatio", async function () {
@@ -67,6 +61,11 @@ describe("Config contract", function () {
   describe("unregisterRouter", async function () {
     it("revert when unregister an unregister router", async function () {
       await expect(config.unregisterRouter(addr1.address)).to.be.revertedWith("Config: UNREGISTERED");
+    });
+
+    it("unregister an registered router", async function () {
+      await config.registerRouter(addr1.address);
+      await config.unregisterRouter(addr1.address);
     });
   });
 });

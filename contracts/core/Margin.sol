@@ -13,7 +13,6 @@ import "../utils/Reentrant.sol";
 import "../libraries/SignedMath.sol";
 import "../libraries/ChainAdapter.sol";
 
-//@notice cpf means cumulative premium fraction
 contract Margin is IMargin, IVault, Reentrant {
     using SignedMath for int256;
 
@@ -22,9 +21,9 @@ contract Margin is IMargin, IVault, Reentrant {
     address public override amm;
     address public override baseToken;
     address public override quoteToken;
-    mapping(address => Position) public traderPositionMap; //all users' position
-    mapping(address => int256) public traderCPF; //one trader's latest cpf, to calculate funding fee
-    mapping(address => uint256) public traderLatestOperation; //to prevent flash loan attack
+    mapping(address => Position) public traderPositionMap;
+    mapping(address => int256) public traderCPF; //trader's latestCPF checkpoint, to calculate funding fee
+    mapping(address => uint256) public traderLatestOperation;
     uint256 public override reserve;
     uint256 public lastUpdateCPF; //last timestamp update cpf
     int256 public override netPosition; //base token
@@ -52,7 +51,6 @@ contract Margin is IMargin, IVault, Reentrant {
     function addMargin(address trader, uint256 depositAmount) external override nonReentrant {
         uint256 balance = IERC20(baseToken).balanceOf(address(this));
         uint256 _reserve = reserve;
-        //test case: 1. no transfer, add nonZero margin; 2. no transfer, add contractRemain margin
         require(depositAmount <= balance - _reserve, "Margin.addMargin: WRONG_DEPOSIT_AMOUNT");
         Position memory traderPosition = traderPositionMap[trader];
 
@@ -223,7 +221,7 @@ contract Margin is IMargin, IVault, Reentrant {
 
         traderCPF[trader] = _latestCPF;
         traderPositionMap[trader] = traderPosition;
-        emit OpenPosition(trader, side, baseAmount, quoteAmount, traderPosition);
+        emit OpenPosition(trader, side, baseAmount, quoteAmount, fundingFee, traderPosition);
     }
 
     function closePosition(address trader, uint256 quoteAmount)
@@ -403,7 +401,7 @@ contract Margin is IMargin, IVault, Reentrant {
 
         delete traderPositionMap[trader];
 
-        emit Liquidate(msg.sender, trader, quoteAmount, baseAmount, bonus, traderPosition);
+        emit Liquidate(msg.sender, trader, quoteAmount, baseAmount, bonus, fundingFee, traderPosition);
     }
 
     function deposit(address user, uint256 amount) external override nonReentrant {
@@ -606,7 +604,6 @@ contract Margin is IMargin, IVault, Reentrant {
         int256 premiumFraction = IPriceOracle(IConfig(config).priceOracle()).getPremiumFraction(amm);
         uint256 maxCPFBoost = IConfig(config).maxCPFBoost();
         int256 delta;
-        //todo change amplifier to configurable
         if (
             totalQuoteLong <= maxCPFBoost * totalQuoteShort &&
             totalQuoteShort <= maxCPFBoost * totalQuoteLong &&
