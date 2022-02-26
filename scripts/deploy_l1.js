@@ -46,7 +46,7 @@ async function createApeXToken() {
 
 async function createVipNft() {
   if (apeXToken == null) {
-    let apeXTokenAddress = "0xF9546a61548602aFfA721d32597326eE4AdD3e55";
+    let apeXTokenAddress = "0xf5233793F07cC3a229F498744De6eEA7c52B2dAe";
     const ApeXToken = await ethers.getContractFactory("ApeXToken");
     apeXToken = await ApeXToken.attach(apeXTokenAddress);
   }
@@ -81,7 +81,7 @@ async function createVipNft() {
 
 async function createNftSquid() {
   if (apeXToken == null) {
-    let apeXTokenAddress = "0xF9546a61548602aFfA721d32597326eE4AdD3e55";
+    let apeXTokenAddress = "0xf5233793F07cC3a229F498744De6eEA7c52B2dAe";
     const ApeXToken = await ethers.getContractFactory("ApeXToken");
     apeXToken = await ApeXToken.attach(apeXTokenAddress);
   }
