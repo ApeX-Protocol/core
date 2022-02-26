@@ -425,6 +425,14 @@ contract Margin is IMargin, IVault, Reentrant {
         _withdraw(user, receiver, amount);
     }
 
+    function resetCPF(uint256 subRatio) external override {
+        require(msg.sender == amm, "Margin.resetCPF: REQUIRE_AMM");
+        int256 _latestCPF = latestCPF;
+        emit ResetCPF(_latestCPF, subRatio);
+
+        latestCPF = _latestCPF.mulU(10000 - subRatio).divU(10000);
+    }
+
     function _withdraw(
         address user,
         address receiver,

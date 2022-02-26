@@ -43,6 +43,8 @@ interface IMargin {
     );
     event UpdateCPF(uint256 timeStamp, int256 cpf);
 
+    event ResetCPF(int256 latestCPF, uint256 subRatio);
+
     /// @notice only factory can call this function
     /// @param baseToken_ margin's baseToken.
     /// @param quoteToken_ margin's quoteToken.
@@ -89,6 +91,8 @@ interface IMargin {
         );
 
     function updateCPF() external returns (int256);
+
+    function resetCPF(uint256 subRatio) external;
 
     /// @notice get factory address
     function factory() external view returns (address);

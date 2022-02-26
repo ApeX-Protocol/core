@@ -210,10 +210,15 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             quoteToken,
             _baseReserve
         );
-        if (priceSource == 0) { // external price use UniswapV3Twap, internal price use ammTwap
-            quoteReserveFromInternal = IPriceOracle(IConfig(config).priceOracle()).quoteFromAmmTwap(address(this), _baseReserve);
-        } else { // otherwise, use lastPrice as internal price
-            quoteReserveFromInternal = lastPrice * _baseReserve / 2**112;
+        if (priceSource == 0) {
+            // external price use UniswapV3Twap, internal price use ammTwap
+            quoteReserveFromInternal = IPriceOracle(IConfig(config).priceOracle()).quoteFromAmmTwap(
+                address(this),
+                _baseReserve
+            );
+        } else {
+            // otherwise, use lastPrice as internal price
+            quoteReserveFromInternal = (lastPrice * _baseReserve) / 2**112;
         }
 
         uint256 gap = IConfig(config).rebasePriceGap();
@@ -222,16 +227,20 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 quoteReserveFromExternal * 100 <= quoteReserveFromInternal * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
-
+        uint256 subRatio;
         if (quoteReserveFromExternal * 100 >= quoteReserveFromInternal * (100 + gap)) {
-            quoteReserveAfter = uint256(_quoteReserve) * (100 + gap) / 100;
+            subRatio = (gap * 10000) / ((quoteReserveFromExternal * 100) / quoteReserveFromInternal - 100);
+            quoteReserveAfter = (uint256(_quoteReserve) * (100 + gap)) / 100;
         } else {
-            quoteReserveAfter = uint256(_quoteReserve) * (100 - gap) / 100;
+            subRatio = (gap * 10000) / (100 - ((quoteReserveFromExternal * 100) / quoteReserveFromInternal));
+            quoteReserveAfter = (uint256(_quoteReserve) * (100 - gap)) / 100;
         }
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
+        subRatio = subRatio > 10000 ? 10000 : subRatio;
+        IMargin(margin).resetCPF(subRatio);
         emit Rebase(_quoteReserve, quoteReserveAfter, _baseReserve, quoteReserveFromInternal, quoteReserveFromExternal);
     }
 
