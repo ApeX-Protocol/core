@@ -22,7 +22,7 @@ describe("PriceOracleForTest contract", function () {
 
     it("query quote", async function () {
       let result = await poft.quote(base, quote, 10);
-      expect(result).to.equal(20);
+      expect(result[0]).to.equal(20);
     });
   });
 });

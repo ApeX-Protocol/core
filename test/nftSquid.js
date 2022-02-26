@@ -22,7 +22,7 @@ describe("nftSquid contract", function () {
     erc20 = await deploy("MyToken", "AAA token", "AAA", 18, 100000000);
 
     const NftSquid = await ethers.getContractFactory("NftSquid");
-    nftSquid = await NftSquid.deploy("APEX NFT", "APEXNFT", "https://apexNFT/", erc20.address, ct-1000, ct+5000);
+    nftSquid = await NftSquid.deploy("APEX NFT", "APEXNFT", "https://apexNFT/", erc20.address, ct-1000, ct+5800);
     console.log("nftSquid: ", nftSquid.address);
     let symbol = await nftSquid.symbol();
     console.log("nftSquid: ", nftSquid.address);
@@ -37,7 +37,7 @@ describe("nftSquid contract", function () {
     let i = 0;
 
     let overrides = {
-      value: ethers.utils.parseEther("0.45"),
+      value: ethers.utils.parseEther("0.001"),
     };
 
     const mySet1 = new Set()
@@ -83,24 +83,25 @@ describe("nftSquid contract", function () {
     expect(apexAmount.div(exp1).toString()).to.be.equal("0");
   });
 
-  it("add reserved", async function () {
-     let dateTime = new Date();
-     let ct = Math.floor(dateTime / 1000);
-     console.log("ct:", ct);
-    await nftSquid.setNFTEndTime(ct + 1000);
-    let balance = await ethers.provider.getBalance(owner.address);
-    console.log("balance: ", balance.div(exp1).toString());
+  // it("add reserved", async function () {
+  //    let dateTime = new Date();
+  //    let ct = Math.floor(dateTime / 1000);
+  //    console.log("ct:", ct);
+  //   await nftSquid.setNFTEndTime(ct + 1000);
+  //   let balance = await ethers.provider.getBalance(owner.address);
+  //   console.log("balance: ", balance.div(exp1).toString());
 
-    let i = 0;
+  //   let i = 0;
 
-    await nftSquid.setSquidStartTime(ct + 2000);
-    await nftSquid.addToReserved([addr1.address]);
-    let overrides = {
-      value: ethers.utils.parseEther("0.45"),
-    };
-    let reservedCount = await nftSquid.reservedCount();
-    for (i = 0; i < players - reservedCount; i++) {
-      await nftSquid.claimApeXNFT(overrides);
-    }
-  });
+  //   await nftSquid.setSquidStartTime(ct + 2000);
+  //   await nftSquid.setNFTEndTime(ct + 6000);
+  //   await nftSquid.addToReserved([addr1.address]);
+  //   let overrides = {
+  //     value: ethers.utils.parseEther("0.001"),
+  //   };
+  //   let reservedCount = await nftSquid.reservedCount();
+  //   for (i = 0; i < players - reservedCount; i++) {
+  //     await nftSquid.claimApeXNFT(overrides);
+  //   }
+  // });
 });

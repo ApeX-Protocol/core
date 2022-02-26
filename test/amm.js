@@ -105,19 +105,16 @@ describe("Amm", function () {
         100000000000,
         ethers.BigNumber.from("316227766016836933")
       );
-    console.log("------------------2");
     //alice swap in
     const ammAlice = amm.connect(alice);
     // alice swap 100AAA to usdt
     let tx1 = await ammAlice.swap(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("100").mul(exp1), 0);
     const swapRes = await tx1.wait();
-    console.log("-----", swapRes)
     let eventabi = [
       "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);"
     ];
 
     let iface1 = new ethers.utils.Interface(eventabi);
-    console.log("-----------")
     let log1 = iface1.parseLog(swapRes.logs[1]);
     let args1 = log1["args"];
     console.log("swap input AAA for vusd event input  : ", args1.inputAmount.toString());
