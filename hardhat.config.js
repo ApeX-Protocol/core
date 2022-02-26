@@ -51,7 +51,7 @@ module.exports = {
     },
   },
   etherscan: {
-    apiKey: process.env.ARBISCAN_API_KEY,
+    apiKey: process.env.ETHERSCAN_API_KEY,
     // apiKey: {
     //   mainnet: process.env.ETHERSCAN_API_KEY,
     //   rinkeby: process.env.ETHERSCAN_API_KEY,
