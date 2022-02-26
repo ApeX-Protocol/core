@@ -72,7 +72,7 @@ contract PriceOracle is IPriceOracle, Initializable {
     }
 
     function updateAmmTwap(address amm) external override {
-        uint160 sqrtPriceX96 = uint160((getMarkPrice(amm).sqrt() * 2**96) / 1e9);
+        uint160 sqrtPriceX96 = _getSqrtPriceX96(amm);
         int24 tick = TickMath.getTickAtSqrtRatio(sqrtPriceX96);
         uint16 index = ammObservationIndex[amm];
         (uint16 indexUpdated, ) = ammObservations[amm].write(index, _blockTimestamp(), tick, cardinality, cardinality);
@@ -80,7 +80,7 @@ contract PriceOracle is IPriceOracle, Initializable {
     }
 
     function quoteFromAmmTwap(address amm, uint256 baseAmount) external view override returns (uint256 quoteAmount) {
-        uint160 sqrtPriceX96 = uint160((getMarkPrice(amm).sqrt() * 2**96) / 1e9);
+        uint160 sqrtPriceX96 = _getSqrtPriceX96(amm);
         uint16 index = ammObservationIndex[amm];
         V3Oracle.Observation memory observation = ammObservations[amm][(index + 1) % cardinality];
         if (!observation.initialized) {
@@ -107,6 +107,7 @@ contract PriceOracle is IPriceOracle, Initializable {
                 int24((tickCumulatives[1] - tickCumulatives[0]) / int56(uint56(_twapInterval)))
             );
         }
+        // priceX96 = token1/token0, this price is scaled by 2^96
         uint256 priceX96 = UniswapV3TwapGetter.getPriceX96FromSqrtPriceX96(sqrtPriceX96);
         quoteAmount = baseAmount.mulDiv(priceX96, FixedPoint96.Q96);
     }
@@ -178,5 +179,11 @@ contract PriceOracle is IPriceOracle, Initializable {
 
     function _blockTimestamp() internal view virtual returns (uint32) {
         return uint32(block.timestamp); // truncation is desired
+    }
+
+    function _getSqrtPriceX96(address amm) internal view returns (uint160) {
+        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+        uint256 priceX192 = uint256(quoteReserve).mulDiv(2**192, baseReserve);
+        return uint160(priceX192.sqrt());
     }
 }

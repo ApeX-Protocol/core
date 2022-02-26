@@ -1,6 +1,18 @@
 const { ethers, upgrades } = require("hardhat");
 const { BigNumber } = require("@ethersproject/bignumber");
 
+// for StakingPoolFactory
+const apeXPerSec = BigNumber.from("100000000000000000");
+const secSpanPerUpdate = 30;
+const initTimestamp = 1641781192;
+const endTimestamp = 1673288342;
+// const lockTime = 15552000;
+const lockTime = 120;
+// transfer for staking
+const apeXAmountForStaking = BigNumber.from("10000000000000000000000");
+
+let stakingPoolFactory;
+
 let signer;
 let apexToken;
 let slpToken;
@@ -28,6 +40,45 @@ const main = async () => {
   // await createContracts();
   await flow();
 };
+
+async function createStakingPoolFactory() {
+  const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
+  stakingPoolFactory = await StakingPoolFactory.deploy();
+  await stakingPoolFactory.initialize(
+    apeXToken.address,
+    apeXPerSec,
+    secSpanPerUpdate,
+    initTimestamp,
+    endTimestamp,
+    lockTime
+  );
+  // stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
+  //   apeXToken.address,
+  //   apeXPerBlock,
+  //   secSpanPerUpdate,
+  //   initTimestamp,
+  //   endTimestamp,
+  // ]);
+  await apeXToken.transfer(stakingPoolFactory.address, apeXAmountForStaking);
+  console.log("StakingPoolFactory:", stakingPoolFactory.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
+}
+
+async function createMockStakingPool() {
+  if (stakingPoolFactory == null) {
+    let stakingPoolFactoryAddress = "0xe0930A9d13FD7F2dcbC554EB1cCD13ed53F389eF";
+    const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
+    stakingPoolFactory = await StakingPoolFactory.attach(stakingPoolFactoryAddress);
+  }
+  let apeXTokenAddress = "0x4eB450a1f458cb60fc42B915151E825734d06dd8";
+  let slpTokenAddress = "0x2deeEa765219E3452143Dfb53c270fCa4486bc45"; // ApeX-XXX slp token from SushiSwap
+  await stakingPoolFactory.createPool(apeXTokenAddress, initTimestamp, 21);
+  await stakingPoolFactory.createPool(slpTokenAddress, initTimestamp, 79);
+  let apeXPool = await stakingPoolFactory.getPoolAddress(apeXTokenAddress);
+  let slpPool = await stakingPoolFactory.getPoolAddress(slpTokenAddress);
+  console.log("apeXPool:", apeXPool);
+  console.log("slpPool:", slpPool);
+}
 
 async function createContracts() {
   const accounts = await hre.ethers.getSigners();
