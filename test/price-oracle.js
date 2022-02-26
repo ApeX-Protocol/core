@@ -68,15 +68,15 @@ describe("PriceOracle contract", function () {
       pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       await oracle.setupTwap(amm.address);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
     });
 
     it("quote big number", async function () {
@@ -97,22 +97,22 @@ describe("PriceOracle contract", function () {
   describe("compare ammTwap & indexPrice", function () {
     beforeEach(async function () {
       await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
-      pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+      await pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       await oracle.setupTwap(amm.address);
       await oracle.updateAmmTwap(amm.address);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
       await oracle.updateAmmTwap(amm.address);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
       await oracle.updateAmmTwap(amm.address);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
       await oracle.updateAmmTwap(amm.address);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
       await oracle.updateAmmTwap(amm.address);
-      pool1.writeObservation();
+      await pool1.writeObservation();
     });
 
     it("compare", async function () {
@@ -152,15 +152,15 @@ describe("PriceOracle contract", function () {
       pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       await oracle.setupTwap(amm.address);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
     });
 
     it("getMarkPriceAcc: base < quote", async function () {
@@ -181,15 +181,15 @@ describe("PriceOracle contract", function () {
       pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       await oracle.setupTwap(amm.address);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
       await mineBlocks(500);
-      pool1.writeObservation();
+      await pool1.writeObservation();
     });
 
     it("getPremiumFraction: base < quote", async function () {

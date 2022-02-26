@@ -42,7 +42,7 @@ describe("VIPNFT contract", function () {
     let vipNFTAlice = vipNFT.connect(Alice);
     let i = 0;
     let overrides = {
-      value: ethers.utils.parseEther("50"),
+      value: ethers.utils.parseEther("0.01"),
     };
 
     await ethers.provider.send("evm_setNextBlockTimestamp", [ct + 600]);
@@ -60,7 +60,8 @@ describe("VIPNFT contract", function () {
     await vipNFTAlice.claimAPEX();
 
     let balanceAfter = await ethers.provider.getBalance(vipNFT.address);
-    expect(balanceAfter.div(exp1).toString()).to.be.equal("30");
+   
+    expect(balanceAfter.mul(100).div(exp1).toString()).to.be.equal("1");
     let apexBalance = await erc20.balanceOf(Alice.address);
     expect(apexBalance.div(exp1).toString()).to.be.equal("69299");
   });
