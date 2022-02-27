@@ -229,10 +229,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         );
         uint256 subRatio;
         if (quoteReserveFromExternal * 100 >= quoteReserveFromInternal * (100 + gap)) {
-            subRatio = (gap * 10000) / ((quoteReserveFromExternal * 100) / quoteReserveFromInternal - 100);
+            subRatio = (gap * 1000000) / ((quoteReserveFromExternal * 10000) / quoteReserveFromInternal - 10000);
             quoteReserveAfter = (uint256(_quoteReserve) * (100 + gap)) / 100;
         } else {
-            subRatio = (gap * 10000) / (100 - ((quoteReserveFromExternal * 100) / quoteReserveFromInternal));
+            subRatio = (gap * 1000000) / (10000 - ((quoteReserveFromExternal * 10000) / quoteReserveFromInternal));
             quoteReserveAfter = (uint256(_quoteReserve) * (100 - gap)) / 100;
         }
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
