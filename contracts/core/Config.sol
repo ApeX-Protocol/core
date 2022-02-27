@@ -5,11 +5,10 @@ import "./interfaces/IERC20.sol";
 import "./interfaces/IConfig.sol";
 import "../utils/Ownable.sol";
 
-//config is upgradable proxy, contains configurations of core contracts
 contract Config is IConfig, Ownable {
     address public override priceOracle;
 
-    uint8 public override beta = 60; // 50-200，50 means 0.5
+    uint8 public override beta = 70; // 50-200，50 means 0.5
     uint256 public override maxCPFBoost = 10; // default 10
     uint256 public override rebasePriceGap = 5; //0-100 , if 5 means 5%
     uint256 public override rebaseInterval = 3600; // in seconds
@@ -81,7 +80,7 @@ contract Config is IConfig, Ownable {
         emit SetBeta(beta, newBeta);
         beta = newBeta;
     }
-    
+
     //must be careful, expose all traders's position
     function registerRouter(address router) external override onlyOwner {
         require(router != address(0), "Config: ZERO_ADDRESS");

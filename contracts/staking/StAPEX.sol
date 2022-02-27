@@ -12,27 +12,37 @@ contract StAPEX is ERC20Votes {
     }
 
     function mint(address account, uint256 amount) external {
-        require(msg.sender == stakingPoolFactory, "stApeX: NO_AUTHORITY");
+        require(msg.sender == stakingPoolFactory, "stApeX.mint: NO_AUTHORITY");
         _mint(account, amount);
     }
 
     function burn(address account, uint256 amount) external {
-        require(msg.sender == stakingPoolFactory, "stApeX: NO_AUTHORITY");
+        require(msg.sender == stakingPoolFactory, "stApeX.burn: NO_AUTHORITY");
         _burn(account, amount);
     }
 
-    function transfer(address recipient, uint256 amount) public override returns (bool) {
-        require(msg.sender == stakingPoolFactory, "stApeX: NO_AUTHORITY");
-        return super.transfer(recipient, amount);
+    function approve(address, uint256) public pure override returns (bool) {
+        revert("stApeX.approve: stToken is non-transferable");
+    }
+
+    function transfer(address, uint256) public pure override returns (bool) {
+        revert("stApeX.transfer: stToken is non-transferable");
     }
 
     function transferFrom(
-        address sender,
-        address recipient,
-        uint256 amount
-    ) public override returns (bool) {
-        require(msg.sender == stakingPoolFactory, "stApeX: NO_AUTHORITY");
-        return super.transferFrom(sender, recipient, amount);
+        address,
+        address,
+        uint256
+    ) public pure override returns (bool) {
+        revert("stApeX.transferFrom: stToken is non-transferable");
+    }
+
+    function decreaseAllowance(address, uint256) public pure override returns (bool) {
+        revert("stApeX.decreaseAllowance: stToken is non-transferable");
+    }
+
+    function increaseAllowance(address, uint256) public pure override returns (bool) {
+        revert("stApeX.increaseAllowance: stToken is non-transferable");
     }
 
     function getChainId() external view returns (uint256) {
