@@ -2,7 +2,7 @@ const { ethers, upgrades } = require("hardhat");
 const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
-const apeXTokenAddress = ""; // Layer2 ApeX Token
+const apeXTokenAddress = "0x61A1ff55C5216b636a294A07D77C6F4Df10d3B56"; // Layer2 ApeX Token
 // for PriceOracle
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
 const wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH address in ArbitrumOne
@@ -38,7 +38,6 @@ const main = async () => {
   await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
-  // await createPairForVerify();
   await createPair();
 };
 
@@ -156,26 +155,15 @@ async function createMockTokens() {
   console.log("mockSHIB:", mockSHIB.address);
 }
 
-async function createPairForVerify() {
-  let Amm = await ethers.getContractFactory("Amm");
-  let Margin = await ethers.getContractFactory("Margin");
-  let amm = await Amm.deploy();
-  let margin = await Margin.deploy();
-  console.log("AmmForVerify:", amm.address);
-  console.log("MarginForVerify:", margin.address);
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, amm.address);
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, margin.address);
-}
-
 async function createPair() {
   let baseTokenAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH in ArbitrumOne
   let quoteTokenAddress = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"; // USDC in ArbitrumOne
 
-  if (pairFactory == null) {
-    let pairFactoryAddress = "0xe208eB60F4778a711a55Ec4A5658b1D84e21a05b";
-    const PairFactory = await ethers.getContractFactory("PairFactory");
-    pairFactory = await PairFactory.attach(pairFactoryAddress);
-  }
+  // if (pairFactory == null) {
+  //   let pairFactoryAddress = "0xe208eB60F4778a711a55Ec4A5658b1D84e21a05b";
+  //   const PairFactory = await ethers.getContractFactory("PairFactory");
+  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
+  // }
 
   await pairFactory.createPair(baseTokenAddress, quoteTokenAddress);
   ammAddress = await pairFactory.getAmm(baseTokenAddress, quoteTokenAddress);
