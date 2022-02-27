@@ -103,9 +103,9 @@ describe("Amm", function () {
         ethers.BigNumber.from("316227766016836933")
       );
     // alice swap in
-    const ammAlice = amm.connect(alice);
+    const marginAlice = margin.connect(alice);
     // alice swap 100AAA to usdt
-    let tx1 = await ammAlice.swap(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("100").mul(exp1), 0);
+    let tx1 = await marginAlice.swapProxy(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("100").mul(exp1), 0);
     const swapRes = await tx1.wait();
     let eventabi = [
       "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);"
@@ -119,7 +119,7 @@ describe("Amm", function () {
     expect(args1.outputAmount).to.equal(9989002);
 
     // alice swap out
-    let tx2 = await ammAlice.swap(alice.address, AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100").mul(exp2));
+    let tx2 = await marginAlice.swapProxy(alice.address, AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100").mul(exp2));
     // alice swap to 100 usdt
     const swapRes2 = await tx2.wait();
     let log2 = iface1.parseLog(swapRes2.logs[1]);
@@ -146,17 +146,17 @@ describe("Amm", function () {
         ethers.BigNumber.from("316227766016836933")
       );
 
-    const ammAlice = amm.connect(alice);
+    const marginAlice = margin.connect(alice);
     // alice swap 1000000AAA to usdt
     // alice swap in
     let price2 = await amm.lastPrice();
 
     // let reserver = await amm.getReserves();
     await expect(
-      ammAlice.swap(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0)
+      marginAlice.swapProxy(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000000").mul(exp1), 0)
     ).to.be.revertedWith("AMM._update: TRADINGSLIPPAGE_TOO_LARGE");
 
-    let tx1 = await ammAlice.swap(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
+    let tx1 = await marginAlice.swapProxy(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
     const swapRes = await tx1.wait();
     let eventabi = [
       "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
@@ -170,7 +170,7 @@ describe("Amm", function () {
     expect(price2).to.equal(price3);
 
     expect(args1.outputAmount).to.equal(989118704);
-    await ammAlice.swap(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
+    await marginAlice.swapProxy(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
 
     let price4 = await amm.lastPrice();
 
@@ -193,11 +193,11 @@ describe("Amm", function () {
         ethers.BigNumber.from("316227766016836933")
       );
 
-    const ammAlice = amm.connect(alice);
+    const marginAlice = margin.connect(alice);
     // alice swap  some AAA to 100000 usdt
     // alice swap out
     await expect(
-      ammAlice.swap(alice.address, AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100000").mul(exp2))
+      marginAlice.swapProxy(alice.address, AAAToken.address, USDT.address, 0, ethers.BigNumber.from("100000").mul(exp2))
     ).to.be.revertedWith("AMM._estimateSwap: INSUFFICIENT_LIQUIDITY");
   });
 });
