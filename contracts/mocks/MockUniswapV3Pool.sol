@@ -296,16 +296,4 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         uint256 priceX192 = uint256(quoteReserve).mulDiv(2**192, baseReserve);
         return uint160(priceX192.sqrt());
     }
-
-    function swap(
-        address recipient,
-        bool zeroForOne,
-        int256 amountSpecified,
-        uint160 sqrtPriceLimitX96,
-        bytes calldata data
-    ) external override returns (int256 amount0, int256 amount1) {
-        // TODO: define the swap behavior of this mock
-        amount0 = 0;
-        amount1 = 0;
-    }
 }
