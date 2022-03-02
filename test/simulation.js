@@ -14,6 +14,7 @@ describe("Simulations", function () {
   let pool1;
   let config;
   let margin;
+  let ammAddress;
 
   const tokenQuantity = "1000000000000";
   const largeTokenQuantity = ethers.BigNumber.from("1000000").mul(ethers.BigNumber.from("10").pow(18));
@@ -57,9 +58,12 @@ describe("Simulations", function () {
     let marginFactory = await MarginFactory.deploy(pairFactory.address, config.address);
     await pairFactory.init(ammFactory.address, marginFactory.address);
     await pairFactory.createPair(baseToken.address, quoteToken.address);
+
     let marginAddress = await pairFactory.getMargin(baseToken.address, quoteToken.address);
     const Margin = await ethers.getContractFactory("Margin");
     margin = await Margin.attach(marginAddress);
+
+    ammAddress = await pairFactory.getMargin(baseToken.address, quoteToken.address);
 
     const Router = await ethers.getContractFactory("Router");
     router = await Router.deploy(pairFactory.address, treasury.address, weth.address);
@@ -115,17 +119,24 @@ describe("Simulations", function () {
         } else {
           S = -(1/a) * Math.log(Math.random());
         }
-        console.log(S);
 
         lambdaTminus = (lambdaTplus-a) * Math.exp(-delta*S) + a;
         lambdaTplus = lambdaTminus + meanJump;
 
+        // consider that a trade occurs whenever S is negative, this happens
+        // roughly 10% of the time w/ delta = 0.3, w/ delta = 0.2 it's 1.5% of
+        // the time
         if (S < 0) {
           count+=1;
           // trade alice
         }
+
         // liquidator checks all the trader accounts
         // arbitrageur gets
+        // update price in price oracle
+        // let price = await priceOracle.getMarkPrice(ammAddress);
+        // console.log("price: " + price);
+
         // await network.provider.send("evm_mine");
       }
       console.log(count);
