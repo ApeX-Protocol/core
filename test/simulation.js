@@ -64,15 +64,18 @@ describe("Simulations", function () {
   describe("check pool pnl given beta", function () {
     it("liquidates a position properly", async function () {
       await config.setBeta(100);
+      await baseToken.mint(owner.address, tokenQuantity);
+      await baseToken.connect(owner).approve(router.address, tokenQuantity);
       await baseToken.mint(alice.address, tokenQuantity);
       await baseToken.connect(alice).approve(router.address, tokenQuantity);
       await baseToken.mint(bob.address, tokenQuantity);
       await baseToken.connect(bob).approve(router.address, tokenQuantity);
-      let ammAddress = pairFactory.getAmm(baseToken.address, quoteToken.address);
-      await baseToken.mint(ammAddress, "100000000000000000000");
-      //await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, infDeadline);
-      //await routerBob.openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 1, 9999999999);
-      //await router.closePosition(baseToken.address, quoteToken.address, 10000, 9999999999, true);
+      await router.addLiquidity(baseToken.address, quoteToken.address, 100000000, 1, infDeadline, false);
+      // baseAmountLimit should have to be 0 here
+      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 0, infDeadline);
+      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 1, infDeadline);
+      // some blocks must pass
+      // await router.connect(bob).closePosition(baseToken.address, quoteToken.address, 10000, infDeadline, true);
     });
   });
   /*
