@@ -15,6 +15,7 @@ describe("Simulations", function () {
   let config;
 
   const tokenQuantity = "1000000000000";
+  const largeTokenQuantity = ethers.BigNumber.from("1000000").mul(ethers.BigNumber.from("10").pow(18));
   const infDeadline = "9999999999";
 
   beforeEach(async function () {
@@ -64,21 +65,24 @@ describe("Simulations", function () {
   describe("check pool pnl given beta", function () {
     it("liquidates a position properly", async function () {
       await config.setBeta(100);
-      await baseToken.mint(owner.address, tokenQuantity);
-      await baseToken.connect(owner).approve(router.address, tokenQuantity);
       await baseToken.mint(alice.address, tokenQuantity);
       await baseToken.connect(alice).approve(router.address, tokenQuantity);
       await baseToken.mint(bob.address, tokenQuantity);
       await baseToken.connect(bob).approve(router.address, tokenQuantity);
-      await router.addLiquidity(baseToken.address, quoteToken.address, 100000000, 1, infDeadline, false);
-      // baseAmountLimit should have to be 0 here
-      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 0, infDeadline);
-      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 1, infDeadline);
-      // some blocks must pass
-      // await router.connect(bob).closePosition(baseToken.address, quoteToken.address, 10000, infDeadline, true);
+      await baseToken.mint(owner.address, largeTokenQuantity);
+      await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
+      await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
+      // TODO baseAmountLimit shouldn't have to be 0 here
+      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, infDeadline);
+      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 5500, infDeadline);
+      await router.connect(bob).closePosition(baseToken.address, quoteToken.address, 10000, infDeadline, true);
     });
   });
+
   /*
+  //await network.provider.send("evm_mine");
+  // TODO in order to set price via price oracle, change reserves in price oracle for test
+  // TODO what is the price that I'm starting with effectively
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       await config.setBeta(100);
@@ -87,6 +91,8 @@ describe("Simulations", function () {
       await router.addLiquidity(baseToken.address, quoteToken.address, 1000000, 1, 9999999999, false);
       await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, 9999999999);
       await router.closePosition(baseToken.address, quoteToken.address, 10000, 9999999999, true);
+      // liquidator checks all the trader accounts
+      // arbitrageur gets
     });
   });
   */
