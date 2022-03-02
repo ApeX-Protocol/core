@@ -13,6 +13,7 @@ describe("Simulations", function () {
   let v3factory;
   let pool1;
   let config;
+  let margin;
 
   const tokenQuantity = "1000000000000";
   const largeTokenQuantity = ethers.BigNumber.from("1000000").mul(ethers.BigNumber.from("10").pow(18));
@@ -56,6 +57,9 @@ describe("Simulations", function () {
     let marginFactory = await MarginFactory.deploy(pairFactory.address, config.address);
     await pairFactory.init(ammFactory.address, marginFactory.address);
     await pairFactory.createPair(baseToken.address, quoteToken.address);
+    let marginAddress = await pairFactory.getMargin(baseToken.address, quoteToken.address);
+    const Margin = await ethers.getContractFactory("Margin");
+    margin = await Margin.attach(marginAddress);
 
     const Router = await ethers.getContractFactory("Router");
     router = await Router.deploy(pairFactory.address, treasury.address, weth.address);
@@ -72,28 +76,59 @@ describe("Simulations", function () {
       await baseToken.mint(owner.address, largeTokenQuantity);
       await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
       await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
-      // TODO baseAmountLimit shouldn't have to be 0 here
       await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, infDeadline);
       await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 5500, infDeadline);
+      // check that trader position exists
+      // console.log(await margin.getPosition(alice.address));
+      await margin.liquidate(alice.address);
+      // check that alice's position has been liquidated
+      // console.log(await margin.getPosition(alice.address));
       await router.connect(bob).closePosition(baseToken.address, quoteToken.address, 10000, infDeadline, true);
     });
   });
 
-  /*
-  //await network.provider.send("evm_mine");
   // TODO in order to set price via price oracle, change reserves in price oracle for test
   // TODO what is the price that I'm starting with effectively
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       await config.setBeta(100);
-      await baseToken.mint(owner.address, 10000000000);
-      await baseToken.approve(router.address, 10000000000);
-      await router.addLiquidity(baseToken.address, quoteToken.address, 1000000, 1, 9999999999, false);
-      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, 9999999999);
-      await router.closePosition(baseToken.address, quoteToken.address, 10000, 9999999999, true);
-      // liquidator checks all the trader accounts
-      // arbitrageur gets
+      let simSteps = 10000;
+      let lambda0 = 1;
+      let a = lambda0;
+      let lambdaTplus = lambda0;
+      let lambdaTminus;
+      let delta = 0.5;
+      let meanJump = 0.3;
+      let S;
+      let count = 0;
+      // Exact simulation of Hawkes process with exponentially decaying intensity 2013
+      // TODO should i do two separate simulations of trades from each trader?
+      // that doesn't make as much sense as generally clustering trades... have
+      // to figure out a good strategy for that.
+      for (let i = 0; i < simSteps; i++) {
+        let u = Math.random();
+        // TODO div by zero?
+        let D = 1 + delta * Math.log(u) / (lambdaTplus - a);
+
+        if (D > 0) {
+          S = Math.min(1 + delta*Math.log(u), -(1/a) * Math.log(Math.random()));
+        } else {
+          S = -(1/a) * Math.log(Math.random());
+        }
+        console.log(S);
+
+        lambdaTminus = (lambdaTplus-a) * Math.exp(-delta*S) + a;
+        lambdaTplus = lambdaTminus + meanJump;
+
+        if (S < 0) {
+          count+=1;
+          // trade alice
+        }
+        // liquidator checks all the trader accounts
+        // arbitrageur gets
+        // await network.provider.send("evm_mine");
+      }
+      console.log(count);
     });
   });
-  */
 });
