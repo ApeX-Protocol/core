@@ -7,7 +7,6 @@ describe("Simulations", function () {
   let weth;
   let router;
   let priceOracle;
-  let apeXToken;
   let baseToken;
   let quoteToken;
   let v3factory;
@@ -27,7 +26,6 @@ describe("Simulations", function () {
     weth = await MockWETH.deploy();
 
     const MockToken = await ethers.getContractFactory("MockToken");
-    apeXToken = await MockToken.deploy("ApeX Token", "APEX");
     baseToken = await MockToken.deploy("Base Token", "BT");
     quoteToken = await MockToken.deploy("Quote Token", "QT");
 
@@ -44,7 +42,6 @@ describe("Simulations", function () {
     const PriceOracle = await ethers.getContractFactory("PriceOracleForTest");
     priceOracle = await PriceOracle.deploy();
     //await priceOracle.initialize(v3factory.address);
-    await priceOracle.setReserve(baseToken.address, apeXToken.address, 10000000, 20000000);
     await priceOracle.setReserve(baseToken.address, quoteToken.address, 10000000, 20000000);
     await priceOracle.setReserve(weth.address, quoteToken.address, 10000000, 20000000);
     await config.setPriceOracle(priceOracle.address);
@@ -142,8 +139,8 @@ describe("Simulations", function () {
 
         // arbitrageur gets opportunity take his trade
         // update price in price oracle
-        lastPrice = lastPrice + mu * Math.round(Math.random() * 2 - 1);
-        await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
+        // lastPrice = lastPrice + mu * Math.round(Math.random() * 2 - 1);
+        // await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
         // let price = await priceOracle.getIndexPrice(ammAddress);
         // console.log("price: " + price);
 
