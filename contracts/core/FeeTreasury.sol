@@ -20,13 +20,15 @@ contract FeeTreasury is Ownable {
         address indexed rewardForStaking, 
         address indexed rewardForCashback, 
         uint256 ethForStaking, 
-        uint256 ethForCashback
+        uint256 ethForCashback,
+        uint256 timestamp
     );
     event DistrbuteUSDC(
         address indexed rewardForStaking, 
         address indexed rewardForCashback, 
         uint256 usdcForStaking, 
-        uint256 usdcForCashback
+        uint256 usdcForCashback,
+        uint256 timestamp
     );
 
     address public WETH;
@@ -147,11 +149,11 @@ contract FeeTreasury is Ownable {
 
         TransferHelper.safeTransferETH(rewardForStaking, ethForStaking);
         TransferHelper.safeTransferETH(rewardForCashback, ethForCashback);
-        emit DistrbuteETH(rewardForStaking, rewardForCashback, ethForStaking, ethForCashback);
+        emit DistrbuteETH(rewardForStaking, rewardForCashback, ethForStaking, ethForCashback, block.timestamp);
 
         TransferHelper.safeTransfer(USDC, rewardForStaking, usdcForStaking);
         TransferHelper.safeTransfer(USDC, rewardForCashback, usdcForCashback);
-        emit DistrbuteUSDC(rewardForStaking, rewardForCashback, usdcForStaking, usdcForCashback);
+        emit DistrbuteUSDC(rewardForStaking, rewardForCashback, usdcForStaking, usdcForCashback, block.timestamp);
 
         nextSettleTime = nextSettleTime + settlementInterval;
     }
