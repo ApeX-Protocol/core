@@ -116,8 +116,8 @@ describe("Simulations", function () {
       await baseToken.connect(alice).approve(router.address, tokenQuantity);
       await baseToken.mint(bob.address, tokenQuantity);
       await baseToken.connect(bob).approve(router.address, tokenQuantity);
-      await baseToken.mint(carol.address, tokenQuantity);
-      await baseToken.connect(carol).approve(router.address, tokenQuantity);
+      await baseToken.mint(arbitrageur.address, largeTokenQuantity);
+      await baseToken.connect(arbitrageur).approve(router.address, largeTokenQuantity);
       await baseToken.mint(owner.address, largeTokenQuantity);
       await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
       await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
@@ -159,7 +159,7 @@ describe("Simulations", function () {
         // the time
         if (S < 0) {
           count+=1;
-          // trade alice
+          // alice trades randomly
           if (Math.random() > 0.5) {
             await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
           } else {
@@ -167,9 +167,8 @@ describe("Simulations", function () {
           }
         }
 
-        // liquidator checks all the trader accounts
+        // TODO liquidator checks all the trader accounts
 
-        // arbitrageur gets opportunity take his trade
         // update price in price oracle by geometric brownian motion
         lastPrice = lastPrice * Math.exp((mu - sig*sig / 2) * 0.02 + sig * randn_bm());
         await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
@@ -178,6 +177,13 @@ describe("Simulations", function () {
         // get the price out of the 112x112 format & display with 18 decimal accuracy
         let lastPriceAmm = raw.div("5192296858534816");
         logger.write(price + ", " + lastPriceAmm + "\n");
+
+        // arbitrageur gets opportunity to take his trade
+        if (lastPriceAmm * 100 / price > 105) {
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("10", "ether"), infDeadline);
+        } else if (price * 100 / lastPriceAmm > 105) {
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
+        }
 
         // await network.provider.send("evm_mine");
       }
