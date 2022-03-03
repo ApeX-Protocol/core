@@ -10,3 +10,5 @@ bin
 .DS_Store
 .history
 .VSCodeCounter
+sim.csv
+sim.png

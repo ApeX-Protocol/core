@@ -1,5 +1,7 @@
 const { expect } = require("chai");
 const { BigNumber } = require("@ethersproject/bignumber");
+const fs = require('fs');
+
 
 describe("Simulations", function () {
   let owner;
@@ -16,7 +18,7 @@ describe("Simulations", function () {
   let ammAddress;
   let amm;
 
-  const tokenQuantity = ethers.utils.parseUnits("100", "ether");
+  const tokenQuantity = ethers.utils.parseUnits("250", "ether");
   const largeTokenQuantity = ethers.utils.parseUnits("1000", "ether");
   const infDeadline = "9999999999";
 
@@ -103,6 +105,8 @@ describe("Simulations", function () {
   // TODO what is the price that I'm starting with effectively
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
+      let logger = fs.createWriteStream('sim.csv');
+
       await config.setBeta(100);
       await config.setInitMarginRatio(101);
 
@@ -121,11 +125,9 @@ describe("Simulations", function () {
       let mu = 0;
       let sig = 0.01;
       let lastPrice = 10000000;
-      console.log(lastPrice);
-      console.log((await priceOracle.getIndexPrice(ammAddress)).toString());
 
       // variables for the hawkes process simulation
-      let simSteps = 10000;
+      let simSteps = 3000;
       let lambda0 = 1;
       let a = lambda0;
       let lambdaTplus = lambda0;
@@ -158,25 +160,29 @@ describe("Simulations", function () {
         if (S < 0) {
           count+=1;
           // trade alice
-          await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
+          if (Math.random() > 0.5) {
+            await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
+          } else {
+            await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("10", "ether"), infDeadline);
+          }
         }
 
         // liquidator checks all the trader accounts
 
         // arbitrageur gets opportunity take his trade
-        // update price in price oracle
+        // update price in price oracle by geometric brownian motion
         lastPrice = lastPrice * Math.exp((mu - sig*sig / 2) * 0.02 + sig * randn_bm());
         await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
         let price = await priceOracle.getIndexPrice(ammAddress);
-        console.log("price: " + price);
         let raw = await amm.lastPrice();
         // get the price out of the 112x112 format & display with 18 decimal accuracy
         let lastPriceAmm = raw.div("5192296858534816");
-        console.log("ammlp: " + lastPriceAmm);
+        logger.write(price + ", " + lastPriceAmm + "\n");
 
         // await network.provider.send("evm_mine");
       }
       console.log(count);
+      logger.end();
     });
   });
 });
