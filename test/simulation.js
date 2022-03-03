@@ -16,8 +16,8 @@ describe("Simulations", function () {
   let ammAddress;
   let amm;
 
-  const tokenQuantity = "1000000000000";
-  const largeTokenQuantity = ethers.BigNumber.from("1000000").mul(ethers.BigNumber.from("10").pow(18));
+  const tokenQuantity = ethers.utils.parseUnits("100", "ether");
+  const largeTokenQuantity = ethers.utils.parseUnits("1000", "ether");
   const infDeadline = "9999999999";
 
   // normal distribution needed for geometric brownian motion of price in
@@ -104,6 +104,7 @@ describe("Simulations", function () {
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       await config.setBeta(100);
+      await config.setInitMarginRatio(101);
 
       // used for geometric brownian motion
 
@@ -116,9 +117,6 @@ describe("Simulations", function () {
       await baseToken.mint(owner.address, largeTokenQuantity);
       await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
       await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
-      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, infDeadline);
-      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 5500, infDeadline);
-      await router.connect(carol).openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 5500, infDeadline);
 
       let mu = 0;
       let sig = 0.01;
@@ -160,7 +158,7 @@ describe("Simulations", function () {
         if (S < 0) {
           count+=1;
           // trade alice
-          await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, infDeadline);
+          await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
         }
 
         // liquidator checks all the trader accounts
@@ -171,7 +169,9 @@ describe("Simulations", function () {
         await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
         let price = await priceOracle.getIndexPrice(ammAddress);
         console.log("price: " + price);
-        let lastPriceAmm = (await amm.lastPrice()).div("5192296858534816");;
+        let raw = await amm.lastPrice();
+        // get the price out of the 112x112 format & display with 18 decimal accuracy
+        let lastPriceAmm = raw.div("5192296858534816");
         console.log("ammlp: " + lastPriceAmm);
 
         // await network.provider.send("evm_mine");
