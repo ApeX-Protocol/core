@@ -14,6 +14,7 @@ describe("Simulations", function () {
   let config;
   let margin;
   let ammAddress;
+  let amm;
 
   const tokenQuantity = "1000000000000";
   const largeTokenQuantity = ethers.BigNumber.from("1000000").mul(ethers.BigNumber.from("10").pow(18));
@@ -68,7 +69,9 @@ describe("Simulations", function () {
     const Margin = await ethers.getContractFactory("Margin");
     margin = await Margin.attach(marginAddress);
 
-    ammAddress = await pairFactory.getMargin(baseToken.address, quoteToken.address);
+    ammAddress = await pairFactory.getAmm(baseToken.address, quoteToken.address);
+    const Amm = await ethers.getContractFactory("Amm");
+    amm = await Amm.attach(ammAddress);
 
     const Router = await ethers.getContractFactory("Router");
     router = await Router.deploy(pairFactory.address, treasury.address, weth.address);
@@ -103,6 +106,20 @@ describe("Simulations", function () {
       await config.setBeta(100);
 
       // used for geometric brownian motion
+
+      await baseToken.mint(alice.address, tokenQuantity);
+      await baseToken.connect(alice).approve(router.address, tokenQuantity);
+      await baseToken.mint(bob.address, tokenQuantity);
+      await baseToken.connect(bob).approve(router.address, tokenQuantity);
+      await baseToken.mint(carol.address, tokenQuantity);
+      await baseToken.connect(carol).approve(router.address, tokenQuantity);
+      await baseToken.mint(owner.address, largeTokenQuantity);
+      await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
+      await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
+      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, infDeadline);
+      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 5500, infDeadline);
+      await router.connect(carol).openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 5500, infDeadline);
+
       let mu = 0;
       let sig = 0.01;
       let lastPrice = 10000000;
@@ -143,6 +160,7 @@ describe("Simulations", function () {
         if (S < 0) {
           count+=1;
           // trade alice
+          await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, infDeadline);
         }
 
         // liquidator checks all the trader accounts
@@ -153,6 +171,8 @@ describe("Simulations", function () {
         await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
         let price = await priceOracle.getIndexPrice(ammAddress);
         console.log("price: " + price);
+        let lastPriceAmm = (await amm.lastPrice()).div("5192296858534816");;
+        console.log("ammlp: " + lastPriceAmm);
 
         // await network.provider.send("evm_mine");
       }

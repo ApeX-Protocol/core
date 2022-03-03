@@ -18,4 +18,14 @@ library UQ112x112 {
     function uqdiv(uint224 x, uint112 y) internal pure returns (uint224 z) {
         z = x / uint224(y);
     }
+
+    // decode a uq112x112 into a uint with 18 decimals of precision
+    function decode112with18(uint224 x) internal pure returns (uint) {
+        // we only have 256 - 224 = 32 bits to spare, so scaling up by ~60 bits is dangerous
+        // instead, get close to:
+        //  (x * 1e18) >> 112
+        // without risk of overflowing, e.g.:
+        //  (x) / 2 ** (112 - lg(1e18))
+        return uint(x) / 5192296858534816;
+    }
 }
