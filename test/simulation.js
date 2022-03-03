@@ -19,6 +19,14 @@ describe("Simulations", function () {
   const largeTokenQuantity = ethers.BigNumber.from("1000000").mul(ethers.BigNumber.from("10").pow(18));
   const infDeadline = "9999999999";
 
+  // normal distribution needed for geometric brownian motion of price in
+  // stochastic simulation
+
+  // Standard Normal variate using Box-Muller transform.
+  function randn_bm() {
+      return Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random())
+  }
+
   beforeEach(async function () {
     [owner, treasury, alice, bob, carol, arbitrageur] = await ethers.getSigners();
 
@@ -95,9 +103,11 @@ describe("Simulations", function () {
       await config.setBeta(100);
 
       // used for geometric brownian motion
-      let mu = 15000;
-      let sig = 0.2;
+      let mu = 0;
+      let sig = 0.01;
       let lastPrice = 10000000;
+      console.log(lastPrice);
+      console.log((await priceOracle.getIndexPrice(ammAddress)).toString());
 
       // variables for the hawkes process simulation
       let simSteps = 10000;
@@ -139,10 +149,10 @@ describe("Simulations", function () {
 
         // arbitrageur gets opportunity take his trade
         // update price in price oracle
-        // lastPrice = lastPrice + mu * Math.round(Math.random() * 2 - 1);
-        // await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
-        // let price = await priceOracle.getIndexPrice(ammAddress);
-        // console.log("price: " + price);
+        lastPrice = lastPrice * Math.exp((mu - sig*sig / 2) * 0.02 + sig * randn_bm());
+        await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
+        let price = await priceOracle.getIndexPrice(ammAddress);
+        console.log("price: " + price);
 
         // await network.provider.send("evm_mine");
       }
