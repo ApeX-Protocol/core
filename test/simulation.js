@@ -96,6 +96,13 @@ describe("Simulations", function () {
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       await config.setBeta(100);
+
+      // used for geometric brownian motion
+      let mu = 15000;
+      let sig = 0.2;
+      let lastPrice = 10000000;
+
+      // variables for the hawkes process simulation
       let simSteps = 10000;
       let lambda0 = 1;
       let a = lambda0;
@@ -132,9 +139,12 @@ describe("Simulations", function () {
         }
 
         // liquidator checks all the trader accounts
-        // arbitrageur gets
+
+        // arbitrageur gets opportunity take his trade
         // update price in price oracle
-        // let price = await priceOracle.getMarkPrice(ammAddress);
+        lastPrice = lastPrice + mu * Math.round(Math.random() * 2 - 1);
+        await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
+        // let price = await priceOracle.getIndexPrice(ammAddress);
         // console.log("price: " + price);
 
         // await network.provider.send("evm_mine");
