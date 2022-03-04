@@ -26,7 +26,7 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
 
     address public immutable override token0;
     address public immutable override token1;
-    uint24 public immutable fee;
+    uint24 public immutable override fee;
     uint128 public override liquidity;
     Observation[65535] public override observations;
 

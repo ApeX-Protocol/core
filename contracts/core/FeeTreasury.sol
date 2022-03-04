@@ -8,6 +8,7 @@ import "../libraries/TransferHelper.sol";
 import "../libraries/TickMath.sol";
 import "../core/interfaces/uniswapV3/IUniswapV3Factory.sol";
 import "../core/interfaces/uniswapV3/IUniswapV3Pool.sol";
+import "../core/interfaces/uniswapV3/ISwapRouter.sol";
 import "../core/interfaces/IWETH.sol";
 
 contract FeeTreasury is Ownable {
@@ -33,6 +34,7 @@ contract FeeTreasury is Ownable {
 
     address public WETH;
     address public USDC;
+    address public v3Router;
     address public v3Factory;
     address public operator;
     uint24[3] public v3Fees;
@@ -52,10 +54,18 @@ contract FeeTreasury is Ownable {
         _;
     }
 
-    constructor(address WETH_, address USDC_, address v3Factory_, address operator_, uint256 nextSettleTime_) {
+    constructor(
+        address WETH_, 
+        address USDC_, 
+        address v3Router_, 
+        address v3Factory_, 
+        address operator_, 
+        uint256 nextSettleTime_
+    ) {
         owner = msg.sender;
         WETH = WETH_;
         USDC = USDC_;
+        v3Router = v3Router_;
         v3Factory = v3Factory_;
         operator = operator_;
         nextSettleTime = nextSettleTime_;
@@ -124,19 +134,25 @@ contract FeeTreasury is Ownable {
                 }
 
                 // swap token to WETH
-                TransferHelper.safeTransfer(token, pool, balance);
-                bool zeroForOne = token < WETH;
-                IUniswapV3Pool(pool).swap(
-                    address(this),
-                    zeroForOne,
-                    int256(balance),
-                    zeroForOne ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1,
-                    ""
-                );
+                uint256 allowance = IERC20(token).allowance(address(this), v3Router);
+                if (allowance < balance) {
+                    IERC20(token).approve(v3Router, type(uint256).max);
+                }
+                ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+                    tokenIn: token,
+                    tokenOut: WETH,
+                    fee: IUniswapV3Pool(pool).fee(),
+                    recipient: address(this),
+                    deadline: block.timestamp,
+                    amountIn: balance,
+                    amountOutMinimum: 1,
+                    sqrtPriceLimitX96: token < WETH ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1
+                });
+                ISwapRouter(v3Router).exactInputSingle(params);
             }
         }
-        // uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
-        // if (wethBalance > 0) IWETH(WETH).withdraw(wethBalance);
+        uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
+        if (wethBalance > 0) IWETH(WETH).withdraw(wethBalance);
     }
 
     function distrbute() external check {
