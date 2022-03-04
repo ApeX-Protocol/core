@@ -106,11 +106,10 @@ describe("Simulations", function () {
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       let logger = fs.createWriteStream('sim.csv');
+      logger.write("Oracle Price, Pool Price\n");
 
       await config.setBeta(100);
       await config.setInitMarginRatio(101);
-
-      // used for geometric brownian motion
 
       await baseToken.mint(alice.address, tokenQuantity);
       await baseToken.connect(alice).approve(router.address, tokenQuantity);
@@ -122,6 +121,7 @@ describe("Simulations", function () {
       await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
       await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
 
+      // variables for geometric brownian motion
       let mu = 0;
       let sig = 0.01;
       let lastPrice = 10000000;
@@ -178,14 +178,13 @@ describe("Simulations", function () {
         let lastPriceAmm = raw.div("5192296858534816");
         logger.write(price + ", " + lastPriceAmm + "\n");
 
-        // arbitrageur gets opportunity to take his trade
-        if (lastPriceAmm * 100 / price > 105) {
+        // arbitrageur gets opportunity to take his trade (should change arb trade sizes? TODO)
+        let arbThreshold = 102;
+        if (lastPriceAmm * 100 / price > arbThreshold) {
             await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("10", "ether"), infDeadline);
-        } else if (price * 100 / lastPriceAmm > 105) {
+        } else if (price * 100 / lastPriceAmm > arbThreshold) {
             await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
         }
-
-        // await network.provider.send("evm_mine");
       }
       console.log(count);
       logger.end();
