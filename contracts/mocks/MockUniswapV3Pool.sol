@@ -7,6 +7,7 @@ import "../libraries/FullMath.sol";
 import "../core/interfaces/uniswapV3/IUniswapV3Pool.sol";
 import "../libraries/TickMath.sol";
 import "../libraries/V3Oracle.sol";
+import "../core/interfaces/IERC20.sol";
 
 contract MockUniswapV3Pool is IUniswapV3Pool {
     using Math for uint256;
@@ -87,7 +88,11 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
         uint160 sqrtPriceLimitX96,
         bytes calldata data
     ) external override returns (int256 amount0, int256 amount1) {
-
+        if (zeroForOne) {
+            IERC20(token1).transfer(recipient, 100);
+        } else {
+            IERC20(token0).transfer(recipient, 100);
+        }
     }
 
     function setLiquidity(uint128 liquidity_) external {

@@ -124,6 +124,7 @@ contract FeeTreasury is Ownable {
                 }
 
                 // swap token to WETH
+                TransferHelper.safeTransfer(token, pool, balance);
                 bool zeroForOne = token < WETH;
                 IUniswapV3Pool(pool).swap(
                     address(this),
@@ -134,8 +135,8 @@ contract FeeTreasury is Ownable {
                 );
             }
         }
-        uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
-        IWETH(WETH).withdraw(wethBalance);
+        // uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
+        // if (wethBalance > 0) IWETH(WETH).withdraw(wethBalance);
     }
 
     function distrbute() external check {
