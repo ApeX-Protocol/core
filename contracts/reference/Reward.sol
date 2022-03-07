@@ -15,13 +15,11 @@ contract Reward is Reentrant, Ownable {
     event Claim(address indexed user, address[] tokens, uint256[] amounts, bytes nonce);
 
     bool public emergency;
-    address public rewardToken;
     mapping(address => bool) public signers;
     mapping(bytes => bool) public usedNonce;
 
-    constructor(address rewardToken_) {
+    constructor() {
         owner = msg.sender;
-        rewardToken = rewardToken_;
     }
 
     function setSigner(address signer, bool state) external onlyOwner {
@@ -76,9 +74,5 @@ contract Reward is Reentrant, Ownable {
         require(!usedNonce[nonce], "NONCE_USED");
         require(expireAt > block.timestamp, "EXPIRED");
         return true;
-    }
-
-    function tryVerify(string calldata amount, bytes memory signature) public pure returns (address) {
-        return keccak256(bytes(amount)).toEthSignedMessageHash().recover(signature);
     }
 }
