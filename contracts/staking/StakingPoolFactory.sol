@@ -12,7 +12,7 @@ import "./interfaces/IERC20Extend.sol";
 contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     address public override apeX;
     address public override esApeX;
-    address public override stApeX;
+    address public override veApeX;
     address public override treasury;
     uint256 public override lastUpdateTimestamp;
     uint256 public override secSpanPerUpdate;
@@ -140,14 +140,14 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         IERC20Extend(esApeX).mint(to, amount);
     }
 
-    function burnStApeX(address from, uint256 amount) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.burnStApeX: ACCESS_DENIED");
-        IERC20Extend(stApeX).burn(from, amount);
+    function burnVeApeX(address from, uint256 amount) external override {
+        require(poolTokenMap[msg.sender] != address(0), "cpf.burnVeApeX: ACCESS_DENIED");
+        IERC20Extend(veApeX).burn(from, amount);
     }
 
-    function mintStApeX(address to, uint256 amount) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.mintStApeX: ACCESS_DENIED");
-        IERC20Extend(stApeX).mint(to, amount);
+    function mintVeApeX(address to, uint256 amount) external override {
+        require(poolTokenMap[msg.sender] != address(0), "cpf.mintVeApeX: ACCESS_DENIED");
+        IERC20Extend(veApeX).mint(to, amount);
     }
 
     function changePoolWeight(address _pool, uint256 _weight) external override onlyOwner {
@@ -206,11 +206,11 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         emit SetEsApeX(_esApeX);
     }
 
-    function setStApeX(address _stApeX) external override onlyOwner {
-        require(stApeX == address(0), "cpf.setStApeX: INVALID_ADDRESS");
-        stApeX = _stApeX;
+    function setVeApeX(address _veApeX) external override onlyOwner {
+        require(veApeX == address(0), "cpf.setVeApeX: INVALID_ADDRESS");
+        veApeX = _veApeX;
 
-        emit SetStApeX(_stApeX);
+        emit SetVeApeX(_veApeX);
     }
 
     //tocheck just for dev use
