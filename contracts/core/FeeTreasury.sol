@@ -58,6 +58,8 @@ contract FeeTreasury is Ownable {
         ISwapRouter v3Router_, 
         address USDC_,  
         address operator_, 
+        address rewardForStaking_,
+        address rewardForCashback_,
         uint256 nextSettleTime_
     ) {
         owner = msg.sender;
@@ -66,10 +68,16 @@ contract FeeTreasury is Ownable {
         WETH = v3Router.WETH9();
         USDC = USDC_;
         operator = operator_;
+        rewardForStaking = rewardForStaking_;
+        rewardForCashback = rewardForCashback_;
         nextSettleTime = nextSettleTime_;
         v3Fees[0] = 500;
         v3Fees[1] = 3000;
         v3Fees[2] = 10000;
+    }
+
+    receive() external payable {
+        assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
     }
 
     function setRatioForStaking(uint8 newrRatio) external onlyOwner {
@@ -148,34 +156,8 @@ contract FeeTreasury is Ownable {
                 v3Router.exactInputSingle(params);
             }
         }
-        // uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
-        // if (wethBalance > 0) IWETH(WETH).withdraw(wethBalance);
-    }
-
-    function getWethBalance() external view returns (uint256) {
-        return IERC20(WETH).balanceOf(address(this));
-    }
-
-    function withdrawWETH() external {
         uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
-        IWETH(WETH).withdraw(wethBalance);
-    }
-
-    function testSwap(address token, uint256 balance) external {
-        uint256 allowance = IERC20(token).allowance(address(this), address(v3Router));
-        if (allowance < balance) {
-            IERC20(token).approve(address(v3Router), type(uint256).max);
-        }
-        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
-            tokenIn: token,
-            tokenOut: WETH,
-            fee: 500,
-            recipient: address(this),
-            amountIn: balance,
-            amountOutMinimum: 1,
-            sqrtPriceLimitX96: token < WETH ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1
-        });
-        v3Router.exactInputSingle(params);
+        if (wethBalance > 0) IWETH(WETH).withdraw(wethBalance);
     }
 
     function distrbute() external check {

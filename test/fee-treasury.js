@@ -4,6 +4,8 @@ const { BigNumber } = require("@ethersproject/bignumber");
 describe("FeeTreasury contract", function () {
   let owner;
   let operator;
+  let rewardForStaking;
+  let rewardForCashback;
   let weth;
   let usdc;
   let wbtc;
@@ -18,7 +20,7 @@ describe("FeeTreasury contract", function () {
   let feeTreasury;
 
   beforeEach(async function () {
-    [owner, operator] = await ethers.getSigners();
+    [owner, operator, rewardForStaking, rewardForCashback] = await ethers.getSigners();
 
     const MockWETH = await ethers.getContractFactory("MockWETH");
     weth = await MockWETH.deploy();
@@ -29,9 +31,6 @@ describe("FeeTreasury contract", function () {
     const MyToken = await ethers.getContractFactory("MyToken");
     usdc = await MyToken.deploy("USDC", "USDC", 6, BigNumber.from("1000000000000000"));
     wbtc = await MyToken.deploy("WBTC", "WBTC", 8, BigNumber.from("100000000000000000"));
-
-    const MockSwapRouter = await ethers.getContractFactory("MockSwapRouter");
-    swapRouter = await MockSwapRouter.deploy();
 
     const MockUniswapV3Factory = await ethers.getContractFactory("MockUniswapV3Factory");
     v3factory = await MockUniswapV3Factory.deploy();
@@ -45,6 +44,9 @@ describe("FeeTreasury contract", function () {
     await v3pool2.setLiquidity(1000000000);
     await v3factory.setPool(wbtc.address, weth.address, 500, v3pool2.address);
 
+    const MockSwapRouter = await ethers.getContractFactory("MockSwapRouter");
+    swapRouter = await MockSwapRouter.deploy(weth.address, v3factory.address);
+
     const MyAmm = await ethers.getContractFactory("MyAmm");
     amm1 = await MyAmm.deploy();
     await amm1.initialize(weth.address, usdc.address, marginAddress);
@@ -57,11 +59,11 @@ describe("FeeTreasury contract", function () {
 
     const FeeTreasury = await ethers.getContractFactory("FeeTreasury");
     feeTreasury = await FeeTreasury.deploy(
-      weth.address,
-      usdc.address,
       swapRouter.address,
-      v3factory.address,
+      usdc.address,
       operator.address,
+      rewardForStaking.address,
+      rewardForCashback.address,
       1000000
     );
   });
@@ -114,16 +116,7 @@ describe("FeeTreasury contract", function () {
     it("operator execute", async function () {
       let feeTreasuryWithOperator = feeTreasury.connect(operator);
       await feeTreasuryWithOperator.batchRemoveLiquidity([amm2.address]);
-      let balance = await weth.balanceOf(feeTreasury.address);
-      console.log("balanceBefore:", balance.toString());
-      let wbtcBalance = await wbtc.balanceOf(feeTreasury.address);
-      console.log("wbtcBalanceBefore:", wbtcBalance.toString());
       await feeTreasuryWithOperator.batchSwapToETH([wbtc.address]);
-      balance = await weth.balanceOf(feeTreasury.address);
-      console.log("balanceAfter:", balance.toString());
-      wbtcBalance = await wbtc.balanceOf(feeTreasury.address);
-      console.log("wbtcBalanceAfter:", wbtcBalance.toString());
-      // expect(balance).to.be.equal(100);
     });
   });
 
@@ -146,15 +139,7 @@ describe("FeeTreasury contract", function () {
     it("operator execute", async function () {
       let feeTreasuryWithOperator = feeTreasury.connect(operator);
       await feeTreasuryWithOperator.batchRemoveLiquidity([amm2.address]);
-      let balance = await weth.balanceOf(feeTreasury.address);
-      console.log("balanceBefore:", balance.toString());
-      let wbtcBalance = await wbtc.balanceOf(feeTreasury.address);
-      console.log("wbtcBalanceBefore:", wbtcBalance.toString());
       await feeTreasuryWithOperator.batchSwapToETH([wbtc.address]);
-      balance = await weth.balanceOf(feeTreasury.address);
-      console.log("balanceAfter:", balance.toString());
-      wbtcBalance = await wbtc.balanceOf(feeTreasury.address);
-      console.log("wbtcBalanceAfter:", wbtcBalance.toString());
       await feeTreasuryWithOperator.distrbute();
     });
   });
