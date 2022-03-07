@@ -6,8 +6,11 @@ pragma solidity ^0.8.0;
 interface IBondPoolFactory {
     event BondPoolCreated(address indexed amm, address indexed pool);
     event PriceOracleUpdated(address indexed oldOracle, address indexed newOracle);
+    event PoolTemplateUpdated(address indexed oldTemplate, address indexed newTemplate);
 
     function setPriceOracle(address newOracle) external;
+
+    function setPoolTemplate(address poolTemplate) external;
 
     function updateParams(
         uint256 maxPayout_,
@@ -24,6 +27,8 @@ interface IBondPoolFactory {
     function treasury() external view returns (address);
 
     function priceOracle() external view returns (address);
+
+    function poolTemplate() external view returns (address);
 
     function maxPayout() external view returns (uint256);
 
