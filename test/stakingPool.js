@@ -18,7 +18,7 @@ describe("stakingPool contract", function () {
   let invalidLockUntil = 10;
   let lockTime = 10;
   let esApeX;
-  let stApeX;
+  let veApeX;
 
   beforeEach(async function () {
     [owner, addr1] = await ethers.getSigners();
@@ -27,7 +27,7 @@ describe("stakingPool contract", function () {
     const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
     const StakingPool = await ethers.getContractFactory("StakingPool");
     const EsAPEX = await ethers.getContractFactory("EsAPEX");
-    const StAPEX = await ethers.getContractFactory("StAPEX");
+    const VeAPEX = await ethers.getContractFactory("VeAPEX");
 
     apexToken = await MockToken.deploy("apex token", "at");
     slpToken = await MockToken.deploy("slp token", "slp");
@@ -41,11 +41,11 @@ describe("stakingPool contract", function () {
       lockTime,
     ]);
     esApeX = await EsAPEX.deploy(stakingPoolFactory.address);
-    stApeX = await StAPEX.deploy(stakingPoolFactory.address);
+    veApeX = await VeAPEX.deploy(stakingPoolFactory.address);
 
     await stakingPoolFactory.setRemainForOtherVest(50);
     await stakingPoolFactory.setEsApeX(esApeX.address);
-    await stakingPoolFactory.setStApeX(stApeX.address);
+    await stakingPoolFactory.setVeApeX(veApeX.address);
     await stakingPoolFactory.createPool(apexToken.address, initTimestamp, 21);
     apexStakingPool = StakingPool.attach((await stakingPoolFactory.pools(apexToken.address))[0]);
 
@@ -282,41 +282,41 @@ describe("stakingPool contract", function () {
     });
   });
 
-  describe("stApeXBalance", function () {
+  describe("veApeXBalance", function () {
     beforeEach(async function () {
       await apexStakingPool.stake(10000, 0);
       await apexStakingPool.processRewards();
       await esApeX.approve(stakingPoolFactory.address, 10000000);
     });
 
-    it("vest dont change stApeXBalance", async function () {
-      let stApeXBalance = await stApeX.balanceOf(owner.address);
-      expect(stApeXBalance.toNumber()).to.be.equal(10000);
+    it("vest dont change veApeXBalance", async function () {
+      let veApeXBalance = await veApeX.balanceOf(owner.address);
+      expect(veApeXBalance.toNumber()).to.be.equal(10000);
 
       await apexStakingPool.vest(5);
-      stApeXBalance = await stApeX.balanceOf(owner.address);
-      expect(stApeXBalance.toNumber()).to.be.equal(10000);
+      veApeXBalance = await veApeX.balanceOf(owner.address);
+      expect(veApeXBalance.toNumber()).to.be.equal(10000);
     });
 
-    it("stake, stakeEsApeX, batchWithdraw change stApeXBalance", async function () {
+    it("stake, stakeEsApeX, batchWithdraw change veApeXBalance", async function () {
       let amount = (await esApeX.balanceOf(owner.address)).toNumber();
       expect(amount).to.greaterThan(5);
-      let stApeXBalance = await stApeX.balanceOf(owner.address);
-      expect(stApeXBalance.toNumber()).to.be.equal(10000);
+      let veApeXBalance = await veApeX.balanceOf(owner.address);
+      expect(veApeXBalance.toNumber()).to.be.equal(10000);
 
       await stakingPoolFactory.setLockTime(1);
       await apexStakingPool.stakeEsApeX(5, 0);
-      stApeXBalance = await stApeX.balanceOf(owner.address);
-      expect(stApeXBalance.toNumber()).to.be.equal(10005);
+      veApeXBalance = await veApeX.balanceOf(owner.address);
+      expect(veApeXBalance.toNumber()).to.be.equal(10005);
 
       await mineBlocks(100);
       await apexStakingPool.batchWithdraw([], [], [], [], [0], [5]);
-      stApeXBalance = await stApeX.balanceOf(owner.address);
-      expect(stApeXBalance.toNumber()).to.be.equal(10000);
+      veApeXBalance = await veApeX.balanceOf(owner.address);
+      expect(veApeXBalance.toNumber()).to.be.equal(10000);
 
       await apexStakingPool.batchWithdraw([0], [10000], [], [], [], []);
-      stApeXBalance = await stApeX.balanceOf(owner.address);
-      expect(stApeXBalance.toNumber()).to.be.equal(0);
+      veApeXBalance = await veApeX.balanceOf(owner.address);
+      expect(veApeXBalance.toNumber()).to.be.equal(0);
     });
   });
 });

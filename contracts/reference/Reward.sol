@@ -5,22 +5,21 @@ import "../utils/Reentrant.sol";
 import "../utils/Ownable.sol";
 import "../libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "../core/interfaces/IERC20.sol";
 
 contract Reward is Reentrant, Ownable {
     using ECDSA for bytes32;
-    
+
     event SetEmergency(bool emergency);
     event SetSigner(address signer, bool state);
-    event Claim(address indexed user, uint256 amount, uint256 nonce);
+    event Claim(address indexed user, address[] tokens, uint256[] amounts, bytes nonce);
 
     bool public emergency;
-    address public rewardToken;
     mapping(address => bool) public signers;
-    mapping(uint256 => bool) public usedNonce;
+    mapping(bytes => bool) public usedNonce;
 
-    constructor(address rewardToken_) {
+    constructor() {
         owner = msg.sender;
-        rewardToken = rewardToken_;
     }
 
     function setSigner(address signer, bool state) external onlyOwner {
@@ -34,35 +33,43 @@ contract Reward is Reentrant, Ownable {
         emit SetEmergency(emergency_);
     }
 
-    function emergencyWithdraw(address token, address to, uint256 amount) external onlyOwner {
+    function emergencyWithdraw(
+        address token,
+        address to,
+        uint256 amount
+    ) external onlyOwner {
         require(emergency, "NOT_EMERGENCY");
         TransferHelper.safeTransfer(token, to, amount);
     }
 
     function claim(
         address user,
-        uint256 amount,
-        uint256 nonce,
+        address[] calldata tokens,
+        uint256[] calldata amounts,
+        bytes calldata nonce,
         uint256 expireAt,
         bytes memory signature
     ) external nonReentrant {
         require(!emergency, "EMERGENCY");
-        verify(user, amount, nonce, expireAt, signature);
+        verify(user, tokens, amounts, nonce, expireAt, signature);
         usedNonce[nonce] = true;
-        TransferHelper.safeTransfer(rewardToken, user, amount);
-        emit Claim(user, amount, nonce);
+        for (uint256 i = 0; i < tokens.length; i++) {
+            IERC20(tokens[i]).transfer(user, amounts[i]);
+        }
+        emit Claim(user, tokens, amounts, nonce);
     }
 
     function verify(
         address user,
-        uint256 amount,
-        uint256 nonce,
+        address[] calldata tokens,
+        uint256[] calldata amounts,
+        bytes calldata nonce,
         uint256 expireAt,
         bytes memory signature
     ) public view returns (bool) {
-        address recover = keccak256(
-            abi.encode(user, amount, nonce, expireAt, address(this))
-        ).toEthSignedMessageHash().recover(signature);
+        address recover = keccak256(abi.encode(user, tokens, amounts, nonce, expireAt, address(this)))
+            .toEthSignedMessageHash()
+            .recover(signature);
         require(signers[recover], "NOT_SIGNER");
         require(!usedNonce[nonce], "NONCE_USED");
         require(expireAt > block.timestamp, "EXPIRED");
