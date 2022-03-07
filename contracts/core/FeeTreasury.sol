@@ -32,10 +32,10 @@ contract FeeTreasury is Ownable {
         uint256 timestamp
     );
 
+    ISwapRouter public v3Router;
+    address public v3Factory;
     address public WETH;
     address public USDC;
-    address public v3Router;
-    address public v3Factory;
     address public operator;
     uint24[3] public v3Fees;
 
@@ -55,18 +55,16 @@ contract FeeTreasury is Ownable {
     }
 
     constructor(
-        address WETH_, 
-        address USDC_, 
-        address v3Router_, 
-        address v3Factory_, 
+        ISwapRouter v3Router_, 
+        address USDC_,  
         address operator_, 
         uint256 nextSettleTime_
     ) {
         owner = msg.sender;
-        WETH = WETH_;
-        USDC = USDC_;
         v3Router = v3Router_;
-        v3Factory = v3Factory_;
+        v3Factory = v3Router.factory();
+        WETH = v3Router.WETH9();
+        USDC = USDC_;
         operator = operator_;
         nextSettleTime = nextSettleTime_;
         v3Fees[0] = 500;
@@ -134,25 +132,50 @@ contract FeeTreasury is Ownable {
                 }
 
                 // swap token to WETH
-                uint256 allowance = IERC20(token).allowance(address(this), v3Router);
+                uint256 allowance = IERC20(token).allowance(address(this), address(v3Router));
                 if (allowance < balance) {
-                    IERC20(token).approve(v3Router, type(uint256).max);
+                    IERC20(token).approve(address(v3Router), type(uint256).max);
                 }
                 ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
                     tokenIn: token,
                     tokenOut: WETH,
                     fee: IUniswapV3Pool(pool).fee(),
                     recipient: address(this),
-                    deadline: block.timestamp,
                     amountIn: balance,
                     amountOutMinimum: 1,
                     sqrtPriceLimitX96: token < WETH ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1
                 });
-                ISwapRouter(v3Router).exactInputSingle(params);
+                v3Router.exactInputSingle(params);
             }
         }
+        // uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
+        // if (wethBalance > 0) IWETH(WETH).withdraw(wethBalance);
+    }
+
+    function getWethBalance() external view returns (uint256) {
+        return IERC20(WETH).balanceOf(address(this));
+    }
+
+    function withdrawWETH() external {
         uint256 wethBalance = IERC20(WETH).balanceOf(address(this));
-        if (wethBalance > 0) IWETH(WETH).withdraw(wethBalance);
+        IWETH(WETH).withdraw(wethBalance);
+    }
+
+    function testSwap(address token, uint256 balance) external {
+        uint256 allowance = IERC20(token).allowance(address(this), address(v3Router));
+        if (allowance < balance) {
+            IERC20(token).approve(address(v3Router), type(uint256).max);
+        }
+        ISwapRouter.ExactInputSingleParams memory params = ISwapRouter.ExactInputSingleParams({
+            tokenIn: token,
+            tokenOut: WETH,
+            fee: 500,
+            recipient: address(this),
+            amountIn: balance,
+            amountOutMinimum: 1,
+            sqrtPriceLimitX96: token < WETH ? TickMath.MIN_SQRT_RATIO + 1 : TickMath.MAX_SQRT_RATIO - 1
+        });
+        v3Router.exactInputSingle(params);
     }
 
     function distrbute() external check {

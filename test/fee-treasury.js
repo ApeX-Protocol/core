@@ -7,6 +7,7 @@ describe("FeeTreasury contract", function () {
   let weth;
   let usdc;
   let wbtc;
+  let swapRouter;
   let v3factory;
   let v3pool1;
   let v3pool2;
@@ -28,6 +29,9 @@ describe("FeeTreasury contract", function () {
     const MyToken = await ethers.getContractFactory("MyToken");
     usdc = await MyToken.deploy("USDC", "USDC", 6, BigNumber.from("1000000000000000"));
     wbtc = await MyToken.deploy("WBTC", "WBTC", 8, BigNumber.from("100000000000000000"));
+
+    const MockSwapRouter = await ethers.getContractFactory("MockSwapRouter");
+    swapRouter = await MockSwapRouter.deploy();
 
     const MockUniswapV3Factory = await ethers.getContractFactory("MockUniswapV3Factory");
     v3factory = await MockUniswapV3Factory.deploy();
@@ -52,7 +56,14 @@ describe("FeeTreasury contract", function () {
     await amm3.initialize(weth.address, wbtc.address, marginAddress);
 
     const FeeTreasury = await ethers.getContractFactory("FeeTreasury");
-    feeTreasury = await FeeTreasury.deploy(weth.address, usdc.address, v3factory.address, operator.address, 1000000);
+    feeTreasury = await FeeTreasury.deploy(
+      weth.address,
+      usdc.address,
+      swapRouter.address,
+      v3factory.address,
+      operator.address,
+      1000000
+    );
   });
 
   describe("batchRemoveLiquidity", function () {
@@ -113,6 +124,38 @@ describe("FeeTreasury contract", function () {
       wbtcBalance = await wbtc.balanceOf(feeTreasury.address);
       console.log("wbtcBalanceAfter:", wbtcBalance.toString());
       // expect(balance).to.be.equal(100);
+    });
+  });
+
+  describe("distrbute", function () {
+    beforeEach(async function () {
+      await weth.transfer(amm1.address, 1000);
+      await amm1.mint(feeTreasury.address);
+      await wbtc.transfer(amm2.address, 1000);
+      await amm2.mint(feeTreasury.address);
+      await weth.transfer(v3pool1.address, 100);
+      await usdc.transfer(v3pool1.address, 100);
+      await weth.transfer(v3pool2.address, 100);
+      await wbtc.transfer(v3pool2.address, 100);
+    });
+
+    it("not operator", async function () {
+      await expect(feeTreasury.distrbute()).to.be.revertedWith("FORBIDDEN");
+    });
+
+    it("operator execute", async function () {
+      let feeTreasuryWithOperator = feeTreasury.connect(operator);
+      await feeTreasuryWithOperator.batchRemoveLiquidity([amm2.address]);
+      let balance = await weth.balanceOf(feeTreasury.address);
+      console.log("balanceBefore:", balance.toString());
+      let wbtcBalance = await wbtc.balanceOf(feeTreasury.address);
+      console.log("wbtcBalanceBefore:", wbtcBalance.toString());
+      await feeTreasuryWithOperator.batchSwapToETH([wbtc.address]);
+      balance = await weth.balanceOf(feeTreasury.address);
+      console.log("balanceAfter:", balance.toString());
+      wbtcBalance = await wbtc.balanceOf(feeTreasury.address);
+      console.log("wbtcBalanceAfter:", wbtcBalance.toString());
+      await feeTreasuryWithOperator.distrbute();
     });
   });
 });
