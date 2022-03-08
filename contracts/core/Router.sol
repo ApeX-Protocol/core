@@ -261,7 +261,7 @@ contract Router is IRouter {
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
-        
+
         (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
         (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(msg.sender);

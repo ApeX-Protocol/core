@@ -31,7 +31,7 @@ describe("Simulations", function () {
   }
 
   beforeEach(async function () {
-    [owner, treasury, alice, bob, carol, arbitrageur] = await ethers.getSigners();
+    [owner, treasury, alice, bob, arbitrageur] = await ethers.getSigners();
 
     const MockWETH = await ethers.getContractFactory("MockWETH");
     weth = await MockWETH.deploy();
@@ -111,10 +111,6 @@ describe("Simulations", function () {
       await config.setBeta(100);
       await config.setInitMarginRatio(101);
 
-      await baseToken.mint(alice.address, tokenQuantity);
-      await baseToken.connect(alice).approve(router.address, tokenQuantity);
-      await baseToken.mint(bob.address, tokenQuantity);
-      await baseToken.connect(bob).approve(router.address, tokenQuantity);
       await baseToken.mint(arbitrageur.address, largeTokenQuantity);
       await baseToken.connect(arbitrageur).approve(router.address, largeTokenQuantity);
       await baseToken.mint(owner.address, largeTokenQuantity);
@@ -135,7 +131,10 @@ describe("Simulations", function () {
       let delta = 0.5;
       let meanJump = 0.3;
       let S;
-      let count = 0;
+
+      // active open trades
+      let trades = [];
+
       // Exact simulation of Hawkes process with exponentially decaying intensity 2013
       // TODO should i do two separate simulations of trades from each trader?
       // that doesn't make as much sense as generally clustering trades... have
@@ -158,13 +157,17 @@ describe("Simulations", function () {
         // roughly 10% of the time w/ delta = 0.3, w/ delta = 0.2 it's 1.5% of
         // the time
         if (S < 0) {
-          count+=1;
-          // alice trades randomly
+          let trader = await ethers.getSigner();
+          await baseToken.mint(trader.address, tokenQuantity);
+          await baseToken.connect(trader).approve(router.address, tokenQuantity);
+
+          // trader trades randomly
           if (Math.random() > 0.5) {
-            await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
+            await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
           } else {
-            await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("10", "ether"), infDeadline);
+            await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("10", "ether"), infDeadline);
           }
+          trades.push(trader);
         }
 
         // TODO liquidator checks all the trader accounts
@@ -185,8 +188,16 @@ describe("Simulations", function () {
         } else if (price * 100 / lastPriceAmm > arbThreshold) {
             await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
         }
+
+        for (let j = 0; j < trades.length; j++) {
+          trader = trades[j];
+          let canLiq = await margin.canLiquidate(trader.address);
+          let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
+          console.log(trader.address);
+          console.log(j + ": " + canLiq);
+          console.log(position);
+        }
       }
-      console.log(count);
       logger.end();
     });
   });
