@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "../core/interfaces/IERC20.sol";
 import "../utils/Reentrant.sol";
 import "../utils/Ownable.sol";
 import "../libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../core/interfaces/IERC20.sol";
 
 contract RewardForCashback is Reentrant, Ownable {
     using ECDSA for bytes32;
