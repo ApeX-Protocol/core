@@ -7,7 +7,7 @@ import "../libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "../core/interfaces/IERC20.sol";
 
-contract Reward is Reentrant, Ownable {
+contract RewardForStaking is Reentrant, Ownable {
     using ECDSA for bytes32;
 
     event SetEmergency(bool emergency);

@@ -17,18 +17,16 @@ contract FeeTreasury is Ownable {
     event RewardForCashbackChanged(address indexed oldReward, address indexed newReward);
     event OperatorChanged(address indexed oldOperator, address indexed newOperator);
     event SettlementIntervalChanged(uint256 oldInterval, uint256 newInterval);
-    event DistrbuteETH(
-        address indexed rewardForStaking, 
-        address indexed rewardForCashback, 
-        uint256 ethForStaking, 
-        uint256 ethForCashback,
+    event DistrbuteToStaking(
+        address indexed rewardForStaking,
+        uint256 ethAmount, 
+        uint256 usdcAmount,
         uint256 timestamp
     );
-    event DistrbuteUSDC(
-        address indexed rewardForStaking, 
+    event DistrbuteToCashback(
         address indexed rewardForCashback, 
-        uint256 usdcForStaking, 
-        uint256 usdcForCashback,
+        uint256 ethAmount, 
+        uint256 usdcAmount,
         uint256 timestamp
     );
 
@@ -171,11 +169,11 @@ contract FeeTreasury is Ownable {
 
         TransferHelper.safeTransferETH(rewardForStaking, ethForStaking);
         TransferHelper.safeTransferETH(rewardForCashback, ethForCashback);
-        emit DistrbuteETH(rewardForStaking, rewardForCashback, ethForStaking, ethForCashback, block.timestamp);
-
         TransferHelper.safeTransfer(USDC, rewardForStaking, usdcForStaking);
         TransferHelper.safeTransfer(USDC, rewardForCashback, usdcForCashback);
-        emit DistrbuteUSDC(rewardForStaking, rewardForCashback, usdcForStaking, usdcForCashback, block.timestamp);
+        
+        emit DistrbuteToStaking(rewardForStaking, ethForStaking, usdcForStaking, block.timestamp);
+        emit DistrbuteToCashback(rewardForCashback, ethForCashback, usdcForCashback, block.timestamp);
 
         nextSettleTime = nextSettleTime + settlementInterval;
     }
