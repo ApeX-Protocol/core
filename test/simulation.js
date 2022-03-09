@@ -17,6 +17,7 @@ describe("Simulations", function () {
   let margin;
   let ammAddress;
   let amm;
+  let provider = ethers.provider;
 
   const tokenQuantity = ethers.utils.parseUnits("250", "ether");
   const largeTokenQuantity = ethers.utils.parseUnits("1000", "ether");
@@ -157,7 +158,11 @@ describe("Simulations", function () {
         // roughly 10% of the time w/ delta = 0.3, w/ delta = 0.2 it's 1.5% of
         // the time
         if (S < 0) {
-          let trader = await ethers.getSigner();
+          let trader = await ethers.Wallet.createRandom().connect(provider);
+          let tx = await owner.sendTransaction({
+              to: trader.address,
+              value: ethers.utils.parseEther("25.0")
+          });
           await baseToken.mint(trader.address, tokenQuantity);
           await baseToken.connect(trader).approve(router.address, tokenQuantity);
 
