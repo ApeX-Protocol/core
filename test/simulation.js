@@ -107,7 +107,7 @@ describe("Simulations", function () {
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       let logger = fs.createWriteStream('sim.csv');
-      logger.write("Oracle Price, Pool Price\n");
+      logger.write("Trade, Oracle Price, Pool Price, Liquidations\n");
 
       await config.setBeta(100);
       await config.setInitMarginRatio(101);
@@ -169,13 +169,15 @@ describe("Simulations", function () {
           // trader trades randomly
           if (Math.random() > 0.5) {
             await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
+            logger.write("1, ");
           } else {
             await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("10", "ether"), infDeadline);
+            logger.write("-1, ");
           }
           trades.push(trader);
+        } else {
+          logger.write("0, ");
         }
-
-        // TODO liquidator checks all the trader accounts
 
         // update price in price oracle by geometric brownian motion
         lastPrice = lastPrice * Math.exp((mu - sig*sig / 2) * 0.02 + sig * randn_bm());
@@ -184,7 +186,7 @@ describe("Simulations", function () {
         let raw = await amm.lastPrice();
         // get the price out of the 112x112 format & display with 18 decimal accuracy
         let lastPriceAmm = raw.div("5192296858534816");
-        logger.write(price + ", " + lastPriceAmm + "\n");
+        logger.write(price + ", " + lastPriceAmm);
 
         // arbitrageur gets opportunity to take his trade (should change arb trade sizes? TODO)
         let arbThreshold = 102;
@@ -194,14 +196,35 @@ describe("Simulations", function () {
             await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
         }
 
+        let liq = false;
         for (let j = 0; j < trades.length; j++) {
           trader = trades[j];
           let canLiq = await margin.canLiquidate(trader.address);
           let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
-          console.log(trader.address);
-          console.log(j + ": " + canLiq);
-          console.log(position);
+          console.log(j + ": " + trader.address);
+          console.log(position.baseSize.toString());
+          console.log(position.tradeSize.toString());
+          console.log(position.quoteSize.toString());
+          if (canLiq) {
+            console.log(canLiq);
+            margin.liquidate(trader.address);
+            position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
+            console.log("LIQ'D");
+            // verify that the position is zero'd out
+            console.log(position.baseSize.toString());
+            console.log(position.tradeSize.toString());
+            console.log(position.quoteSize.toString());
+            if (position.quoteSize.lt(0)) {
+              logger.write(", 1\n");
+            } else {
+              logger.write(", -1\n");
+            }
+            liq = true;
+            trades.splice(j, 1);
+            break;
+          }
         }
+        if (!liq) logger.write(", 0\n");
       }
       logger.end();
     });
