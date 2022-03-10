@@ -53,7 +53,7 @@ describe("Simulations", function () {
 
     const PriceOracle = await ethers.getContractFactory("PriceOracleForTest");
     priceOracle = await PriceOracle.deploy();
-    await priceOracle.setReserve(baseToken.address, quoteToken.address, 10000000, 20000000000);
+    await priceOracle.setReserve(baseToken.address, quoteToken.address, ethers.utils.parseUnits('1', 'ether'), ethers.utils.parseUnits('2000', 'ether'));
     await config.setPriceOracle(priceOracle.address);
 
     const PairFactory = await ethers.getContractFactory("PairFactory");
@@ -93,7 +93,19 @@ describe("Simulations", function () {
       await baseToken.mint(owner.address, largeTokenQuantity);
       await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
       await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
-      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("4000", "ether"), 1, infDeadline);
+      console.log(await amm.getReserves());
+      let raw = await amm.lastPrice();
+      // get the price out of the 112x112 format & display with 18 decimal accuracy
+      let lastPriceAmm = raw.div("5192296858534816");
+      console.log("lastPAMM: " + lastPriceAmm.toString());
+      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("20", "ether"), ethers.utils.parseUnits("20000", "ether"), 1, infDeadline);
+
+      console.log(await amm.getReserves());
+      raw = await amm.lastPrice();
+      // get the price out of the 112x112 format & display with 18 decimal accuracy
+      lastPriceAmm = raw.div("5192296858534816");
+      console.log("lastPAMM: " + lastPriceAmm.toString());
+
       // NOT LIQUIDATABLE await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("4000", "ether"), ethers.utils.parseUnits("8000", "ether"), infDeadline);
       await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("4000", "ether"),  ethers.utils.parseUnits("8000", "ether"), infDeadline);
       // check that trader position exists
@@ -124,7 +136,7 @@ describe("Simulations", function () {
 
       // variables for geometric brownian motion
       let mu = 0;
-      let sig = 0.01;
+      let sig = 0.006;
       let lastPrice = 2000;
 
       // variables for the hawkes process simulation
@@ -194,16 +206,14 @@ describe("Simulations", function () {
           }
           trades.push([trader, lastPriceAmm, side]);
           let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
-          console.log(i + ": " + trader.address);
-          console.log(position.baseSize.toString());
-          console.log(position.tradeSize.toString());
-          console.log(position.quoteSize.toString());
         } else {
           logger.write("0, ");
         }
 
         logger.write(price + ", " + lastPriceAmm);
 
+        // TODO this rebase does the opposite of what I'd expect, it rebases in the other direction
+        /*
         if (lastPriceAmm * 100 / price > 110 || price * 100 / lastPriceAmm > 110) {
           try {
             await amm.rebase();
@@ -214,12 +224,14 @@ describe("Simulations", function () {
           } catch(e) {
           }
         }
+        */
+
         // arbitrageur gets opportunity to take his trade (should change arb trade sizes? TODO)
         let arbThreshold = 102;
         if (lastPriceAmm * 100 / price > arbThreshold) {
-            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("1500", "ether"), ethers.utils.parseUnits("1000000", "ether"), infDeadline);
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("8000", "ether"), ethers.utils.parseUnits("1000000", "ether"), infDeadline);
         } else if (price * 100 / lastPriceAmm > arbThreshold) {
-            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("1500", "ether"), 1, infDeadline);
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("8000", "ether"), 1, infDeadline);
         }
 
         raw = await amm.lastPrice();
@@ -236,12 +248,10 @@ describe("Simulations", function () {
           if (canLiq) {
             margin.liquidate(trader.address);
             // position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
-            // verify that the position is zero'd out
-            // console.log(position.baseSize.toString());
 
-            // console.log(position.tradeSize.toString());
-            // console.log(position.quoteSize.toString());
+            // verify that the position is zero'd out
             // expect(position.quoteSize.isZero()).to.equal(true);
+
             if (trades[j][2] == 0) {
               console.log("********LIQ'D LONG********");
               console.log(await margin.calUnrealizedPnl(trader.address));
