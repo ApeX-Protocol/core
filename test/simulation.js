@@ -201,7 +201,9 @@ describe("Simulations", function () {
 
           let side;
           let quoteAmount = ethers.utils.parseUnits("10000", "ether");
-          let marginAmount = quoteAmount.mul(ethers.utils.parseUnits("10", "ether")).div(lastPriceAmm).div(10);
+          let marginAmount = quoteAmount.mul(ethers.utils.parseUnits("1", "ether")).div(lastPriceAmm);
+          console.log("quoteAmout: " + quoteAmount);
+          console.log("marginAmount: " + marginAmount);
           // trader trades randomly
           if (Math.random() > 0.5) {
             side = 0;
@@ -213,7 +215,8 @@ describe("Simulations", function () {
             logger.write("-1, ");
           }
           trades.push([trader, lastPriceAmm, side]);
-          let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
+          let debtRatio = await margin.calDebtRatio1(trader.address);
+          console.log("Debt Ratio: " + debtRatio);
         } else {
           logger.write("0, ");
         }
