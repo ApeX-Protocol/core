@@ -554,7 +554,7 @@ contract Margin is IMargin, IVault, Reentrant {
         return (baseAmountFunding * (_getNewLatestCPF() - traderCPF[trader])).divU(1e18);
     }
 
-    function calDebtRatio1(address trader) external view override returns (uint256 debtRatio) {
+    function calDebtRatio(address trader) external view override returns (uint256 debtRatio) {
         Position memory position = traderPositionMap[trader];
 
         int256 baseAmountFunding;
@@ -772,9 +772,8 @@ contract Margin is IMargin, IVault, Reentrant {
             (quoteReserve * 10000 * marginAcc.abs()) /
             ((IConfig(config).initMarginRatio() * baseReserve) + (200 * marginAcc.abs() * IConfig(config).beta()));
     }
-
     //just for dev use
-    function calDebtRatio(int256 quoteSize, int256 baseSize)
+    function calDebtRatioDev(int256 quoteSize, int256 baseSize)
         external
         view
         returns (uint256 baseAmount, uint256 debtRatio)

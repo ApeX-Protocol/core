@@ -116,7 +116,7 @@ describe("Simulations", function () {
       await margin.liquidate(alice.address);
       // check that alice's position has been liquidated
       console.log(await margin.getPosition(alice.address));
-      //console.log(await margin.calDebtRatio(alice.address));
+      console.log(await margin.calDebtRatio(alice.address));
       console.log(await margin.calUnrealizedPnl(alice.address));
       await router.connect(bob).closePosition(baseToken.address, quoteToken.address, 10000, infDeadline, true);
     });
@@ -215,7 +215,7 @@ describe("Simulations", function () {
             logger.write("-1, ");
           }
           trades.push([trader, lastPriceAmm, side]);
-          let debtRatio = await margin.calDebtRatio1(trader.address);
+          let debtRatio = await margin.calDebtRatio(trader.address);
           console.log("Debt Ratio: " + debtRatio);
         } else {
           logger.write("0, ");
