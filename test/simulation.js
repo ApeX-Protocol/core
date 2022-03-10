@@ -19,7 +19,7 @@ describe("Simulations", function () {
   let amm;
   let provider = ethers.provider;
 
-  const tokenQuantity = ethers.utils.parseUnits("250", "ether");
+  const tokenQuantity = ethers.utils.parseUnits("2500", "ether");
   const largeTokenQuantity = ethers.utils.parseUnits("1000", "ether");
   const infDeadline = "9999999999";
 
@@ -53,9 +53,7 @@ describe("Simulations", function () {
 
     const PriceOracle = await ethers.getContractFactory("PriceOracleForTest");
     priceOracle = await PriceOracle.deploy();
-    //await priceOracle.initialize(v3factory.address);
-    await priceOracle.setReserve(baseToken.address, quoteToken.address, 10000000, 20000000);
-    await priceOracle.setReserve(weth.address, quoteToken.address, 10000000, 20000000);
+    await priceOracle.setReserve(baseToken.address, quoteToken.address, 10000000, 20000000000);
     await config.setPriceOracle(priceOracle.address);
 
     const PairFactory = await ethers.getContractFactory("PairFactory");
@@ -79,6 +77,10 @@ describe("Simulations", function () {
     const Router = await ethers.getContractFactory("Router");
     router = await Router.deploy(pairFactory.address, treasury.address, weth.address);
     await config.registerRouter(router.address);
+
+    await baseToken.mint(owner.address, largeTokenQuantity);
+    await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
+    await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
   });
 
   describe("check pool pnl given beta", function () {
@@ -91,13 +93,18 @@ describe("Simulations", function () {
       await baseToken.mint(owner.address, largeTokenQuantity);
       await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
       await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
-      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, infDeadline);
-      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 5500, infDeadline);
+      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("4000", "ether"), 1, infDeadline);
+      // NOT LIQUIDATABLE await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("4000", "ether"), ethers.utils.parseUnits("8000", "ether"), infDeadline);
+      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("4000", "ether"),  ethers.utils.parseUnits("8000", "ether"), infDeadline);
       // check that trader position exists
-      // console.log(await margin.getPosition(alice.address));
+      let position = await margin.getPosition(alice.address);
+      console.log("position: " + position);
+
       await margin.liquidate(alice.address);
       // check that alice's position has been liquidated
-      // console.log(await margin.getPosition(alice.address));
+      console.log(await margin.getPosition(alice.address));
+      //console.log(await margin.calDebtRatio(alice.address));
+      console.log(await margin.calUnrealizedPnl(alice.address));
       await router.connect(bob).closePosition(baseToken.address, quoteToken.address, 10000, infDeadline, true);
     });
   });
@@ -110,18 +117,15 @@ describe("Simulations", function () {
       logger.write("Trade, Oracle Price, Pool Price, Liquidation, Entry Price\n");
 
       await config.setBeta(100);
-      await config.setInitMarginRatio(101);
+      //await config.setInitMarginRatio(101);
 
-      await baseToken.mint(arbitrageur.address, largeTokenQuantity);
-      await baseToken.connect(arbitrageur).approve(router.address, largeTokenQuantity);
-      await baseToken.mint(owner.address, largeTokenQuantity);
-      await baseToken.connect(owner).approve(router.address, largeTokenQuantity);
-      await router.addLiquidity(baseToken.address, quoteToken.address, largeTokenQuantity, 1, infDeadline, false);
+      await baseToken.mint(arbitrageur.address, tokenQuantity);
+      await baseToken.connect(arbitrageur).approve(router.address, tokenQuantity);
 
       // variables for geometric brownian motion
       let mu = 0;
       let sig = 0.01;
-      let lastPrice = 10000000;
+      let lastPrice = 2000;
 
       // variables for the hawkes process simulation
       let simSteps = 300;
@@ -156,12 +160,13 @@ describe("Simulations", function () {
 
         // update price in price oracle by geometric brownian motion
         lastPrice = lastPrice * Math.exp((mu - sig*sig / 2) * 0.02 + sig * randn_bm());
-        await priceOracle.setReserve(baseToken.address, quoteToken.address, Math.floor(lastPrice), 20000000);
+        console.log("lastP: " + lastPrice);
+        await priceOracle.setReserve(baseToken.address, quoteToken.address, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits(Math.floor(lastPrice * 1000000000000).toString(), 6));
         let price = await priceOracle.getIndexPrice(ammAddress);
         let raw = await amm.lastPrice();
         // get the price out of the 112x112 format & display with 18 decimal accuracy
         let lastPriceAmm = raw.div("5192296858534816");
-
+        console.log("lastPAMM: " + lastPriceAmm.toString());
         // consider that a trade occurs whenever S is negative, this happens
         // roughly 10% of the time w/ delta = 0.3, w/ delta = 0.2 it's 1.5% of
         // the time
@@ -174,15 +179,20 @@ describe("Simulations", function () {
           await baseToken.mint(trader.address, tokenQuantity);
           await baseToken.connect(trader).approve(router.address, tokenQuantity);
 
+          let side;
+          let quoteAmount = ethers.utils.parseUnits("10000", "ether");
+          let marginAmount = quoteAmount.mul(ethers.utils.parseUnits("1", "ether")).div(lastPriceAmm).div(10);
           // trader trades randomly
           if (Math.random() > 0.5) {
-            await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
+            side = 0;
+            await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 0, marginAmount, quoteAmount, 1, infDeadline);
             logger.write("1, ");
           } else {
-            await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("10", "ether"), infDeadline);
+            side = 1;
+            await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 1, marginAmount, quoteAmount, ethers.utils.parseUnits("1000000", "ether"), infDeadline);
             logger.write("-1, ");
           }
-          trades.push([trader, lastPriceAmm]);
+          trades.push([trader, lastPriceAmm, side]);
           let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
           console.log(i + ": " + trader.address);
           console.log(position.baseSize.toString());
@@ -194,35 +204,53 @@ describe("Simulations", function () {
 
         logger.write(price + ", " + lastPriceAmm);
 
+        if (lastPriceAmm * 100 / price > 110 || price * 100 / lastPriceAmm > 110) {
+          try {
+            await amm.rebase();
+            let raw = await amm.lastPrice();
+            // get the price out of the 112x112 format & display with 18 decimal accuracy
+            let lastPriceAmm = raw.div("5192296858534816");
+            console.log("post rebase: " + lastPriceAmm.toString());
+          } catch(e) {
+          }
+        }
         // arbitrageur gets opportunity to take his trade (should change arb trade sizes? TODO)
         let arbThreshold = 102;
         if (lastPriceAmm * 100 / price > arbThreshold) {
-            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("10", "ether"), infDeadline);
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("1500", "ether"), ethers.utils.parseUnits("1000000", "ether"), infDeadline);
         } else if (price * 100 / lastPriceAmm > arbThreshold) {
-            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("0.5", "ether"), ethers.utils.parseUnits("5", "ether"), 1, infDeadline);
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("1500", "ether"), 1, infDeadline);
         }
 
+        raw = await amm.lastPrice();
+        // get the price out of the 112x112 format & display with 18 decimal accuracy
+        lastPriceAmm = raw.div("5192296858534816");
+
         let liq = false;
+
         for (let j = 0; j < trades.length; j++) {
           trader = trades[j][0];
           let canLiq = await margin.canLiquidate(trader.address);
           let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
+          console.log(await margin.calUnrealizedPnl(trader.address));
           if (canLiq) {
             margin.liquidate(trader.address);
-            position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
+            // position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
             // verify that the position is zero'd out
-            console.log(lastPriceAmm.toString())
-            console.log(position.baseSize.toString());
-            console.log(position.tradeSize.toString());
-            console.log(position.quoteSize.toString());
+            // console.log(position.baseSize.toString());
+
+            // console.log(position.tradeSize.toString());
+            // console.log(position.quoteSize.toString());
             // expect(position.quoteSize.isZero()).to.equal(true);
-            if (position.quoteSize.lt(0)) {
+            if (trades[j][2] == 0) {
               console.log("********LIQ'D LONG********");
+              console.log(await margin.calUnrealizedPnl(trader.address));
               console.log("entry: " + trades[j][1] + "  - exit: " + lastPriceAmm.toString());
               console.log("***************************");
               logger.write(", 1, ");
             } else {
               console.log("********LIQ'D SHORT********");
+              console.log(await margin.calUnrealizedPnl(trader.address));
               console.log("entry: " + trades[j][1] + "  - exit: " + lastPriceAmm.toString());
               console.log("***************************");
               logger.write(", -1, ");
