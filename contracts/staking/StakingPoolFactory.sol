@@ -2,11 +2,13 @@
 pragma solidity ^0.8.0;
 
 import "./interfaces/IStakingPool.sol";
+import "./interfaces/IApeXPool.sol";
 import "./interfaces/IStakingPoolFactory.sol";
 import "../utils/Initializable.sol";
 import "../utils/Ownable.sol";
 import "./StakingPool.sol";
 import "./interfaces/IERC20Extend.sol";
+import "@openzeppelin/contracts/proxy/Clones.sol";
 
 //this is a stakingPool factory to create and register stakingPool, distribute ApeX token according to pools' weight
 contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
@@ -22,10 +24,10 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     uint256 public override lockTime;
     uint256 public override minRemainRatioAfterBurn; //10k-based
     uint256 public override remainForOtherVest; //100-based
+    address public override stakingPoolTemplate;
     mapping(address => PoolInfo) public pools;
     mapping(address => address) public override poolTokenMap;
 
-    //upgradableProxy StakingPoolFactory only initialized once
     function initialize(
         address _apeX,
         address _treasury,
@@ -35,13 +37,13 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         uint256 _endTimestamp,
         uint256 _lockTime
     ) public initializer {
-        require(_apeX != address(0), "cpf.initialize: INVALID_APEX");
-        require(_treasury != address(0), "cpf.initialize: INVALID_TREASURY");
-        require(_apeXPerSec > 0, "cpf.initialize: INVALID_PER_SEC");
-        require(_secSpanPerUpdate > 0, "cpf.initialize: INVALID_UPDATE_SPAN");
-        require(_initTimestamp > 0, "cpf.initialize: INVALID_INIT_TIMESTAMP");
-        require(_endTimestamp > _initTimestamp, "cpf.initialize: INVALID_END_TIMESTAMP");
-        require(_lockTime > 0, "cpf.initialize: INVALID_LOCK_TIME");
+        require(_apeX != address(0), "spf.initialize: INVALID_APEX");
+        require(_treasury != address(0), "spf.initialize: INVALID_TREASURY");
+        require(_apeXPerSec > 0, "spf.initialize: INVALID_PER_SEC");
+        require(_secSpanPerUpdate > 0, "spf.initialize: INVALID_UPDATE_SPAN");
+        require(_initTimestamp > 0, "spf.initialize: INVALID_INIT_TIMESTAMP");
+        require(_endTimestamp > _initTimestamp, "spf.initialize: INVALID_END_TIMESTAMP");
+        require(_lockTime > 0, "spf.initialize: INVALID_LOCK_TIME");
 
         owner = msg.sender;
         apeX = _apeX;
@@ -53,29 +55,52 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         lockTime = _lockTime;
     }
 
+    function setStakingPoolTemplate(address _template) external onlyOwner {
+        require(_template != address(0), "spf.setStakingPoolTemplate: ZERO_ADDRESS");
+
+        emit SetStakingPoolTemplate(stakingPoolTemplate, _template);
+        stakingPoolTemplate = _template;
+    }
+
     function createPool(
         address _poolToken,
         uint256 _initTimestamp,
         uint256 _weight
     ) external override onlyOwner {
-        IStakingPool pool = new StakingPool(address(this), _poolToken, apeX, _initTimestamp);
-        registerPool(address(pool), _weight);
+        require(_poolToken != apeX, "spf.createPool: CANT_APEX");
+        require(stakingPoolTemplate != address(0), "spf.createPool: ZERO_TEMPLATE");
+
+        address pool = Clones.clone(stakingPoolTemplate);
+        IStakingPool(pool).initialize(address(this), _poolToken, _initTimestamp);
+
+        _registerPool(pool, _weight, _poolToken);
     }
 
-    function registerPool(address _pool, uint256 _weight) public override onlyOwner {
-        require(poolTokenMap[_pool] == address(0), "cpf.registerPool: POOL_REGISTERED");
-        address poolToken = IStakingPool(_pool).poolToken();
-        require(poolToken != address(0), "cpf.registerPool: ZERO_ADDRESS");
+    function registerApeXPool(address _pool, uint256 _weight) external override onlyOwner {
+        address poolToken = IApeXPool(_pool).poolToken();
+        require(poolToken == apeX, "spf.registerApeXPool: MUST_APEX");
 
-        pools[poolToken] = PoolInfo({pool: _pool, weight: _weight});
-        poolTokenMap[_pool] = poolToken;
+        _registerPool(_pool, _weight, poolToken);
+    }
+
+    function _registerPool(
+        address _pool,
+        uint256 _weight,
+        address _poolToken
+    ) internal {
+        require(poolTokenMap[_pool] == address(0), "spf.registerPool: POOL_REGISTERED");
+        require(_poolToken != address(0), "spf.registerPool: ZERO_ADDRESS");
+        require(pools[_poolToken].pool == address(0), "spf.registerPool: POOL_TOKEN_REGISTERED");
+
+        pools[_poolToken] = PoolInfo({pool: _pool, weight: _weight});
+        poolTokenMap[_pool] = _poolToken;
         totalWeight += _weight;
 
-        emit PoolRegistered(msg.sender, poolToken, _pool, _weight);
+        emit PoolRegistered(msg.sender, _poolToken, _pool, _weight);
     }
 
     function unregisterPool(address _pool) external override onlyOwner {
-        require(poolTokenMap[_pool] != address(0), "cpf.unregisterPool: POOL_NOT_REGISTERED");
+        require(poolTokenMap[_pool] != address(0), "spf.unregisterPool: POOL_NOT_REGISTERED");
         address poolToken = IStakingPool(_pool).poolToken();
 
         totalWeight -= pools[poolToken].weight;
@@ -87,9 +112,8 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
 
     function updateApeXPerSec() external override {
         uint256 currentTimestamp = block.timestamp;
-
-        require(currentTimestamp >= lastUpdateTimestamp + secSpanPerUpdate, "cpf.updateApeXPerSec: TOO_FREQUENT");
-        require(currentTimestamp <= endTimestamp, "cpf.updateApeXPerSec: END");
+        require(currentTimestamp >= lastUpdateTimestamp + secSpanPerUpdate, "spf.updateApeXPerSec: TOO_FREQUENT");
+        require(currentTimestamp <= endTimestamp, "spf.updateApeXPerSec: END");
 
         apeXPerSec = (apeXPerSec * 97) / 100;
         lastUpdateTimestamp = currentTimestamp;
@@ -98,14 +122,14 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     }
 
     function transferYieldTo(address _to, uint256 _amount) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.transferYieldTo: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "spf.transferYieldTo: ACCESS_DENIED");
 
         emit TransferYieldTo(msg.sender, _to, _amount);
         IERC20(apeX).transfer(_to, _amount);
     }
 
     function transferYieldToTreasury(uint256 _amount) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.transferYieldToTreasury: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "spf.transferYieldToTreasury: ACCESS_DENIED");
 
         address _treasury = treasury;
         emit TransferYieldToTreasury(msg.sender, _treasury, _amount);
@@ -113,7 +137,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     }
 
     function transferEsApeXTo(address _to, uint256 _amount) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.transferEsApeXTo: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "spf.transferEsApeXTo: ACCESS_DENIED");
 
         emit TransferEsApeXTo(msg.sender, _to, _amount);
         IERC20(esApeX).transfer(_to, _amount);
@@ -124,35 +148,35 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         address _to,
         uint256 _amount
     ) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.transferEsApeXFrom: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "spf.transferEsApeXFrom: ACCESS_DENIED");
 
         emit TransferEsApeXFrom(_from, _to, _amount);
         IERC20(esApeX).transferFrom(_from, _to, _amount);
     }
 
     function burnEsApeX(address from, uint256 amount) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.burnEsApeX: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "spf.burnEsApeX: ACCESS_DENIED");
         IERC20Extend(esApeX).burn(from, amount);
     }
 
     function mintEsApeX(address to, uint256 amount) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.mintEsApeX: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "spf.mintEsApeX: ACCESS_DENIED");
         IERC20Extend(esApeX).mint(to, amount);
     }
 
     function burnVeApeX(address from, uint256 amount) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.burnVeApeX: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "spf.burnVeApeX: ACCESS_DENIED");
         IERC20Extend(veApeX).burn(from, amount);
     }
 
     function mintVeApeX(address to, uint256 amount) external override {
-        require(poolTokenMap[msg.sender] != address(0), "cpf.mintVeApeX: ACCESS_DENIED");
+        require(poolTokenMap[msg.sender] != address(0), "spf.mintVeApeX: ACCESS_DENIED");
         IERC20Extend(veApeX).mint(to, amount);
     }
 
     function changePoolWeight(address _pool, uint256 _weight) external override onlyOwner {
         address poolToken = poolTokenMap[_pool];
-        require(poolToken != address(0), "cpf.changePoolWeight: POOL_NOT_EXIST");
+        require(poolToken != address(0), "spf.changePoolWeight: POOL_NOT_EXIST");
 
         totalWeight = totalWeight + _weight - pools[poolToken].weight;
         pools[poolToken].weight = _weight;
@@ -167,12 +191,12 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     }
 
     function setMinRemainRatioAfterBurn(uint256 _minRemainRatioAfterBurn) external override onlyOwner {
-        require(_minRemainRatioAfterBurn <= 10000, "cpf.setMinRemainRatioAfterBurn: INVALID_VALUE");
+        require(_minRemainRatioAfterBurn <= 10000, "spf.setMinRemainRatioAfterBurn: INVALID_VALUE");
         minRemainRatioAfterBurn = _minRemainRatioAfterBurn;
     }
 
     function setRemainForOtherVest(uint256 _remainForOtherVest) external override onlyOwner {
-        require(_remainForOtherVest <= 100, "cpf.setRemainForOtherVest: INVALID_VALUE");
+        require(_remainForOtherVest <= 100, "spf.setRemainForOtherVest: INVALID_VALUE");
         remainForOtherVest = _remainForOtherVest;
     }
 
@@ -200,21 +224,16 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     }
 
     function setEsApeX(address _esApeX) external override onlyOwner {
-        require(esApeX == address(0), "cpf.setEsApeX: INVALID_ADDRESS");
+        require(esApeX == address(0), "spf.setEsApeX: INVALID_ADDRESS");
         esApeX = _esApeX;
 
         emit SetEsApeX(_esApeX);
     }
 
     function setVeApeX(address _veApeX) external override onlyOwner {
-        require(veApeX == address(0), "cpf.setVeApeX: INVALID_ADDRESS");
+        require(veApeX == address(0), "spf.setVeApeX: INVALID_ADDRESS");
         veApeX = _veApeX;
 
         emit SetVeApeX(_veApeX);
-    }
-
-    //tocheck just for dev use
-    function setApeXPerSec(uint256 _apeXPerSec) external onlyOwner {
-        apeXPerSec = _apeXPerSec;
     }
 }
