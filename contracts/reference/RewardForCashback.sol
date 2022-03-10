@@ -23,6 +23,7 @@ contract RewardForCashback is Reentrant, Ownable {
         owner = msg.sender;
         WETH = WETH_;
     }
+    receive() external payable { }
 
     function setSigner(address signer, bool state) external onlyOwner {
         require(signer != address(0), "ZERO_ADDRESS");
