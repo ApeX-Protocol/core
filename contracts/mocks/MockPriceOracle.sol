@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Unlicense
-
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.2;
 
 contract MockPriceOracle {
     int256 public pf = 0;
@@ -41,16 +40,9 @@ contract MockPriceOracle {
         source =0;
     }
 
-  
-    function updateAmmTwap(address pair)  external {
-        
+    function updateAmmTwap(address pair) external {
     }
 
-     function setupTwap(address amm) external  {
-     }
-
-     
-
-
-
+    function setupTwap(address amm) external  {
+    }
 }
