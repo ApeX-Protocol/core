@@ -23,7 +23,7 @@ module.exports = {
     ],
   },
   mocha: {
-    timeout: 600000,
+    timeout: 10000000,
   },
 
   networks: {

@@ -129,7 +129,7 @@ interface IMargin {
     function calFundingFee(address trader) external view returns (int256 fundingFee);
 
     /// @notice calculate the latest debt ratio with Pnl and funding fee
-    function calDebtRatio(address trader) external view returns (uint256 debtRatio);
+    function calDebtRatio1(address trader) external view returns (uint256 debtRatio);
 
     function calUnrealizedPnl(address trader) external view returns (int256);
 

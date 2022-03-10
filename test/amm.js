@@ -14,7 +14,7 @@ describe("Amm", function () {
   let exp1 = ethers.BigNumber.from("10").pow(18);
   let exp2 = ethers.BigNumber.from("10").pow(6);
   let feeToSetter;
-  // amm is only invoked by margin, if run test, please delete  the onlyMargin modifier of the swap method in amm
+
   beforeEach(async function () {
     [owner, alice, bob, feeToSetter] = await ethers.getSigners();
     console.log("owner:", owner.address);
@@ -65,9 +65,6 @@ describe("Amm", function () {
       "function selector was not recognized and there's no fallback nor receive function"
     );
 
-    // amm initialize
-    // await amm.initialize(AAAToken.address, USDT.address, config.address);
-
     let tx = await ammFactory.createAmm(AAAToken.address, USDT.address);
     let txReceipt = await tx.wait();
     console.log("amm: ", txReceipt["events"][0].args[2]);
@@ -87,9 +84,8 @@ describe("Amm", function () {
     expect(await config.beta()).to.equal(100);
   });
 
-
   it("owner add liquidity", async function () {
-    //owner mint 100W AAA, correspinding to generate 10W usdt
+    // owner mint 100W AAA, correspinding to generate 10W usdt
     // price AAA/usdt = 1/10
     console.log("---------test begin---------");
     await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
@@ -108,7 +104,7 @@ describe("Amm", function () {
     let tx1 = await marginAlice.swapProxy(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("100").mul(exp1), 0);
     const swapRes = await tx1.wait();
     let eventabi = [
-      "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);"
+      "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount)"
     ];
 
     let iface1 = new ethers.utils.Interface(eventabi);
@@ -159,7 +155,7 @@ describe("Amm", function () {
     let tx1 = await marginAlice.swapProxy(alice.address, AAAToken.address, USDT.address, ethers.BigNumber.from("10000").mul(exp1), 0);
     const swapRes = await tx1.wait();
     let eventabi = [
-      "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
+      "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount)",
     ];
     let iface1 = new ethers.utils.Interface(eventabi);
     let log1 = iface1.parseLog(swapRes.logs[1]);

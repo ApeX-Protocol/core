@@ -553,7 +553,7 @@ contract Margin is IMargin, IVault, Reentrant {
         return (baseAmountFunding * (_getNewLatestCPF() - traderCPF[trader])).divU(1e18);
     }
 
-    function calDebtRatio(address trader) external view override returns (uint256 debtRatio) {
+    function calDebtRatio1(address trader) external view override returns (uint256 debtRatio) {
         Position memory position = traderPositionMap[trader];
 
         int256 baseAmountFunding;
