@@ -18,6 +18,7 @@ describe("Simulations", function () {
   let ammAddress;
   let amm;
   let provider = ethers.provider;
+  let beta = 100;
 
   const tokenQuantity = ethers.utils.parseUnits("2500", "ether");
   const largeTokenQuantity = ethers.utils.parseUnits("1000", "ether");
@@ -85,7 +86,7 @@ describe("Simulations", function () {
 
   describe("check pool pnl given beta", function () {
     it("liquidates a position properly", async function () {
-      await config.setBeta(100);
+      await config.setBeta(beta);
       await baseToken.mint(alice.address, tokenQuantity);
       await baseToken.connect(alice).approve(router.address, tokenQuantity);
       await baseToken.mint(bob.address, tokenQuantity);
@@ -121,6 +122,12 @@ describe("Simulations", function () {
     });
   });
 
+  function getMarginAcc(quoteAmount, vUSD, marketPrice) {
+    let v1 = 2 * beta / vUSD;
+    let v2 = 1 / ((1 / quoteAmount - v1) * marketPrice * 10);
+    return v2.abs();
+  }
+
   // TODO in order to set price via price oracle, change reserves in price oracle for test
   // TODO what is the price that I'm starting with effectively
   describe("simulation involving arbitrageur and random trades", function () {
@@ -128,7 +135,7 @@ describe("Simulations", function () {
       let logger = fs.createWriteStream('sim.csv');
       logger.write("Trade, Oracle Price, Pool Price, Liquidation, Entry Price\n");
 
-      await config.setBeta(100);
+      await config.setBeta(beta);
       //await config.setInitMarginRatio(101);
 
       await baseToken.mint(arbitrageur.address, tokenQuantity);
@@ -140,7 +147,7 @@ describe("Simulations", function () {
       let lastPrice = 2000;
 
       // variables for the hawkes process simulation
-      let simSteps = 300;
+      let simSteps = 500;
       let lambda0 = 1;
       let a = lambda0;
       let lambdaTplus = lambda0;
@@ -175,9 +182,10 @@ describe("Simulations", function () {
         console.log("lastP: " + lastPrice);
         await priceOracle.setReserve(baseToken.address, quoteToken.address, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits(Math.floor(lastPrice * 1000000000000).toString(), 6));
         let price = await priceOracle.getIndexPrice(ammAddress);
-        let raw = await amm.lastPrice();
+        let reserves = await amm.getReserves();
+        // let raw = await amm.lastPrice();
         // get the price out of the 112x112 format & display with 18 decimal accuracy
-        let lastPriceAmm = raw.div("5192296858534816");
+        let lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]); // raw.div("5192296858534816");
         console.log("lastPAMM: " + lastPriceAmm.toString());
         // consider that a trade occurs whenever S is negative, this happens
         // roughly 10% of the time w/ delta = 0.3, w/ delta = 0.2 it's 1.5% of
@@ -193,7 +201,7 @@ describe("Simulations", function () {
 
           let side;
           let quoteAmount = ethers.utils.parseUnits("10000", "ether");
-          let marginAmount = quoteAmount.mul(ethers.utils.parseUnits("1", "ether")).div(lastPriceAmm).div(10);
+          let marginAmount = quoteAmount.mul(ethers.utils.parseUnits("10", "ether")).div(lastPriceAmm).div(10);
           // trader trades randomly
           if (Math.random() > 0.5) {
             side = 0;
@@ -227,7 +235,7 @@ describe("Simulations", function () {
         */
 
         // arbitrageur gets opportunity to take his trade (should change arb trade sizes? TODO)
-        let arbThreshold = 102;
+        let arbThreshold = 101;
         if (lastPriceAmm * 100 / price > arbThreshold) {
             await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("8000", "ether"), ethers.utils.parseUnits("1000000", "ether"), infDeadline);
         } else if (price * 100 / lastPriceAmm > arbThreshold) {
@@ -244,7 +252,6 @@ describe("Simulations", function () {
           trader = trades[j][0];
           let canLiq = await margin.canLiquidate(trader.address);
           let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
-          console.log(await margin.calUnrealizedPnl(trader.address));
           if (canLiq) {
             margin.liquidate(trader.address);
             // position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
