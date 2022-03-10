@@ -9,23 +9,23 @@ let squidNft;
 let apeXToVipNFT = BigNumber.from("20833320000000000000000000");
 let apeXToSquidNFT = BigNumber.from("20520000000000000000000000");
 
-let vipNftName = "ApeX-VIP-NFT-PRE";
-let vipNftSymbol = "APEX-VIP-NFT-PRE";
-let vipNftBaseURI = "https://testapex.mypinata.cloud/ipfs/Qmevfgfzbc7sLEZgQSmp9TSM7iTUffweG65qve25bwEsF1/";
-let vipNftStartTime = Math.round(new Date().getTime() / 1000) + 60;
-let vipNftCliff = 0;
-let vipNftDuration = 36000;
+let vipNftName = "ApeX OG NFT";
+let vipNftSymbol = "APEX-OG";
+let vipNftBaseURI = "https://apex.mypinata.cloud/ipfs/QmRM7hd7HqL1TPsymo17YWyGYA3BFamrfC7ffgLAnDTBRH/";
+let vipNftStartTime = 1678262400;
+let vipNftCliff = (365 * 24 * 3600) / 2;
+let vipNftDuration = 365 * 24 * 3600;
 
-let squidNftName = "ApeX-Squid-NFT-PRE";
-let squidNftSymbol = "APEX-SQU-NFT-PRE";
-let squidNftBaseURI = "https://testapex.mypinata.cloud/ipfs/QmapaMVk6Zw6ieFgE9442d6g2i9LVFPMsM1xR51EzZ1nbC/";
-let squidNftStartTime = Math.round(new Date().getTime() / 1000) + 3600;
-let squidNftEndTime = squidNftStartTime + 36000;
-let squidStartTime = squidNftEndTime + 36000;
+let squidNftName = "ApeX Predator NFT";
+let squidNftSymbol = "APEX-PRD";
+let squidNftBaseURI = "https://apex.mypinata.cloud/ipfs/QmccCg6C3baaJmoAyjMYwyz8VTaueL7PKx82PTKbV7rda6/";
+let squidNftStartTime = 1646726400;
+let squidNftEndTime = 1646985600;
+let squidStartTime = 1678262400;
 
-let genesisNftName = "ApeX-gNFT-PRE";
-let genesisNftSymbol = "APEX-GNFT-PRE";
-let genesisNftBaseURI = "https://gateway.pinata.cloud/ipfs/QmPdTKdcm9KNHpS6jYFX2P2SyGeF5xcrw7MAWZFeVM4YgC/";
+let genesisNftName = "ApeX Genesis NFT";
+let genesisNftSymbol = "APEX-GNS";
+let genesisNftBaseURI = "";
 
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
@@ -33,7 +33,7 @@ const main = async () => {
   await createApeXToken();
   await createVipNft();
   await createNftSquid();
-  await createGenesisNFT();
+  // await createGenesisNFT();
   await createMulticall2();
 };
 
@@ -45,11 +45,11 @@ async function createApeXToken() {
 }
 
 async function createVipNft() {
-  if (apeXToken == null) {
-    let apeXTokenAddress = "0xF9546a61548602aFfA721d32597326eE4AdD3e55";
-    const ApeXToken = await ethers.getContractFactory("ApeXToken");
-    apeXToken = await ApeXToken.attach(apeXTokenAddress);
-  }
+  // if (apeXToken == null) {
+  //   let apeXTokenAddress = "0xf5233793F07cC3a229F498744De6eEA7c52B2dAe";
+  //   const ApeXToken = await ethers.getContractFactory("ApeXToken");
+  //   apeXToken = await ApeXToken.attach(apeXTokenAddress);
+  // }
   const ApeXVIPNFT = await ethers.getContractFactory("ApeXVIPNFT");
   vipNft = await ApeXVIPNFT.deploy(
     vipNftName,
@@ -80,11 +80,11 @@ async function createVipNft() {
 }
 
 async function createNftSquid() {
-  if (apeXToken == null) {
-    let apeXTokenAddress = "0xF9546a61548602aFfA721d32597326eE4AdD3e55";
-    const ApeXToken = await ethers.getContractFactory("ApeXToken");
-    apeXToken = await ApeXToken.attach(apeXTokenAddress);
-  }
+  // if (apeXToken == null) {
+  //   let apeXTokenAddress = "0xf5233793F07cC3a229F498744De6eEA7c52B2dAe";
+  //   const ApeXToken = await ethers.getContractFactory("ApeXToken");
+  //   apeXToken = await ApeXToken.attach(apeXTokenAddress);
+  // }
   const NftSquid = await ethers.getContractFactory("NftSquid");
   squidNft = await NftSquid.deploy(
     squidNftName,

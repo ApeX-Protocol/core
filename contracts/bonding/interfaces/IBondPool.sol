@@ -31,6 +31,18 @@ interface IBondPool {
         uint256 paidAmount; // base token paid
     }
 
+    function initialize(
+        address owner_,
+        address WETH_,
+        address apeXToken_,
+        address treasury_,
+        address priceOracle_,
+        address amm_,
+        uint256 maxPayout_,
+        uint256 discount_,
+        uint256 vestingTerm_
+    ) external;
+
     /// @notice Set bond open or pause
     function setBondPaused(bool state) external;
 

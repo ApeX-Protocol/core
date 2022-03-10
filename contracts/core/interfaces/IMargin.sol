@@ -35,6 +35,7 @@ interface IMargin {
     event Liquidate(
         address indexed liquidator,
         address indexed trader,
+        address indexed to,
         uint256 quoteAmount,
         uint256 baseAmount,
         uint256 bonus,
@@ -80,7 +81,7 @@ interface IMargin {
     function closePosition(address trader, uint256 quoteAmount) external returns (uint256 baseAmount);
 
     /// @notice liquidate trader
-    function liquidate(address trader)
+    function liquidate(address trader, address to)
         external
         returns (
             uint256 quoteAmount,

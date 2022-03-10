@@ -320,7 +320,7 @@ contract Margin is IMargin, IVault, Reentrant {
         emit ClosePosition(trader, quoteAmount, baseAmount, fundingFee, traderPosition);
     }
 
-    function liquidate(address trader)
+    function liquidate(address trader, address to)
         external
         override
         nonReentrant
@@ -395,12 +395,12 @@ contract Margin is IMargin, IVault, Reentrant {
 
         traderCPF[trader] = _latestCPF;
         if (bonus > 0) {
-            _withdraw(trader, msg.sender, bonus);
+            _withdraw(trader, to, bonus);
         }
 
         delete traderPositionMap[trader];
 
-        emit Liquidate(msg.sender, trader, quoteAmount, baseAmount, bonus, fundingFee, traderPosition);
+        emit Liquidate(msg.sender, trader, to, quoteAmount, baseAmount, bonus, fundingFee, traderPosition);
     }
 
     function deposit(address user, uint256 amount) external override nonReentrant {

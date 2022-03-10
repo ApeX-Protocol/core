@@ -1,6 +1,6 @@
 {
   "name": "@apex-protocol/core",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Smart contracts of ApeX Protocol",
   "publishConfig": {
     "access": "public"
@@ -36,11 +36,13 @@
     "deploy_bonding_arbi": "hardhat run scripts/deploy_bonding.js --network arbitrumOne",
     "deploy_staking_arbi": "hardhat run scripts/deploy_staking.js --network arbitrumOne",
     "deploy_referral_arbi": "hardhat run scripts/deploy_referral.js --network arbitrumOne",
+    "deploy_fee_treasury_arbi": "hardhat run scripts/deploy_fee_treasury.js --network arbitrumOne",
     "deploy_l1_test": "hardhat run scripts/deploy_l1.js --network rinkeby",
     "deploy_core_test": "hardhat run scripts/deploy_core.js --network arbitrumTestnet",
     "deploy_bonding_test": "hardhat run scripts/deploy_bonding.js --network arbitrumTestnet",
     "deploy_staking_test": "hardhat run scripts/deploy_staking.js --network arbitrumTestnet",
     "deploy_referral_test": "hardhat run scripts/deploy_referral.js --network arbitrumTestnet",
+    "deploy_fee_treasury_test": "hardhat run scripts/deploy_fee_treasury.js --network arbitrumTestnet",
     "deploy_eth": "hardhat run scripts/deploy.js --network rinkeby",
     "deploy_arb": "hardhat run scripts/deploy.js --network arbitrumTestnet",
     "deploy_opt": "hardhat run scripts/deploy.js --network optimismKovan",

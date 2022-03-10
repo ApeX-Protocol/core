@@ -10,6 +10,7 @@ describe("BondPoolFactory contract", function () {
   let maxPayout;
   let discount;
   let vestingTerm;
+  let bondPoolTemplate;
   let bondPoolFactory;
   let amm;
 
@@ -31,12 +32,16 @@ describe("BondPoolFactory contract", function () {
     discount = 10;
     vestingTerm = 129600;
 
+    const BondPoolTemplate = await ethers.getContractFactory("BondPool");
+    bondPoolTemplate = await BondPoolTemplate.deploy();
+
     const BondPoolFactory = await ethers.getContractFactory("BondPoolFactory");
     bondPoolFactory = await BondPoolFactory.deploy(
       weth.address,
       apeXToken.address,
       treasury.address,
       priceOracle.address,
+      bondPoolTemplate.address,
       maxPayout,
       discount,
       vestingTerm
