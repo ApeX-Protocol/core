@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.2;
 
 import "./interfaces/IERC20.sol";
 import "./interfaces/IMarginFactory.sol";
@@ -61,7 +61,8 @@ contract Margin is IMargin, IVault, Reentrant {
         emit AddMargin(trader, depositAmount, traderPosition);
     }
 
-    //remove baseToken from trader's fundingFee+unrealizedPnl+margin, remain position need to meet the requirement of initMarginRatio
+    // remove baseToken from trader's fundingFee+unrealizedPnl+margin, the remaining
+    // position needs to meet the initMarginRatio requirement
     function removeMargin(
         address trader,
         address to,
@@ -683,6 +684,7 @@ contract Margin is IMargin, IVault, Reentrant {
             debtRatio = baseAmount == 0 ? 10000 : (baseSize.abs() * 10000) / baseAmount;
         } else {
             uint256 quoteAmount = quoteSize.abs();
+
             //close long, markPriceAcc smaller, debt overvalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,

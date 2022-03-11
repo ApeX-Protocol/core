@@ -9,6 +9,7 @@ import "../core/interfaces/IPriceOracle.sol";
 import "../libraries/FullMath.sol";
 
 contract PriceOracleForTest is IPriceOracle {
+    using FullMath for uint256;
     struct Reserves {
         uint256 base;
         uint256 quote;
@@ -67,15 +68,17 @@ contract PriceOracleForTest is IPriceOracle {
         uint8 beta,
         uint256 quoteAmount,
         bool negative
-    ) public view override returns (uint256 price) {
-        (, uint256 quoteReserve, ) = IAmm(amm).getReserves();
-        uint256 markPrice = getMarkPrice(amm);
-        uint256 rvalue = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
+    ) external view override returns (uint256 baseAmount) {
+        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+        uint256 rvalue = (quoteAmount * beta) / 100;
+        uint256 denominator;
         if (negative) {
-            price = markPrice - rvalue;
+            denominator = quoteReserve - rvalue;
         } else {
-            price = markPrice + rvalue;
+            denominator = quoteReserve + rvalue;
         }
+        denominator = denominator * denominator;
+        baseAmount = quoteAmount.mulDiv(uint256(baseReserve) * quoteReserve, denominator);
     }
 
     //premiumFraction is (markPrice - indexPrice) / 24h / indexPrice
