@@ -237,7 +237,7 @@ describe("Simulations", function () {
           let canLiq = await margin.canLiquidate(trader.address);
           let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
           if (canLiq) {
-            margin.liquidate(trader.address);
+            margin.liquidate(trader.address, owner.address);
             position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
             // verify that the position is zero'd out
             // expect(position.quoteSize.isZero()).to.equal(true);
