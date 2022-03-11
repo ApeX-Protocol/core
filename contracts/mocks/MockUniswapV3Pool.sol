@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: Unlicense
-
 pragma solidity ^0.8.0;
 
 import "../libraries/Math.sol";
@@ -7,6 +6,7 @@ import "../libraries/FullMath.sol";
 import "../core/interfaces/uniswapV3/IUniswapV3Pool.sol";
 import "../libraries/TickMath.sol";
 import "../libraries/V3Oracle.sol";
+import "../core/interfaces/IERC20.sol";
 
 contract MockUniswapV3Pool is IUniswapV3Pool {
     using Math for uint256;
@@ -25,7 +25,7 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
 
     address public immutable override token0;
     address public immutable override token1;
-    uint24 public immutable fee;
+    uint24 public immutable override fee;
     uint128 public override liquidity;
     Observation[65535] public override observations;
 
@@ -78,6 +78,20 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
             feeProtocol: 0,
             unlocked: true
         });
+    }
+
+    function swap(
+        address recipient,
+        bool zeroForOne,
+        int256 amountSpecified,
+        uint160 sqrtPriceLimitX96,
+        bytes calldata data
+    ) external override returns (int256 amount0, int256 amount1) {
+        if (zeroForOne) {
+            IERC20(token1).transfer(recipient, 100);
+        } else {
+            IERC20(token0).transfer(recipient, 100);
+        }
     }
 
     function setLiquidity(uint128 liquidity_) external {
@@ -285,17 +299,5 @@ contract MockUniswapV3Pool is IUniswapV3Pool {
     function _getSqrtPriceX96(uint112 baseReserve, uint112 quoteReserve) internal pure returns (uint160) {
         uint256 priceX192 = uint256(quoteReserve).mulDiv(2**192, baseReserve);
         return uint160(priceX192.sqrt());
-    }
-
-    function swap(
-        address recipient,
-        bool zeroForOne,
-        int256 amountSpecified,
-        uint160 sqrtPriceLimitX96,
-        bytes calldata data
-    ) external override returns (int256 amount0, int256 amount1) {
-        // TODO: define the swap behavior of this mock
-        amount0 = 0;
-        amount1 = 0;
     }
 }

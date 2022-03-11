@@ -12,10 +12,10 @@ import "../libraries/FullMath.sol";
 import "../utils/Ownable.sol";
 
 contract BondPool is IBondPool, Ownable {
-    address public immutable override WETH;
-    address public immutable override apeXToken;
-    address public immutable override treasury;
-    address public immutable override amm;
+    address public override WETH;
+    address public override apeXToken;
+    address public override treasury;
+    address public override amm;
     address public override priceOracle;
     uint256 public override maxPayout;
     uint256 public override discount; // [0, 10000]
@@ -24,7 +24,7 @@ contract BondPool is IBondPool, Ownable {
 
     mapping(address => Bond) private bondInfo; // stores bond information for depositor
 
-    constructor(
+    function initialize(
         address owner_,
         address WETH_,
         address apeXToken_,
@@ -34,7 +34,8 @@ contract BondPool is IBondPool, Ownable {
         uint256 maxPayout_,
         uint256 discount_,
         uint256 vestingTerm_
-    ) {
+    ) external override {
+        require(WETH == address(0), "BondPool.initialize: ALREADY_INIT");
         owner = owner_;
         WETH = WETH_;
         apeXToken = apeXToken_;

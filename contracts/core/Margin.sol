@@ -157,7 +157,7 @@ contract Margin is IMargin, IVault, Reentrant {
             if (traderPosition.quoteSize == 0) {
                 marginAcc = traderPosition.baseSize + fundingFee;
             } else if (traderPosition.quoteSize > 0) {
-                //close short
+                //simulate to close short
                 uint256[2] memory result = IAmm(amm).estimateSwap(
                     address(quoteToken),
                     address(baseToken),
@@ -166,7 +166,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 );
                 marginAcc = traderPosition.baseSize.addU(result[1]) + fundingFee;
             } else {
-                //close long
+                //simulate to close long
                 uint256[2] memory result = IAmm(amm).estimateSwap(
                     address(baseToken),
                     address(quoteToken),
@@ -194,7 +194,6 @@ contract Margin is IMargin, IVault, Reentrant {
             //baseAmount is real base cost
             traderPosition.tradeSize = traderPosition.tradeSize + baseAmount;
         } else {
-            //baseAmount is not real base cost, need to sub real base cost
             if (quoteAmount < quoteSizeAbs) {
                 //entry price not change
                 traderPosition.tradeSize =
@@ -322,7 +321,7 @@ contract Margin is IMargin, IVault, Reentrant {
         emit ClosePosition(trader, quoteAmount, baseAmount, fundingFee, traderPosition);
     }
 
-    function liquidate(address trader)
+    function liquidate(address trader, address to)
         external
         override
         nonReentrant
@@ -397,12 +396,12 @@ contract Margin is IMargin, IVault, Reentrant {
 
         traderCPF[trader] = _latestCPF;
         if (bonus > 0) {
-            _withdraw(trader, msg.sender, bonus);
+            _withdraw(trader, to, bonus);
         }
 
         delete traderPositionMap[trader];
 
-        emit Liquidate(msg.sender, trader, quoteAmount, baseAmount, bonus, fundingFee, traderPosition);
+        emit Liquidate(msg.sender, trader, to, quoteAmount, baseAmount, bonus, fundingFee, traderPosition);
     }
 
     function deposit(address user, uint256 amount) external override nonReentrant {
@@ -673,7 +672,7 @@ contract Margin is IMargin, IVault, Reentrant {
             debtRatio = 10000;
         } else if (quoteSize > 0) {
             uint256 quoteAmount = quoteSize.abs();
-            //close short, markPriceAcc bigger, asset undervalue
+            //simulate to close short, markPriceAcc bigger, asset undervalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
@@ -685,7 +684,8 @@ contract Margin is IMargin, IVault, Reentrant {
         } else {
             uint256 quoteAmount = quoteSize.abs();
 
-            //close long, markPriceAcc smaller, debt overvalue
+            //simulate closing long, markPriceAcc smaller, debt overvalue
+            
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
@@ -750,7 +750,7 @@ contract Margin is IMargin, IVault, Reentrant {
         if (traderPosition.quoteSize == 0) {
             marginAcc = traderPosition.baseSize + fundingFee;
         } else if (traderPosition.quoteSize > 0) {
-            //close short
+            //simulate to close short
             uint256[2] memory result = IAmm(amm).estimateSwap(
                 address(quoteToken),
                 address(baseToken),
@@ -759,7 +759,7 @@ contract Margin is IMargin, IVault, Reentrant {
             );
             marginAcc = traderPosition.baseSize.addU(result[1]) + fundingFee;
         } else {
-            //close long
+            //simulate to close long
             uint256[2] memory result = IAmm(amm).estimateSwap(
                 address(baseToken),
                 address(quoteToken),
@@ -786,7 +786,7 @@ contract Margin is IMargin, IVault, Reentrant {
             debtRatio = 10000;
         } else if (quoteSize > 0) {
             uint256 quoteAmount = quoteSize.abs();
-            //close short, markPriceAcc bigger, asset undervalue
+            //simulate to close short, markPriceAcc bigger, asset undervalue
             baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
@@ -797,7 +797,7 @@ contract Margin is IMargin, IVault, Reentrant {
             debtRatio = baseAmount == 0 ? 10000 : (baseSize.abs() * 10000) / baseAmount;
         } else {
             uint256 quoteAmount = quoteSize.abs();
-            //close long, markPriceAcc smaller, debt overvalue
+            //simulate to close long, markPriceAcc smaller, debt overvalue
             baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
