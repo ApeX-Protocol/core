@@ -354,8 +354,6 @@ describe("Margin contract", function () {
 
       it("old: quote 10, base -9; add long 21X, delta position: quote -21, base +21; new: quote -11, base 12", async function () {
         let quoteAmount = 21;
-        let result = await margin.queryMaxOpenPosition(owner.address);
-        expect(result[5].toNumber()).to.be.equal(11);
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
         expect(position[0]).to.equal(-11);
@@ -414,8 +412,6 @@ describe("Margin contract", function () {
       it("old: quote 10, base -9, set new initMarginRatio; add long 19X, delta position: quote -19, base +19; new: quote -9, base 10", async function () {
         let quoteAmount = 19;
         await config.setInitMarginRatio(1000);
-        let result = await margin.queryMaxOpenPosition(owner.address);
-        expect(result[5].toNumber()).to.be.equal(9);
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
         expect(position[0]).to.equal(-9);
@@ -426,8 +422,6 @@ describe("Margin contract", function () {
       it("old: quote 10, base -9, set new initMarginRatio; add long 20X, reverted", async function () {
         let quoteAmount = 20;
         await config.setInitMarginRatio(1000);
-        let result = await margin.queryMaxOpenPosition(owner.address);
-        expect(result[5].toNumber()).to.be.equal(9);
         await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
           "Margin.openPosition: INIT_MARGIN_RATIO"
         );
@@ -436,8 +430,6 @@ describe("Margin contract", function () {
       it("old: quote 10, base -9, set new initMarginRatio; add long 109X, delta position: quote -109, base +109; new: quote 99, base 100", async function () {
         let quoteAmount = 109;
         await config.setInitMarginRatio(100);
-        let result = await margin.queryMaxOpenPosition(owner.address);
-        expect(result[5].toNumber()).to.be.equal(99);
         await margin.openPosition(owner.address, longSide, quoteAmount);
       });
     });

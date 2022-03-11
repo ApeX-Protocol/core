@@ -24,9 +24,9 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
         address _poolToken,
         uint256 _initTimestamp
     ) external override initializer {
-        require(_factory != address(0), "spf.initialize: INVALID_FACTORY");
-        require(_initTimestamp > 0, "spf.initialize: INVALID_INIT_TIMESTAMP");
-        require(_poolToken != address(0), "spf.initialize: INVALID_POOL_TOKEN");
+        require(_factory != address(0), "sp.initialize: INVALID_FACTORY");
+        require(_initTimestamp > 0, "sp.initialize: INVALID_INIT_TIMESTAMP");
+        require(_poolToken != address(0), "sp.initialize: INVALID_POOL_TOKEN");
 
         factory = IStakingPoolFactory(_factory);
         poolToken = _poolToken;
@@ -120,7 +120,6 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
         }
     }
 
-    //only can extend lock time
     function updateStakeLock(uint256 _id, uint256 _lockUntil) external override {
         uint256 now256 = block.timestamp;
         require(_lockUntil > now256, "sp.updateStakeLock: INVALID_LOCK_UNTIL");
@@ -187,7 +186,6 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
         emit Synchronized(msg.sender, yieldRewardsPerWeight, lastYieldDistribution);
     }
 
-    //update weight price, then if apeX, add deposits; if not, stake as pool.
     function _processRewards(address _staker, User storage user) internal {
         syncWeightPrice();
 
@@ -198,7 +196,6 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
             user.subYieldRewards;
         if (yieldAmount == 0) return;
 
-        //mint esApeX to _staker
         factory.mintEsApeX(_staker, yieldAmount);
     }
 
