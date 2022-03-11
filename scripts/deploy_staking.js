@@ -17,7 +17,7 @@ let signer;
 let apexToken;
 let slpToken;
 let esApeX;
-let stApeX;
+let veApeX;
 let stakingPoolFactory;
 let apexPool;
 let slpPool;
@@ -27,7 +27,7 @@ let slpTokenAddress = "0xCB5F97D234442E5256812bA264Adc96e61b54258";
 let apexPoolAddress = "0x0e6F6ab8707c2fbf523E203852702DA918075b93";
 let slpPoolAddress = "0xF28086ACB509586275837866BcaE960A7595eFe1";
 let esApeXAddress = "0x3b02cA952FCE231B3EE4312E8299cb1432B9F0De";
-let stApeXAddress = "0xDF71aF11D46A0571faE679b7154b12ce83482361";
+let veApeXAddress = "0xDF71aF11D46A0571faE679b7154b12ce83482361";
 
 let treasury = "0xba5129359491007F82C79C4e1f322B6341C28D8F";
 let apeXPerSec = BigNumber.from("100000000000000000");
@@ -87,7 +87,7 @@ async function createContracts() {
   const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
   const StakingPool = await ethers.getContractFactory("StakingPool");
   const EsAPEX = await ethers.getContractFactory("EsAPEX");
-  const StAPEX = await ethers.getContractFactory("StAPEX");
+  const VeAPEX = await ethers.getContractFactory("VeAPEX");
 
   apexToken = await MockToken.deploy("apex token", "at");
   await apexToken.deployed();
@@ -104,7 +104,7 @@ async function createContracts() {
   ]);
   await stakingPoolFactory.deployed();
   esApeX = await EsAPEX.deploy(stakingPoolFactory.address);
-  stApeX = await StAPEX.deploy(stakingPoolFactory.address);
+  veApeX = await VeAPEX.deploy(stakingPoolFactory.address);
 
   await stakingPoolFactory.createPool(apexToken.address, 6690016, 21);
   await stakingPoolFactory.createPool(slpToken.address, 6690016, 79);
@@ -115,7 +115,7 @@ async function createContracts() {
 
   await stakingPoolFactory.setRemainForOtherVest(50);
   await stakingPoolFactory.setEsApeX(esApeX.address);
-  await stakingPoolFactory.setStApeX(stApeX.address);
+  await stakingPoolFactory.setVeApeX(veApeX.address);
   await stakingPoolFactory.setLockTime(15552000);
   await apexToken.mint(signer, 1000000000000);
   await apexToken.approve(apexPool.address, 1000000000000);
@@ -126,7 +126,7 @@ async function createContracts() {
   console.log(`let apexPoolAddress = "${apexPool.address}"`);
   console.log(`let slpPoolAddress = "${slpPool.address}"`);
   console.log(`let esApeXAddress = "${esApeX.address}"`);
-  console.log(`let stApeXAddress = "${stApeX.address}"`);
+  console.log(`let veApeXAddress = "${veApeX.address}"`);
 }
 
 async function flow() {
@@ -134,7 +134,7 @@ async function flow() {
   signer = accounts[0].address;
   const MockToken = await ethers.getContractFactory("MockToken");
   const EsAPEX = await ethers.getContractFactory("EsAPEX");
-  const StAPEX = await ethers.getContractFactory("StAPEX");
+  const VeAPEX = await ethers.getContractFactory("VeAPEX");
   const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
   const StakingPool = await ethers.getContractFactory("StakingPool");
   stakingPoolFactory = await StakingPoolFactory.attach(stakingPoolFactoryAddress);
@@ -145,7 +145,7 @@ async function flow() {
   slpToken = await MockToken.attach(slpTokenAddress);
 
   esApeX = await EsAPEX.attach(esApeXAddress);
-  stApeX = await StAPEX.attach(stApeXAddress);
+  veApeX = await VeAPEX.attach(veApeXAddress);
 
   await slpToken.mint(signer, 1000000000000);
   await slpToken.approve(slpPool.address, 1000000000000);

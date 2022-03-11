@@ -27,13 +27,15 @@ interface IStakingPoolFactory {
 
     event SetEsApeX(address esApeX);
 
-    event SetStApeX(address stApeX);
+    event SetVeApeX(address veApeX);
+
+    event SetStakingPoolTemplate(address oldTemplate, address newTemplate);
 
     function apeX() external view returns (address);
 
     function esApeX() external view returns (address);
 
-    function stApeX() external view returns (address);
+    function veApeX() external view returns (address);
 
     function treasury() external view returns (address);
 
@@ -44,6 +46,8 @@ interface IStakingPoolFactory {
     function apeXPerSec() external view returns (uint256);
 
     function totalWeight() external view returns (uint256);
+
+    function stakingPoolTemplate() external view returns (address);
 
     /// @notice get the end timestamp to yield, after this, no yield reward
     function endTimestamp() external view returns (uint256);
@@ -85,20 +89,20 @@ interface IStakingPoolFactory {
         uint256 weight
     ) external;
 
-    /// @notice register an exist pool to factory
+    /// @notice register apeX pool to factory
     /// @param pool the exist pool.
     /// @param weight pool's weight between all other stakingPools.
-    function registerPool(address pool, uint256 weight) external;
+    function registerApeXPool(address pool, uint256 weight) external;
 
     /// @notice unregister an exist pool
     function unregisterPool(address pool) external;
 
     /// @notice mint apex to staker
-    /// @param _to the staker.
-    /// @param _amount apex amount.
-    function transferYieldTo(address _to, uint256 _amount) external;
+    /// @param to the staker.
+    /// @param amount apex amount.
+    function transferYieldTo(address to, uint256 amount) external;
 
-    function transferYieldToTreasury(uint256 _amount) external;
+    function transferYieldToTreasury(uint256 amount) external;
 
     /// @notice change a pool's weight
     /// @param poolAddr the pool.
@@ -110,7 +114,7 @@ interface IStakingPoolFactory {
 
     function setRemainForOtherVest(uint256 _remainForOtherVest) external;
 
-    function mintEsApeX(address to, uint256 _amount) external;
+    function mintEsApeX(address to, uint256 amount) external;
 
     function burnEsApeX(address from, uint256 amount) external;
 
@@ -122,11 +126,11 @@ interface IStakingPoolFactory {
         uint256 amount
     ) external;
 
-    function mintStApeX(address to, uint256 amount) external;
+    function mintVeApeX(address to, uint256 amount) external;
 
-    function burnStApeX(address from, uint256 amount) external;
+    function burnVeApeX(address from, uint256 amount) external;
 
     function setEsApeX(address _esApeX) external;
 
-    function setStApeX(address _stApeX) external;
+    function setVeApeX(address _veApeX) external;
 }

@@ -2,8 +2,10 @@
 pragma solidity ^0.8.2;
 
 import "../core/interfaces/IAmm.sol";
+import "../core/LiquidityERC20.sol";
+import "../core/interfaces/IERC20.sol";
 
-contract MyAmm is IAmm {
+contract MyAmm is IAmm, LiquidityERC20  {
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
 
     address public override factory;
@@ -48,7 +50,7 @@ contract MyAmm is IAmm {
             uint256 quoteAmount,
             uint256 liquidity
         ) {
-
+            _mint(to, 10000);
         }
 
     function burn(address to)
@@ -58,7 +60,7 @@ contract MyAmm is IAmm {
             uint256 quoteAmount,
             uint256 liquidity
         ) {
-
+            IERC20(baseToken).transfer(to, 100);
         }
 
     // only binding margin can call this function

@@ -529,13 +529,13 @@ describe("Margin contract", function () {
     });
 
     it("liquidate 0 position, reverted", async function () {
-      await expect(margin.connect(liquidator).liquidate(owner.address)).to.be.revertedWith(
+      await expect(margin.connect(liquidator).liquidate(owner.address, liquidator.address)).to.be.revertedWith(
         "Margin.liquidate: ZERO_POSITION"
       );
     });
 
     it("liquidate healthy position, reverted", async function () {
-      await expect(margin.connect(liquidator).liquidate(addr1.address)).to.be.revertedWith(
+      await expect(margin.connect(liquidator).liquidate(addr1.address, liquidator.address)).to.be.revertedWith(
         "Margin.liquidate: NOT_LIQUIDATABLE"
       );
     });
@@ -543,7 +543,7 @@ describe("Margin contract", function () {
     it("liquidate non liquidatable position", async function () {
       let quoteAmount = 10;
       await margin.connect(addr1).openPosition(addr1.address, longSide, quoteAmount);
-      await expect(margin.connect(liquidator).liquidate(addr1.address)).to.be.revertedWith(
+      await expect(margin.connect(liquidator).liquidate(addr1.address, liquidator.address)).to.be.revertedWith(
         "Margin.liquidate: NOT_LIQUIDATABLE"
       );
     });
@@ -552,7 +552,7 @@ describe("Margin contract", function () {
       await mockPriceOracle.setMarkPrice(100);
 
       let oldBalance = (await mockBaseToken.balanceOf(liquidator.address)).toNumber();
-      await margin.connect(liquidator).liquidate(addr1.address);
+      await margin.connect(liquidator).liquidate(addr1.address, liquidator.address);
       let newBalance = (await mockBaseToken.balanceOf(liquidator.address)).toNumber();
       expect(oldBalance + 20).to.be.equal(newBalance);
 
@@ -567,7 +567,7 @@ describe("Margin contract", function () {
       await mockAmm.setPrice(100);
 
       let oldBalance = (await mockBaseToken.balanceOf(liquidator.address)).toNumber();
-      await margin.connect(liquidator).liquidate(addr1.address);
+      await margin.connect(liquidator).liquidate(addr1.address, liquidator.address);
       let newBalance = (await mockBaseToken.balanceOf(liquidator.address)).toNumber();
       expect(oldBalance).to.be.equal(newBalance);
 
