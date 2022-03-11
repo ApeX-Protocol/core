@@ -20,7 +20,7 @@ describe("Simulations", function () {
   let provider = ethers.provider;
   let beta = 100;
 
-  const tokenQuantity = ethers.utils.parseUnits("2500", "ether");
+  const tokenQuantity = ethers.utils.parseUnits("250000", "ether");
   const largeTokenQuantity = ethers.utils.parseUnits("1000", "ether");
   const infDeadline = "9999999999";
 
