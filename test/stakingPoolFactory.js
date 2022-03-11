@@ -119,7 +119,9 @@ describe("stakingPoolFactory contract", function () {
         "Ownable: REQUIRE_OWNER"
       );
     });
+  });
 
+  describe("registerApeXPool", function () {
     it("revert when register a registered stakingPool", async function () {
       await expect(stakingPoolFactory.registerApeXPool(apexPool.address, 79)).to.be.revertedWith(
         "spf.registerPool: POOL_REGISTERED"
