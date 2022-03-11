@@ -120,7 +120,7 @@ describe("Simulations", function () {
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       let logger = fs.createWriteStream('sim.csv');
-      logger.write("Trade, Oracle Price, Pool Price, Liquidation, Entry Price\n");
+      logger.write("Trade, Oracle Price, Pool Price, Liquidation, Liquidation Entry Price, Pool PnL\n");
 
       await config.setBeta(beta);
       //await config.setInitMarginRatio(101);
@@ -147,13 +147,10 @@ describe("Simulations", function () {
       let trades = [];
 
       // Exact simulation of Hawkes process with exponentially decaying intensity 2013
-      // TODO should i do two separate simulations of trades from each trader?
-      // that doesn't make as much sense as generally clustering trades... have
-      // to figure out a good strategy for that.
       for (let i = 0; i < simSteps; i++) {
         if (i%25 === 0) console.log("SIMULATION STEP #" + i + "\n");
         let u = Math.random();
-        // TODO div by zero?
+        // TODO div by zero? 1st round
         let D = 1 + delta * Math.log(u) / (lambdaTplus - a);
 
         if (D > 0) {
@@ -237,26 +234,31 @@ describe("Simulations", function () {
           let canLiq = await margin.canLiquidate(trader.address);
           let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
           if (canLiq) {
-            margin.liquidate(trader.address, owner.address);
+            let reserves = await amm.getReserves();
+            let ammXpreLiq = reserves[0];
+            await margin.liquidate(trader.address, owner.address);
             position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
+
             // verify that the position is zero'd out
-            // expect(position.quoteSize.isZero()).to.equal(true);
-            if (!position.quoteSize.isZero()) {
+            if (position.quoteSize.isZero()) {
+              reserves = await amm.getReserves();
+              let ammXpostLiq = reserves[0];
+              let pnl = ammXpostLiq.sub(ammXpreLiq);
+              if (trades[j][2] == 0) {
+                logger.write(", 1, ");
+              } else {
+                logger.write(", -1, ");
+              }
+              logger.write(trades[j][1] + ", " + pnl + "\n");
+              liq = true;
+              trades.splice(j, 1);
+              break;
+            } else {
               console.log("Failed to Liquidate!", position);
             }
-
-            if (trades[j][2] == 0) {
-              logger.write(", 1, ");
-            } else {
-              logger.write(", -1, ");
-            }
-            logger.write(trades[j][1] + "\n");
-            liq = true;
-            trades.splice(j, 1);
-            break;
           }
         }
-        if (!liq) logger.write(", 0, " + lastPriceAmm.toString() + "\n");
+        if (!liq) logger.write(", 0, 0, 0\n");
       }
       logger.end();
     });
