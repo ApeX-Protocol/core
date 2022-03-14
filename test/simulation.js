@@ -18,7 +18,7 @@ describe("Simulations", function () {
   let ammAddress;
   let amm;
   let provider = ethers.provider;
-  let beta = 100;
+  let beta = 50;
 
   const tokenQuantity = ethers.utils.parseUnits("250000", "ether");
   const largeTokenQuantity = ethers.utils.parseUnits("1000", "ether");
@@ -194,7 +194,7 @@ describe("Simulations", function () {
             await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 1, marginAmount, quoteAmount, ethers.utils.parseUnits("1000000", "ether"), infDeadline);
             logger.write("-1, ");
           }
-          trades.push([trader, lastPriceAmm, side]);
+          trades.push([trader, lastPriceAmm, side, marginAmount]);
         } else {
           logger.write("0, ");
         }
@@ -242,8 +242,9 @@ describe("Simulations", function () {
             // verify that the position is zero'd out
             if (position.quoteSize.isZero()) {
               reserves = await amm.getReserves();
+              let originalBaseAmount = trades[j][3].mul(10);
               let ammXpostLiq = reserves[0];
-              let pnl = ammXpostLiq.sub(ammXpreLiq);
+              let pnl = trades[j][2] == 0 ? originalBaseAmount.sub(ammXpostLiq.sub(ammXpreLiq)) : originalBaseAmount.add(ammXpostLiq.sub(ammXpreLiq));
               if (trades[j][2] == 0) {
                 logger.write(", 1, ");
               } else {
