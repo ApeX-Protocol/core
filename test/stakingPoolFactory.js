@@ -8,6 +8,7 @@ describe("stakingPoolFactory contract", function () {
   let veApeXToken;
   let stakingPoolTemplate;
   let apexPool;
+  let anotherApexPool;
   let fakeApexPool;
   let stakingPoolFactory;
 
@@ -83,13 +84,13 @@ describe("stakingPoolFactory contract", function () {
     });
 
     it("create a pool and register", async function () {
-      await stakingPoolFactory.createPool(slpToken.address, initTimestamp, 79);
+      await stakingPoolFactory.createPool(slpToken.address, 0, 79);
       expect(await stakingPoolFactory.totalWeight()).to.be.equal(100);
     });
 
     it("revert when initialize a pool again", async function () {
       const StakingPoolTemplate = await ethers.getContractFactory("StakingPool");
-      await stakingPoolFactory.createPool(slpToken.address, initTimestamp, 79);
+      await stakingPoolFactory.createPool(slpToken.address, 0, 79);
       slpPoolInfo = await stakingPoolFactory.pools(slpToken.address);
       slpPool = await StakingPoolTemplate.attach(slpPoolInfo.pool);
       await expect(
@@ -103,21 +104,21 @@ describe("stakingPoolFactory contract", function () {
       );
     });
 
-    it("revert when create pool with invalid initTimestamp", async function () {
-      await expect(stakingPoolFactory.createPool(slpToken.address, 0, 79)).to.be.revertedWith(
-        "sp.initialize: INVALID_INIT_TIMESTAMP"
+    it("revert when create pool with invalid initPriceOfWeight", async function () {
+      await expect(stakingPoolFactory.createPool(slpToken.address, 15546252, 79)).to.be.revertedWith(
+        "spf.createPool: CANT_MINE_EARLIER"
       );
     });
 
     it("revert when create pool with invalid poolToken", async function () {
       await expect(stakingPoolFactory.createPool(constants.ZERO_ADDRESS, 10, 79)).to.be.revertedWith(
-        "sp.initialize: INVALID_POOL_TOKEN"
+        "spf.createPool: ZERO_ADDRESS"
       );
     });
 
     it("revert when create pool with exist poolToken", async function () {
-      await stakingPoolFactory.createPool(slpToken.address, 10, 79);
-      await expect(stakingPoolFactory.createPool(slpToken.address, 10, 79)).to.be.revertedWith(
+      await stakingPoolFactory.createPool(slpToken.address, 0, 79);
+      await expect(stakingPoolFactory.createPool(slpToken.address, 0, 79)).to.be.revertedWith(
         "spf.registerPool: POOL_TOKEN_REGISTERED"
       );
     });
@@ -132,9 +133,18 @@ describe("stakingPoolFactory contract", function () {
   });
 
   describe("registerApeXPool", function () {
+    beforeEach(async function () {
+      const ApeXPool = await ethers.getContractFactory("ApeXPool");
+      priceOfWeight = await stakingPoolFactory.calPendingPriceOfWeight();
+      anotherApexPool = await ApeXPool.deploy(
+        stakingPoolFactory.address,
+        apexToken.address,
+        priceOfWeight.toNumber() * 2
+      );
+    });
     it("revert when register a registered stakingPool", async function () {
-      await expect(stakingPoolFactory.registerApeXPool(apexPool.address, 79)).to.be.revertedWith(
-        "spf.registerPool: POOL_REGISTERED"
+      await expect(stakingPoolFactory.registerApeXPool(anotherApexPool.address, 79)).to.be.revertedWith(
+        "spf.registerPool: POOL_TOKEN_REGISTERED"
       );
     });
   });
@@ -191,15 +201,21 @@ describe("stakingPoolFactory contract", function () {
         "spf.changePoolWeight: POOL_NOT_EXIST"
       );
     });
+
+    it("revert when change pool weight to 0", async function () {
+      await expect(stakingPoolFactory.changePoolWeight(apexPool.address, 0)).to.be.revertedWith(
+        "spf.changePoolWeight: CANT_CHANGE_TO_ZERO_WEIGHT"
+      );
+    });
   });
 
   describe("calStakingPoolApeXReward", function () {
     it("calculate reward after some time", async function () {
       await network.provider.send("evm_mine");
       await stakingPoolFactory.updateApeXPerSec();
-      let latestBlock = (await stakingPoolFactory.lastUpdateTimestamp()).toNumber();
-      //(latestBlock-0) * 97
-      expect(await stakingPoolFactory.calStakingPoolApeXReward(0, apexToken.address)).to.be.equal(latestBlock * 97);
+      let result = await stakingPoolFactory.calStakingPoolApeXReward(0, apexToken.address);
+      let pending = (await stakingPoolFactory.calPendingFactoryReward()).toNumber();
+      expect(result[0].toNumber()).to.lessThanOrEqual(pending);
     });
   });
 

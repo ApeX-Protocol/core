@@ -69,12 +69,12 @@ interface IStakingPoolFactory {
     /// @notice check if can update reward ratio
     function shouldUpdateRatio() external view returns (bool);
 
-    /// @notice calculate yield reward of poolToken since lastYieldDistribution
+    /// @notice calculate yield reward of poolToken since lastYieldPriceOfWeight
     /// @param poolToken staked token.
-    function calStakingPoolApeXReward(uint256 lastYieldDistribution, address poolToken)
+    function calStakingPoolApeXReward(uint256 lastYieldPriceOfWeight, address poolToken)
         external
         view
-        returns (uint256 reward);
+        returns (uint256 reward, uint256 newPriceOfWeight);
 
     /// @notice update yield reward rate
     function updateApeXPerSec() external;

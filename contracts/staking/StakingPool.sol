@@ -14,7 +14,7 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
 
     address public override poolToken;
     IStakingPoolFactory public factory;
-    uint256 public lastYieldDistribution; //timestamp
+    uint256 public lastYieldPriceOfWeight;
     uint256 public yieldRewardsPerWeight;
     uint256 public usersLockingWeight;
     mapping(address => User) public users;
@@ -30,7 +30,7 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
 
         factory = IStakingPoolFactory(_factory);
         poolToken = _poolToken;
-        lastYieldDistribution = _initTimestamp;
+        lastYieldPriceOfWeight = _initTimestamp;
     }
 
     function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
@@ -169,21 +169,20 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
             factory.updateApeXPerSec();
         }
 
-        uint256 endTimestamp = factory.endTimestamp();
-        uint256 currentTimestamp = block.timestamp;
-        if (lastYieldDistribution >= endTimestamp || lastYieldDistribution >= currentTimestamp) {
-            return;
-        }
+        (uint256 apeXReward, uint256 newYieldPriceOfWeight) = factory.calStakingPoolApeXReward(
+            lastYieldPriceOfWeight,
+            poolToken
+        );
+
         if (usersLockingWeight == 0) {
-            lastYieldDistribution = currentTimestamp;
+            lastYieldPriceOfWeight = newYieldPriceOfWeight;
             return;
         }
 
-        uint256 apeXReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
         yieldRewardsPerWeight += (apeXReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
-        lastYieldDistribution = currentTimestamp > endTimestamp ? endTimestamp : currentTimestamp;
+        lastYieldPriceOfWeight = newYieldPriceOfWeight;
 
-        emit Synchronized(msg.sender, yieldRewardsPerWeight, lastYieldDistribution);
+        emit Synchronized(msg.sender, yieldRewardsPerWeight, newYieldPriceOfWeight);
     }
 
     function _processRewards(address _staker, User storage user) internal {
@@ -202,8 +201,8 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
     function pendingYieldRewards(address _staker) external view returns (uint256 pending) {
         uint256 newYieldRewardsPerWeight = yieldRewardsPerWeight;
 
-        if (block.timestamp > lastYieldDistribution && usersLockingWeight != 0) {
-            uint256 apeXReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
+        if (usersLockingWeight != 0) {
+            (uint256 apeXReward, ) = factory.calStakingPoolApeXReward(lastYieldPriceOfWeight, poolToken);
             newYieldRewardsPerWeight += (apeXReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
         }
 

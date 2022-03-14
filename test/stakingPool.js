@@ -54,7 +54,10 @@ describe("stakingPool contract", function () {
     await stakingPoolFactory.setStakingPoolTemplate(stakingPoolTemplate.address);
 
     await stakingPoolFactory.registerApeXPool(apeXPool.address, 21);
-    await stakingPoolFactory.createPool(slpToken.address, initTimestamp, 79);
+    await stakingPoolFactory.createPool(slpToken.address, 0, 79);
+    await expect(stakingPoolFactory.createPool(slpToken.address, initTimestamp, 79)).to.be.revertedWith(
+      "spf.createPool: CANT_MINE_EARLIER"
+    );
     slpStakingPool = StakingPoolTemplate.attach((await stakingPoolFactory.pools(slpToken.address))[0]);
 
     await apeXToken.mint(owner.address, 100_0000);
@@ -323,13 +326,13 @@ describe("stakingPool contract", function () {
 
     it("query pendingYieldRewards", async function () {
       let oldPricePerWeight = (await slpStakingPool.yieldRewardsPerWeight()).toNumber();
-      let oldLastYieldDistribution = (await slpStakingPool.lastYieldDistribution()).toNumber();
+      let oldLastYieldPriceOfWeight = (await slpStakingPool.lastYieldPriceOfWeight()).toNumber();
       await network.provider.send("evm_mine");
       await slpStakingPool.syncWeightPrice();
       let newPricePerWeight = (await slpStakingPool.yieldRewardsPerWeight()).toNumber();
-      let newLastYieldDistribution = (await slpStakingPool.lastYieldDistribution()).toNumber();
+      let newLastYieldPriceOfWeight = (await slpStakingPool.lastYieldPriceOfWeight()).toNumber();
       expect(newPricePerWeight).to.greaterThan(oldPricePerWeight);
-      expect(newLastYieldDistribution).to.greaterThan(oldLastYieldDistribution);
+      expect(newLastYieldPriceOfWeight).to.greaterThan(oldLastYieldPriceOfWeight);
     });
   });
 

@@ -75,6 +75,8 @@ interface IApeXPool {
 
     function getEsDepositsLength(address _user) external view returns (uint256);
 
+    function lastYieldPriceOfWeight() external view returns (uint256);
+
     /// @notice Process yield reward (esApeX) of msg.sender
     function processRewards() external;
 
