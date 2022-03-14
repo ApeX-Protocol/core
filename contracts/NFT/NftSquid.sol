@@ -11,8 +11,8 @@ contract NftSquid is ERC721PresetMinterPauserAutoId, Ownable {
     uint256 internal constant BURN_DISCOUNT = 40;
     uint256 internal constant BONUS_PERPAX = 1500 * 10**18;
     uint256 internal constant BASE_AMOUNT = 3000 * 10**18;
-    uint256 public constant price = 0.45 ether;
-    // uint256 public constant price = 0.001 ether; // for test
+    // uint256 public constant price = 0.45 ether;
+    uint256 public constant price = 0.001 ether; // for test
 
     uint256 public vaultAmount;
     uint256 public squidStartTime;
