@@ -47,7 +47,7 @@ interface IApeXPool {
 
     event YieldClaimed(address indexed by, uint256 depositId, uint256 amount, uint256 lockFrom, uint256 lockUntil);
 
-    event Synchronized(address indexed by, uint256 yieldRewardsPerWeight, uint256 lastYieldDistribution);
+    event Synchronized(address indexed by, uint256 yieldRewardsPerWeight);
 
     event UpdateStakeLock(address indexed by, uint256 depositId, bool isEsApeX, uint256 lockFrom, uint256 lockUntil);
 
@@ -74,8 +74,6 @@ interface IApeXPool {
     function getEsDeposit(address _user, uint256 _esDepositId) external view returns (Deposit memory);
 
     function getEsDepositsLength(address _user) external view returns (uint256);
-
-    function lastYieldPriceOfWeight() external view returns (uint256);
 
     /// @notice Process yield reward (esApeX) of msg.sender
     function processRewards() external;

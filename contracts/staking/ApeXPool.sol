@@ -13,22 +13,16 @@ contract ApeXPool is IApeXPool, Reentrant {
 
     address public immutable override poolToken;
     IStakingPoolFactory public immutable factory;
-    uint256 public override lastYieldPriceOfWeight;
     uint256 public yieldRewardsPerWeight;
     uint256 public usersLockingWeight;
     mapping(address => User) public users;
 
-    constructor(
-        address _factory,
-        address _apeX,
-        uint256 _initYieldPriceOfWeight
-    ) {
+    constructor(address _factory, address _poolToken) {
         require(_factory != address(0), "cp: INVALID_FACTORY");
-        require(_apeX != address(0), "cp: INVALID_POOL_TOKEN");
+        require(_poolToken != address(0), "cp: INVALID_POOL_TOKEN");
 
         factory = IStakingPoolFactory(_factory);
-        poolToken = _apeX;
-        lastYieldPriceOfWeight = _initYieldPriceOfWeight;
+        poolToken = _poolToken;
     }
 
     function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
@@ -325,19 +319,12 @@ contract ApeXPool is IApeXPool, Reentrant {
             factory.updateApeXPerSec();
         }
 
-        (uint256 apeXReward, uint256 newYieldPriceOfWeight) = factory.calStakingPoolApeXReward(
-            lastYieldPriceOfWeight,
-            poolToken
-        );
+        uint256 apeXReward = factory.syncYieldPriceOfWeight();
         if (usersLockingWeight == 0) {
-            lastYieldPriceOfWeight = newYieldPriceOfWeight;
             return;
         }
-
         yieldRewardsPerWeight += (apeXReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
-        lastYieldPriceOfWeight = newYieldPriceOfWeight;
-
-        emit Synchronized(msg.sender, yieldRewardsPerWeight, newYieldPriceOfWeight);
+        emit Synchronized(msg.sender, yieldRewardsPerWeight);
     }
 
     //update weight price, then if apeX, add deposits; if not, stake as pool.
@@ -374,7 +361,7 @@ contract ApeXPool is IApeXPool, Reentrant {
         uint256 newYieldRewardsPerWeight = yieldRewardsPerWeight;
 
         if (usersLockingWeight != 0) {
-            (uint256 apeXReward, ) = factory.calStakingPoolApeXReward(lastYieldPriceOfWeight, poolToken);
+            (uint256 apeXReward, ) = factory.calStakingPoolApeXReward(poolToken);
             newYieldRewardsPerWeight += (apeXReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
         }
 

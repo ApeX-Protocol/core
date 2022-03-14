@@ -12,11 +12,11 @@ describe("stakingPoolFactory contract", function () {
   let fakeApexPool;
   let stakingPoolFactory;
 
-  let initTimestamp = 1641781192;
-  let endTimestamp = 1673288342;
+  let initTimestamp = 1641781192; //10 January 2022 10:19:52
+  let endTimestamp = 1673288342; //10 January 2023 02:19:02
   let secSpanPerUpdate = 2;
   let apeXPerSec = 100;
-  let lockTime = 3600 * 24 * 180;
+  let lockTime = 3600 * 24 * 180; //half year
 
   let owner;
   let addr1;
@@ -44,8 +44,9 @@ describe("stakingPoolFactory contract", function () {
       endTimestamp,
       lockTime,
     ]);
-    apexPool = await ApeXPool.deploy(stakingPoolFactory.address, apexToken.address, initTimestamp);
-    fakeApexPool = await ApeXPool.deploy(stakingPoolFactory.address, apexToken.address, initTimestamp);
+    apexPool = await ApeXPool.deploy(stakingPoolFactory.address, apexToken.address);
+    fakeApexPool = await ApeXPool.deploy(stakingPoolFactory.address, apexToken.address);
+    fakeApexPoolWithSlpToken = await ApeXPool.deploy(stakingPoolFactory.address, slpToken.address);
     esApeXToken = await EsAPEX.deploy(stakingPoolFactory.address);
     veApeXToken = await VeAPEX.deploy(stakingPoolFactory.address);
 
@@ -60,6 +61,11 @@ describe("stakingPoolFactory contract", function () {
   });
 
   describe("setStakingPoolTemplate", function () {
+    it("can set not-null address", async function () {
+      await stakingPoolFactory.setStakingPoolTemplate(addr1.address);
+      expect(await stakingPoolFactory.stakingPoolTemplate()).to.be.equal(addr1.address);
+    });
+
     it("reverted when set by unauthorized account", async function () {
       await expect(
         stakingPoolFactory.connect(addr1).setStakingPoolTemplate(ethers.constants.AddressZero)
@@ -69,56 +75,60 @@ describe("stakingPoolFactory contract", function () {
     it("revert when set null address", async function () {
       await expect(stakingPoolFactory.setStakingPoolTemplate(ethers.constants.AddressZero)).to.be.reverted;
     });
-
-    it("can when set not-null address", async function () {
-      await stakingPoolFactory.setStakingPoolTemplate(addr1.address);
-      expect(await stakingPoolFactory.stakingPoolTemplate()).to.be.equal(addr1.address);
-    });
   });
 
   describe("createPool", function () {
-    it("reverted when create by unauthorized account", async function () {
-      await expect(
-        stakingPoolFactory.connect(addr1).createPool(slpToken.address, initTimestamp, 79)
-      ).to.be.revertedWith("Ownable: REQUIRE_OWNER");
-    });
-
     it("create a pool and register", async function () {
-      await stakingPoolFactory.createPool(slpToken.address, 0, 79);
+      await stakingPoolFactory.createPool(slpToken.address, 79);
       expect(await stakingPoolFactory.totalWeight()).to.be.equal(100);
     });
 
-    it("revert when initialize a pool again", async function () {
-      const StakingPoolTemplate = await ethers.getContractFactory("StakingPool");
-      await stakingPoolFactory.createPool(slpToken.address, 0, 79);
-      slpPoolInfo = await stakingPoolFactory.pools(slpToken.address);
-      slpPool = await StakingPoolTemplate.attach(slpPoolInfo.pool);
-      await expect(
-        slpPool.initialize(stakingPoolFactory.address, slpToken.address, initTimestamp + 1)
-      ).to.be.revertedWith("Initializable: contract is already initialized");
-    });
-
-    it("revert when create pool with apeX", async function () {
-      await expect(stakingPoolFactory.createPool(apexToken.address, 0, 79)).to.be.revertedWith(
-        "spf.createPool: CANT_APEX"
-      );
-    });
-
-    it("revert when create pool with invalid initPriceOfWeight", async function () {
-      await expect(stakingPoolFactory.createPool(slpToken.address, 15546252, 79)).to.be.revertedWith(
-        "spf.createPool: CANT_MINE_EARLIER"
+    it("reverted when create by unauthorized account", async function () {
+      await expect(stakingPoolFactory.connect(addr1).createPool(slpToken.address, 79)).to.be.revertedWith(
+        "Ownable: REQUIRE_OWNER"
       );
     });
 
     it("revert when create pool with invalid poolToken", async function () {
-      await expect(stakingPoolFactory.createPool(constants.ZERO_ADDRESS, 10, 79)).to.be.revertedWith(
+      await expect(stakingPoolFactory.createPool(constants.ZERO_ADDRESS, 79)).to.be.revertedWith(
         "spf.createPool: ZERO_ADDRESS"
       );
     });
 
+    it("revert when create pool with apeX", async function () {
+      await expect(stakingPoolFactory.createPool(apexToken.address, 79)).to.be.revertedWith(
+        "spf.createPool: CANT_APEX"
+      );
+    });
+
+    it("revert when create pool while not set template", async function () {
+      const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
+      let spf = await upgrades.deployProxy(StakingPoolFactory, [
+        addr1.address,
+        addr1.address,
+        apeXPerSec,
+        secSpanPerUpdate,
+        initTimestamp,
+        endTimestamp,
+        lockTime,
+      ]);
+
+      await expect(spf.createPool(apexToken.address, 79)).to.be.revertedWith("spf.createPool: ZERO_TEMPLATE");
+    });
+
+    it("revert when initialize a pool again", async function () {
+      const StakingPoolTemplate = await ethers.getContractFactory("StakingPool");
+      await stakingPoolFactory.createPool(slpToken.address, 79);
+      slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
+      slpPool = await StakingPoolTemplate.attach(slpPoolAddress);
+      await expect(slpPool.initialize(stakingPoolFactory.address, slpToken.address)).to.be.revertedWith(
+        "Initializable: contract is already initialized"
+      );
+    });
+
     it("revert when create pool with exist poolToken", async function () {
-      await stakingPoolFactory.createPool(slpToken.address, 0, 79);
-      await expect(stakingPoolFactory.createPool(slpToken.address, 0, 79)).to.be.revertedWith(
+      await stakingPoolFactory.createPool(slpToken.address, 79);
+      await expect(stakingPoolFactory.createPool(slpToken.address, 79)).to.be.revertedWith(
         "spf.registerPool: POOL_TOKEN_REGISTERED"
       );
     });
@@ -130,41 +140,64 @@ describe("stakingPoolFactory contract", function () {
         "Ownable: REQUIRE_OWNER"
       );
     });
-  });
 
-  describe("registerApeXPool", function () {
-    beforeEach(async function () {
-      const ApeXPool = await ethers.getContractFactory("ApeXPool");
-      priceOfWeight = await stakingPoolFactory.calPendingPriceOfWeight();
-      anotherApexPool = await ApeXPool.deploy(
-        stakingPoolFactory.address,
-        apexToken.address,
-        priceOfWeight.toNumber() * 2
+    it("reverted when register non apeX pool", async function () {
+      await expect(stakingPoolFactory.registerApeXPool(fakeApexPoolWithSlpToken.address, 79)).to.be.revertedWith(
+        "spf.registerApeXPool: MUST_APEX"
       );
     });
-    it("revert when register a registered stakingPool", async function () {
-      await expect(stakingPoolFactory.registerApeXPool(anotherApexPool.address, 79)).to.be.revertedWith(
+
+    it("reverted when register apeX pool already", async function () {
+      await expect(stakingPoolFactory.registerApeXPool(fakeApexPool.address, 79)).to.be.revertedWith(
         "spf.registerPool: POOL_TOKEN_REGISTERED"
       );
     });
   });
 
   describe("unregisterPool", function () {
+    it("unregister a registered stakingPool", async function () {
+      await stakingPoolFactory.unregisterPool(apexPool.address);
+      expect(await stakingPoolFactory.totalWeight()).to.be.equal(0);
+    });
+
     it("reverted when unregister by unauthorized account", async function () {
       await expect(stakingPoolFactory.connect(addr1).unregisterPool(slpToken.address)).to.be.revertedWith(
         "Ownable: REQUIRE_OWNER"
       );
     });
 
-    it("unregister a registered stakingPool", async function () {
-      await stakingPoolFactory.unregisterPool(apexPool.address);
-      expect(await stakingPoolFactory.totalWeight()).to.be.equal(0);
-    });
-
     it("revert when unregister a unregistered stakingPool", async function () {
       await expect(stakingPoolFactory.unregisterPool(fakeApexPool.address)).to.be.revertedWith(
         "spf.unregisterPool: POOL_NOT_REGISTERED"
       );
+    });
+
+    describe("create an unregistered pool again", function () {
+      let StakingPoolTemplate;
+      beforeEach(async function () {
+        StakingPoolTemplate = await ethers.getContractFactory("StakingPool");
+        await stakingPoolFactory.createPool(slpToken.address, 79);
+      });
+
+      it("can create pool", async function () {
+        let slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
+        await stakingPoolFactory.unregisterPool(slpPoolAddress);
+
+        await stakingPoolFactory.createPool(slpToken.address, 69);
+        expect(await stakingPoolFactory.totalWeight()).to.be.equal(90);
+      });
+
+      it("can process exist reward after unregister pool", async function () {
+        let slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
+        let slpPool = await StakingPoolTemplate.attach(slpPoolAddress);
+        await slpToken.mint(owner.address, 100_0000);
+        await slpToken.approve(slpPool.address, 100_0000);
+        await slpPool.stake(10000, 0);
+        await slpPool.processRewards();
+
+        await stakingPoolFactory.unregisterPool(slpPoolAddress);
+        await slpPool.processRewards();
+      });
     });
   });
 
@@ -207,13 +240,20 @@ describe("stakingPoolFactory contract", function () {
         "spf.changePoolWeight: CANT_CHANGE_TO_ZERO_WEIGHT"
       );
     });
+
+    it("revert when change pool with 0 weight", async function () {
+      await stakingPoolFactory.unregisterPool(apexPool.address);
+      await expect(stakingPoolFactory.changePoolWeight(apexPool.address, 0)).to.be.revertedWith(
+        "spf.changePoolWeight: POOL_NOT_EXIST"
+      );
+    });
   });
 
   describe("calStakingPoolApeXReward", function () {
     it("calculate reward after some time", async function () {
       await network.provider.send("evm_mine");
       await stakingPoolFactory.updateApeXPerSec();
-      let result = await stakingPoolFactory.calStakingPoolApeXReward(0, apexToken.address);
+      let result = await stakingPoolFactory.calStakingPoolApeXReward(apexToken.address);
       let pending = (await stakingPoolFactory.calPendingFactoryReward()).toNumber();
       expect(result[0].toNumber()).to.lessThanOrEqual(pending);
     });
