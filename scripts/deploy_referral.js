@@ -1,8 +1,8 @@
 const { ethers } = require("hardhat");
 const verifyStr = "npx hardhat verify --network";
 
-// const wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH address in ArbitrumOne
-const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mockWETH
+const wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH address in ArbitrumOne
+// const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mockWETH
 
 let invitation;
 let rewardForCashback;
