@@ -87,6 +87,16 @@ describe("stakingPoolFactory contract", function () {
       expect(await stakingPoolFactory.totalWeight()).to.be.equal(100);
     });
 
+    it("revert when initialize a pool again", async function () {
+      const StakingPoolTemplate = await ethers.getContractFactory("StakingPool");
+      await stakingPoolFactory.createPool(slpToken.address, initTimestamp, 79);
+      slpPoolInfo = await stakingPoolFactory.pools(slpToken.address);
+      slpPool = await StakingPoolTemplate.attach(slpPoolInfo.pool);
+      await expect(
+        slpPool.initialize(stakingPoolFactory.address, slpToken.address, initTimestamp + 1)
+      ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
+
     it("revert when create pool with apeX", async function () {
       await expect(stakingPoolFactory.createPool(apexToken.address, 0, 79)).to.be.revertedWith(
         "spf.createPool: CANT_APEX"

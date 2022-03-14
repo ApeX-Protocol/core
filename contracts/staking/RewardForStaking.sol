@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "../core/interfaces/IERC20.sol";
 import "../utils/Reentrant.sol";
 import "../utils/Ownable.sol";
 import "../libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../core/interfaces/IERC20.sol";
 
 contract RewardForStaking is Reentrant, Ownable {
     using ECDSA for bytes32;
@@ -14,13 +14,17 @@ contract RewardForStaking is Reentrant, Ownable {
     event SetSigner(address signer, bool state);
     event Claim(address indexed user, address[] tokens, uint256[] amounts, bytes nonce);
 
+    address public WETH;
     bool public emergency;
     mapping(address => bool) public signers;
     mapping(bytes => bool) public usedNonce;
 
-    constructor() {
+    constructor(address WETH_) {
         owner = msg.sender;
+        WETH = WETH_;
     }
+
+    receive() external payable {}
 
     function setSigner(address signer, bool state) external onlyOwner {
         require(signer != address(0), "ZERO_ADDRESS");
@@ -54,7 +58,11 @@ contract RewardForStaking is Reentrant, Ownable {
         verify(user, tokens, amounts, nonce, expireAt, signature);
         usedNonce[nonce] = true;
         for (uint256 i = 0; i < tokens.length; i++) {
-            IERC20(tokens[i]).transfer(user, amounts[i]);
+            if (tokens[i] == WETH) {
+                TransferHelper.safeTransferETH(user, amounts[i]);
+            } else {
+                TransferHelper.safeTransfer(tokens[i], user, amounts[i]);
+            }
         }
         emit Claim(user, tokens, amounts, nonce);
     }
