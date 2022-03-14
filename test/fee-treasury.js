@@ -58,14 +58,9 @@ describe("FeeTreasury contract", function () {
     await amm3.initialize(weth.address, wbtc.address, marginAddress);
 
     const FeeTreasury = await ethers.getContractFactory("FeeTreasury");
-    feeTreasury = await FeeTreasury.deploy(
-      swapRouter.address,
-      usdc.address,
-      operator.address,
-      rewardForStaking.address,
-      rewardForCashback.address,
-      1000000
-    );
+    feeTreasury = await FeeTreasury.deploy(swapRouter.address, usdc.address, operator.address, 1000000);
+    await feeTreasury.setRewardForStaking(rewardForStaking.address);
+    await feeTreasury.setRewardForCashback(rewardForCashback.address);
   });
 
   describe("batchRemoveLiquidity", function () {
