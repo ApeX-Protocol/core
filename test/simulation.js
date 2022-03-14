@@ -1,7 +1,9 @@
 const { expect } = require("chai");
 const { BigNumber } = require("@ethersproject/bignumber");
 const fs = require('fs');
+const seedrandom = require('seedrandom');
 
+let generator = seedrandom('hello.');
 
 describe("Simulations", function () {
   let owner;
@@ -18,7 +20,7 @@ describe("Simulations", function () {
   let ammAddress;
   let amm;
   let provider = ethers.provider;
-  let beta = 50;
+  let beta = 75;
 
   const tokenQuantity = ethers.utils.parseUnits("250000", "ether");
   const largeTokenQuantity = ethers.utils.parseUnits("1000", "ether");
@@ -29,7 +31,7 @@ describe("Simulations", function () {
 
   // Standard Normal variate using Box-Muller transform.
   function randn_bm() {
-      return Math.sqrt(-2 * Math.log(1 - Math.random())) * Math.cos(2 * Math.PI * Math.random())
+      return Math.sqrt(-2 * Math.log(1 - generator())) * Math.cos(2 * Math.PI * generator())
   }
 
   beforeEach(async function () {
@@ -119,7 +121,8 @@ describe("Simulations", function () {
   // TODO what is the price that I'm starting with effectively
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
-      let logger = fs.createWriteStream('sim.csv');
+      let simSteps = 3000;
+      let logger = fs.createWriteStream('sim_' + beta + '_' + simSteps + '.csv');
       logger.write("Trade, Oracle Price, Pool Price, Liquidation, Liquidation Entry Price, Pool PnL\n");
 
       await config.setBeta(beta);
@@ -134,13 +137,12 @@ describe("Simulations", function () {
       let lastPrice = 2000;
 
       // variables for the hawkes process simulation
-      let simSteps = 1500;
       let lambda0 = 1;
       let a = lambda0;
       let lambdaTplus = lambda0;
       let lambdaTminus;
       let delta = 0.5;
-      let meanJump = 0.3;
+      let meanJump = 0.25;
       let S;
 
       // active open trades
@@ -149,14 +151,14 @@ describe("Simulations", function () {
       // Exact simulation of Hawkes process with exponentially decaying intensity 2013
       for (let i = 0; i < simSteps; i++) {
         if (i%25 === 0) console.log("SIMULATION STEP #" + i + "\n");
-        let u = Math.random();
+        let u = generator();
         // TODO div by zero? 1st round
         let D = 1 + delta * Math.log(u) / (lambdaTplus - a);
 
         if (D > 0) {
-          S = Math.min(1 + delta*Math.log(u), -(1/a) * Math.log(Math.random()));
+          S = Math.min(1 + delta*Math.log(u), -(1/a) * Math.log(generator()));
         } else {
-          S = -(1/a) * Math.log(Math.random());
+          S = -(1/a) * Math.log(generator());
         }
 
         lambdaTminus = (lambdaTplus-a) * Math.exp(-delta*S) + a;
@@ -185,7 +187,7 @@ describe("Simulations", function () {
           let quoteAmount = ethers.utils.parseUnits("10000", "ether");
           let marginAmount = quoteAmount.mul(ethers.utils.parseUnits("1", "ether")).div(lastPriceAmm).div(10);
           // trader trades randomly
-          if (Math.random() > 0.5) {
+          if (generator() > 0.5) {
             side = 0;
             await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 0, marginAmount, quoteAmount, 1, infDeadline);
             logger.write("1, ");
