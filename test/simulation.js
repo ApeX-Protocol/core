@@ -3,7 +3,7 @@ const { BigNumber } = require("@ethersproject/bignumber");
 const fs = require('fs');
 const seedrandom = require('seedrandom');
 
-let generator = seedrandom('hello.');
+let generator = seedrandom('apeX');
 
 describe("Simulations", function () {
   let owner;
@@ -21,6 +21,7 @@ describe("Simulations", function () {
   let amm;
   let provider = ethers.provider;
   let beta = 75;
+  let leverage = 10;
 
   const tokenQuantity = ethers.utils.parseUnits("250000", "ether");
   const largeTokenQuantity = ethers.utils.parseUnits("1000", "ether");
@@ -196,7 +197,8 @@ describe("Simulations", function () {
             await router.connect(trader).openPositionWithWallet(baseToken.address, quoteToken.address, 1, marginAmount, quoteAmount, ethers.utils.parseUnits("1000000", "ether"), infDeadline);
             logger.write("-1, ");
           }
-          trades.push([trader, lastPriceAmm, side, side == 0 ? marginAmount.mul(10).add(marginAmount) : marginAmount.mul(10).sub(marginAmount)]);
+          trades.push([trader, lastPriceAmm, side, side == 0 ? marginAmount.mul(leverage).add(marginAmount)
+                                                             : marginAmount.mul(leverage).sub(marginAmount)]);
         } else {
           logger.write("0, ");
         }
@@ -246,7 +248,10 @@ describe("Simulations", function () {
               reserves = await amm.getReserves();
               let originalBaseAmount = trades[j][3];
               let ammXpostLiq = reserves[0];
-              let pnl = trades[j][2] == 0 ? originalBaseAmount.sub(ammXpostLiq.sub(ammXpreLiq)) : ammXpreLiq.sub(ammXpostLiq).sub(originalBaseAmount);
+              // the order of subtraction differs betweeen long/short only to
+              // ensure results that are always positive
+              let pnl = trades[j][2] == 0 ? originalBaseAmount.sub(ammXpostLiq.sub(ammXpreLiq))
+                                          : ammXpreLiq.sub(ammXpostLiq).sub(originalBaseAmount);
               if (trades[j][2] == 0) {
                 logger.write(", 1, ");
               } else {

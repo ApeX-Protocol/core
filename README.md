@@ -9,7 +9,7 @@ npm install
 npm run compile
 
 ## Run Tests
-npm run test  
+npm run test
 npx hardhat test ./test/amm.js
 
 
@@ -20,3 +20,9 @@ npm run deploy_arb
 
 
 reference deploy: npx hardhat run scripts/deploy_reference.js --network l2rinkeby
+
+## Simulation
+
+`npx hardhat test test/simulation.js`
+
+`bash plot.sh sim_50_3000.csv`
