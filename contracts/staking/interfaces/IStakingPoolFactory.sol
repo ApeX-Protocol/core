@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 interface IStakingPoolFactory {
     struct PoolWeight {
         uint256 weight;
-        uint256 lastYieldPriceOfWeight;
-        bool inUse;
+        uint256 lastYieldPriceOfWeight; //multiplied by 10000
+        uint256 exitYieldPriceOfWeight;
     }
 
     event WeightUpdated(address indexed by, address indexed pool, uint256 weight);
@@ -68,10 +68,16 @@ interface IStakingPoolFactory {
     /// @notice calculate yield reward of poolToken since lastYieldPriceOfWeight
     function calStakingPoolApeXReward(address token) external view returns (uint256 reward, uint256 newPriceOfWeight);
 
+    function calPendingFactoryReward() external view returns (uint256 reward);
+
+    function calLatestPriceOfWeight() external view returns (uint256);
+
     function syncYieldPriceOfWeight() external returns (uint256 reward);
 
     /// @notice update yield reward rate
     function updateApeXPerSec() external;
+
+    function setStakingPoolTemplate(address _template) external;
 
     /// @notice create a new stakingPool
     /// @param poolToken stakingPool staked token.

@@ -29,8 +29,8 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     uint256 public lastTimeUpdatePriceOfWeight;
     address public override stakingPoolTemplate;
 
-    mapping(address => address) public tokenPoolMap; //token->pool
-    mapping(address => PoolWeight) public PoolWeightMap; //pool->weight
+    mapping(address => address) public tokenPoolMap; //token->pool, only for relationships in use
+    mapping(address => PoolWeight) public PoolWeightMap; //pool->weight, historical pools are also stored
 
     function initialize(
         address _apeX,
@@ -60,7 +60,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         lastTimeUpdatePriceOfWeight = _initTimestamp;
     }
 
-    function setStakingPoolTemplate(address _template) external onlyOwner {
+    function setStakingPoolTemplate(address _template) external override onlyOwner {
         require(_template != address(0), "spf.setStakingPoolTemplate: ZERO_ADDRESS");
 
         emit SetStakingPoolTemplate(stakingPoolTemplate, _template);
@@ -73,7 +73,6 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         require(stakingPoolTemplate != address(0), "spf.createPool: ZERO_TEMPLATE");
 
         address pool = Clones.clone(stakingPoolTemplate);
-
         IStakingPool(pool).initialize(address(this), _poolToken);
 
         _registerPool(pool, _poolToken, _weight);
@@ -86,47 +85,26 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         _registerPool(_pool, apeX, _weight);
     }
 
-    function _registerPool(
-        address _pool,
-        address _poolToken,
-        uint256 _weight
-    ) internal {
-        require(PoolWeightMap[_pool].weight == 0, "spf.registerPool: POOL_REGISTERED");
-        require(tokenPoolMap[_poolToken] == address(0), "spf.registerPool: POOL_TOKEN_REGISTERED");
-
-        if (totalWeight != 0) {
-            priceOfWeight += ((calPendingFactoryReward() * tenK) / totalWeight);
-            lastTimeUpdatePriceOfWeight = block.timestamp;
-        }
-
-        tokenPoolMap[_poolToken] = _pool;
-        PoolWeightMap[_pool] = PoolWeight({weight: _weight, lastYieldPriceOfWeight: priceOfWeight, inUse: true});
-        totalWeight += _weight;
-
-        emit PoolRegistered(msg.sender, _poolToken, _pool, _weight);
-    }
-
     function unregisterPool(address _pool) external override onlyOwner {
         require(PoolWeightMap[_pool].weight != 0, "spf.unregisterPool: POOL_NOT_REGISTERED");
 
-        priceOfWeight += ((calPendingFactoryReward() * tenK) / totalWeight);
+        priceOfWeight += ((_calPendingFactoryReward() * tenK) / totalWeight);
         lastTimeUpdatePriceOfWeight = block.timestamp;
 
         totalWeight -= PoolWeightMap[_pool].weight;
-        PoolWeightMap[_pool].weight = 0;
-        PoolWeightMap[_pool].lastYieldPriceOfWeight = priceOfWeight;
-        PoolWeightMap[_pool].inUse = false;
+        PoolWeightMap[_pool].exitYieldPriceOfWeight = priceOfWeight;
         delete tokenPoolMap[IStakingPool(_pool).poolToken()];
 
         emit PoolUnRegistered(msg.sender, _pool);
     }
 
     function changePoolWeight(address _pool, uint256 _weight) external override onlyOwner {
-        require(PoolWeightMap[_pool].weight != 0, "spf.changePoolWeight: POOL_NOT_EXIST");
+        require(PoolWeightMap[_pool].weight > 0, "spf.changePoolWeight: POOL_NOT_EXIST");
+        require(PoolWeightMap[_pool].exitYieldPriceOfWeight == 0, "spf.changePoolWeight: POOL_INVALID");
         require(_weight != 0, "spf.changePoolWeight: CANT_CHANGE_TO_ZERO_WEIGHT");
 
         if (totalWeight != 0) {
-            priceOfWeight += ((calPendingFactoryReward() * tenK) / totalWeight);
+            priceOfWeight += ((_calPendingFactoryReward() * tenK) / totalWeight);
             lastTimeUpdatePriceOfWeight = block.timestamp;
         }
 
@@ -148,15 +126,23 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         emit UpdateApeXPerSec(apeXPerSec);
     }
 
+    function syncYieldPriceOfWeight() external override returns (uint256) {
+        (uint256 reward, uint256 newPriceOfWeight) = _calStakingPoolApeXReward(msg.sender);
+        emit SyncYieldPriceOfWeight(PoolWeightMap[msg.sender].lastYieldPriceOfWeight, newPriceOfWeight);
+
+        PoolWeightMap[msg.sender].lastYieldPriceOfWeight = newPriceOfWeight;
+        return reward;
+    }
+
     function transferYieldTo(address _to, uint256 _amount) external override {
-        require(PoolWeightMap[msg.sender].inUse, "spf.transferYieldTo: ACCESS_DENIED");
+        require(PoolWeightMap[msg.sender].weight > 0, "spf.transferYieldTo: ACCESS_DENIED");
 
         emit TransferYieldTo(msg.sender, _to, _amount);
         IERC20(apeX).transfer(_to, _amount);
     }
 
     function transferYieldToTreasury(uint256 _amount) external override {
-        require(PoolWeightMap[msg.sender].inUse, "spf.transferYieldToTreasury: ACCESS_DENIED");
+        require(PoolWeightMap[msg.sender].weight > 0, "spf.transferYieldToTreasury: ACCESS_DENIED");
 
         address _treasury = treasury;
         emit TransferYieldToTreasury(msg.sender, _treasury, _amount);
@@ -164,7 +150,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     }
 
     function transferEsApeXTo(address _to, uint256 _amount) external override {
-        require(PoolWeightMap[msg.sender].inUse, "spf.transferEsApeXTo: ACCESS_DENIED");
+        require(PoolWeightMap[msg.sender].weight > 0, "spf.transferEsApeXTo: ACCESS_DENIED");
 
         emit TransferEsApeXTo(msg.sender, _to, _amount);
         IERC20(esApeX).transfer(_to, _amount);
@@ -175,30 +161,115 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         address _to,
         uint256 _amount
     ) external override {
-        require(PoolWeightMap[msg.sender].inUse, "spf.transferEsApeXFrom: ACCESS_DENIED");
+        require(PoolWeightMap[msg.sender].weight > 0, "spf.transferEsApeXFrom: ACCESS_DENIED");
 
         emit TransferEsApeXFrom(_from, _to, _amount);
         IERC20(esApeX).transferFrom(_from, _to, _amount);
     }
 
     function burnEsApeX(address from, uint256 amount) external override {
-        require(PoolWeightMap[msg.sender].inUse, "spf.burnEsApeX: ACCESS_DENIED");
+        require(PoolWeightMap[msg.sender].weight > 0, "spf.burnEsApeX: ACCESS_DENIED");
         IERC20Extend(esApeX).burn(from, amount);
     }
 
     function mintEsApeX(address to, uint256 amount) external override {
-        require(PoolWeightMap[msg.sender].inUse, "spf.mintEsApeX: ACCESS_DENIED");
+        require(PoolWeightMap[msg.sender].weight > 0, "spf.mintEsApeX: ACCESS_DENIED");
         IERC20Extend(esApeX).mint(to, amount);
     }
 
     function burnVeApeX(address from, uint256 amount) external override {
-        require(PoolWeightMap[msg.sender].inUse, "spf.burnVeApeX: ACCESS_DENIED");
+        require(PoolWeightMap[msg.sender].weight > 0, "spf.burnVeApeX: ACCESS_DENIED");
         IERC20Extend(veApeX).burn(from, amount);
     }
 
     function mintVeApeX(address to, uint256 amount) external override {
-        require(PoolWeightMap[msg.sender].inUse, "spf.mintVeApeX: ACCESS_DENIED");
+        require(PoolWeightMap[msg.sender].weight > 0, "spf.mintVeApeX: ACCESS_DENIED");
         IERC20Extend(veApeX).mint(to, amount);
+    }
+
+    function calPendingFactoryReward() external view override returns (uint256 reward) {
+        return _calPendingFactoryReward();
+    }
+
+    function calLatestPriceOfWeight() external view override returns (uint256) {
+        return priceOfWeight + ((_calPendingFactoryReward() * tenK) / totalWeight);
+    }
+
+    function calStakingPoolApeXReward(address token)
+        external
+        view
+        override
+        returns (uint256 reward, uint256 newPriceOfWeight)
+    {
+        address pool = tokenPoolMap[token];
+        return _calStakingPoolApeXReward(pool);
+    }
+
+    function shouldUpdateRatio() external view override returns (bool) {
+        uint256 currentTimestamp = block.timestamp;
+        return currentTimestamp > endTimestamp ? false : currentTimestamp >= lastUpdateTimestamp + secSpanPerUpdate;
+    }
+
+    function _registerPool(
+        address _pool,
+        address _poolToken,
+        uint256 _weight
+    ) internal {
+        require(PoolWeightMap[_pool].weight == 0, "spf.registerPool: POOL_REGISTERED");
+        require(tokenPoolMap[_poolToken] == address(0), "spf.registerPool: POOL_TOKEN_REGISTERED");
+
+        if (totalWeight != 0) {
+            priceOfWeight += ((_calPendingFactoryReward() * tenK) / totalWeight);
+            lastTimeUpdatePriceOfWeight = block.timestamp;
+        }
+
+        tokenPoolMap[_poolToken] = _pool;
+        PoolWeightMap[_pool] = PoolWeight({
+            weight: _weight,
+            lastYieldPriceOfWeight: priceOfWeight,
+            exitYieldPriceOfWeight: 0
+        });
+        totalWeight += _weight;
+
+        emit PoolRegistered(msg.sender, _poolToken, _pool, _weight);
+    }
+
+    function _calPendingFactoryReward() internal view returns (uint256 reward) {
+        uint256 currentTimestamp = block.timestamp;
+        uint256 secPassed = currentTimestamp > endTimestamp
+            ? endTimestamp - lastTimeUpdatePriceOfWeight
+            : currentTimestamp - lastTimeUpdatePriceOfWeight;
+        reward = secPassed * apeXPerSec;
+    }
+
+    function _calStakingPoolApeXReward(address pool) internal view returns (uint256 reward, uint256 newPriceOfWeight) {
+        require(pool != address(0), "spf._calStakingPoolApeXReward: INVALID_TOKEN");
+        PoolWeight memory pw = PoolWeightMap[pool];
+        if (pw.exitYieldPriceOfWeight > 0) {
+            newPriceOfWeight = pw.exitYieldPriceOfWeight;
+            reward = (pw.weight * (pw.exitYieldPriceOfWeight - pw.lastYieldPriceOfWeight)) / tenK;
+            return (reward, newPriceOfWeight);
+        }
+        newPriceOfWeight = priceOfWeight;
+        if (totalWeight > 0) {
+            newPriceOfWeight += ((_calPendingFactoryReward() * tenK) / totalWeight);
+        }
+
+        reward = (pw.weight * (newPriceOfWeight - pw.lastYieldPriceOfWeight)) / tenK;
+    }
+
+    function setEsApeX(address _esApeX) external override onlyOwner {
+        require(esApeX == address(0), "spf.setEsApeX: INVALID_ADDRESS");
+        esApeX = _esApeX;
+
+        emit SetEsApeX(_esApeX);
+    }
+
+    function setVeApeX(address _veApeX) external override onlyOwner {
+        require(veApeX == address(0), "spf.setVeApeX: INVALID_ADDRESS");
+        veApeX = _veApeX;
+
+        emit SetVeApeX(_veApeX);
     }
 
     function setLockTime(uint256 _lockTime) external onlyOwner {
@@ -215,64 +286,5 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
     function setRemainForOtherVest(uint256 _remainForOtherVest) external override onlyOwner {
         require(_remainForOtherVest <= 100, "spf.setRemainForOtherVest: INVALID_VALUE");
         remainForOtherVest = _remainForOtherVest;
-    }
-
-    function calPendingFactoryReward() public view returns (uint256 reward) {
-        uint256 currentTimestamp = block.timestamp;
-        uint256 secPassed = currentTimestamp > endTimestamp
-            ? endTimestamp - lastTimeUpdatePriceOfWeight
-            : currentTimestamp - lastTimeUpdatePriceOfWeight;
-        reward = secPassed * apeXPerSec;
-    }
-
-    function calPendingPriceOfWeight() external view returns (uint256) {
-        return priceOfWeight + ((calPendingFactoryReward() * tenK) / totalWeight);
-    }
-
-    function calStakingPoolApeXReward(address token)
-        external
-        view
-        override
-        returns (uint256 reward, uint256 newPriceOfWeight)
-    {
-        address pool = tokenPoolMap[token];
-        return _calStakingPoolApeXReward(pool);
-    }
-
-    function _calStakingPoolApeXReward(address pool) internal view returns (uint256 reward, uint256 newPriceOfWeight) {
-        require(pool != address(0), "spf._calStakingPoolApeXReward: INVALID_TOKEN");
-        newPriceOfWeight = priceOfWeight;
-        if (totalWeight > 0) {
-            newPriceOfWeight += ((calPendingFactoryReward() * tenK) / totalWeight);
-        }
-
-        reward = (PoolWeightMap[pool].weight * (newPriceOfWeight - PoolWeightMap[pool].lastYieldPriceOfWeight)) / tenK;
-    }
-
-    function syncYieldPriceOfWeight() external override returns (uint256) {
-        (uint256 reward, uint256 newPriceOfWeight) = _calStakingPoolApeXReward(msg.sender);
-        emit SyncYieldPriceOfWeight(PoolWeightMap[msg.sender].lastYieldPriceOfWeight, newPriceOfWeight);
-
-        PoolWeightMap[msg.sender].lastYieldPriceOfWeight = newPriceOfWeight;
-        return reward;
-    }
-
-    function shouldUpdateRatio() external view override returns (bool) {
-        uint256 currentTimestamp = block.timestamp;
-        return currentTimestamp > endTimestamp ? false : currentTimestamp >= lastUpdateTimestamp + secSpanPerUpdate;
-    }
-
-    function setEsApeX(address _esApeX) external override onlyOwner {
-        require(esApeX == address(0), "spf.setEsApeX: INVALID_ADDRESS");
-        esApeX = _esApeX;
-
-        emit SetEsApeX(_esApeX);
-    }
-
-    function setVeApeX(address _veApeX) external override onlyOwner {
-        require(veApeX == address(0), "spf.setVeApeX: INVALID_ADDRESS");
-        veApeX = _veApeX;
-
-        emit SetVeApeX(_veApeX);
     }
 }
