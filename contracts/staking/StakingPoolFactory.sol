@@ -82,7 +82,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         address poolToken = IApeXPool(_pool).poolToken();
         require(poolToken == apeX, "spf.registerApeXPool: MUST_APEX");
 
-        _registerPool(_pool, apeX, _weight);
+        _registerPool(_pool, poolToken, _weight);
     }
 
     function unregisterPool(address _pool) external override onlyOwner {

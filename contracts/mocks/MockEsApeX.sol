@@ -7,6 +7,6 @@ contract MockEsApeX is EsAPEX {
     constructor(address _stakingPoolFactory) EsAPEX(_stakingPoolFactory) {}
 
     function setFactory(address f) external {
-        stakingPoolFactory = f;
+        addWhitelist(f);
     }
 }
