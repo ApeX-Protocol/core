@@ -27,7 +27,7 @@ contract RewardForStaking is Reentrant, Ownable {
     receive() external payable {}
 
     function setSigner(address signer, bool state) external onlyOwner {
-        require(signer != address(0), "ZERO_ADDRESS");
+        require(signer != address(0), "RewardForStaking: ZERO_ADDRESS");
         signers[signer] = state;
         emit SetSigner(signer, state);
     }

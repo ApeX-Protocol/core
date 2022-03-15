@@ -56,8 +56,6 @@ contract FeeTreasury is Ownable {
         ISwapRouter v3Router_, 
         address USDC_,  
         address operator_, 
-        address rewardForStaking_,
-        address rewardForCashback_,
         uint256 nextSettleTime_
     ) {
         owner = msg.sender;
@@ -66,8 +64,6 @@ contract FeeTreasury is Ownable {
         WETH = v3Router.WETH9();
         USDC = USDC_;
         operator = operator_;
-        rewardForStaking = rewardForStaking_;
-        rewardForCashback = rewardForCashback_;
         nextSettleTime = nextSettleTime_;
         v3Fees[0] = 500;
         v3Fees[1] = 3000;
@@ -159,22 +155,30 @@ contract FeeTreasury is Ownable {
     }
 
     function distrbute() external check {
+        require(rewardForCashback != address(0), "NOT_FOUND_REWARD_FOR_CASHBACK");
         uint256 ethBalance = address(this).balance;
-        uint256 ethForStaking = ethBalance * ratioForStaking / 100;
-        uint256 ethForCashback = ethBalance - ethForStaking;
-        
         uint256 usdcBalance = IERC20(USDC).balanceOf(address(this));
-        uint256 usdcForStaking = usdcBalance * ratioForStaking / 100;
-        uint256 usdcForCashback = usdcBalance - usdcForStaking;
 
-        TransferHelper.safeTransferETH(rewardForStaking, ethForStaking);
-        TransferHelper.safeTransferETH(rewardForCashback, ethForCashback);
-        TransferHelper.safeTransfer(USDC, rewardForStaking, usdcForStaking);
-        TransferHelper.safeTransfer(USDC, rewardForCashback, usdcForCashback);
+        if (rewardForStaking == address(0)) {
+            TransferHelper.safeTransferETH(rewardForCashback, ethBalance);
+            TransferHelper.safeTransfer(USDC, rewardForCashback, usdcBalance);
+            emit DistrbuteToCashback(rewardForCashback, ethBalance, usdcBalance, block.timestamp);
+        } else {
+            uint256 ethForStaking = ethBalance * ratioForStaking / 100;
+            uint256 ethForCashback = ethBalance - ethForStaking;
+            
+            uint256 usdcForStaking = usdcBalance * ratioForStaking / 100;
+            uint256 usdcForCashback = usdcBalance - usdcForStaking;
+
+            TransferHelper.safeTransferETH(rewardForStaking, ethForStaking);
+            TransferHelper.safeTransferETH(rewardForCashback, ethForCashback);
+            TransferHelper.safeTransfer(USDC, rewardForStaking, usdcForStaking);
+            TransferHelper.safeTransfer(USDC, rewardForCashback, usdcForCashback);
+            
+            emit DistrbuteToStaking(rewardForStaking, ethForStaking, usdcForStaking, block.timestamp);
+            emit DistrbuteToCashback(rewardForCashback, ethForCashback, usdcForCashback, block.timestamp);
+        }
         
-        emit DistrbuteToStaking(rewardForStaking, ethForStaking, usdcForStaking, block.timestamp);
-        emit DistrbuteToCashback(rewardForCashback, ethForCashback, usdcForCashback, block.timestamp);
-
         nextSettleTime = nextSettleTime + settlementInterval;
     }
 }
