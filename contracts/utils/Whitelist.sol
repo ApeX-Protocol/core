@@ -6,12 +6,20 @@ import "./Ownable.sol";
 abstract contract Whitelist is Ownable {
     mapping(address => bool) public whitelist;
 
-    function addWhitelist(address account) public onlyOwner {
+    function _addWhitelist(address account) internal onlyOwner {
         whitelist[account] = true;
     }
 
-    function removeWhitelist(address account) external onlyOwner {
-        whitelist[account] = false;
+    function addManyWhitelist(address[] calldata accounts) external onlyOwner {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            whitelist[accounts[i]] = true;
+        }
+    }
+
+    function removeManyWhitelist(address[] calldata accounts) external onlyOwner {
+        for (uint256 i = 0; i < accounts.length; i++) {
+            whitelist[accounts[i]] = false;
+        }
     }
 
     modifier onlyWhitelist() {

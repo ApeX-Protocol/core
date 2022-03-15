@@ -28,7 +28,7 @@ describe("esApeX contract", function () {
     });
 
     it("can mint by whitelist operator who is added", async function () {
-      await esApeXToken.addWhitelist(owner.address);
+      await esApeXToken.addManyWhitelist([owner.address]);
       let oldBalance = (await esApeXToken.balanceOf(owner.address)).toNumber();
       await esApeXToken.mint(owner.address, 100);
       let newBalance = (await esApeXToken.balanceOf(owner.address)).toNumber();
@@ -36,7 +36,7 @@ describe("esApeX contract", function () {
     });
 
     it("revert when mint by non-whitelist operator who is removed", async function () {
-      await esApeXToken.removeWhitelist(addr1.address);
+      await esApeXToken.removeManyWhitelist([addr1.address]);
       await expect(esApeXToken.connect(addr1).mint(owner.address, 100)).to.be.revertedWith(
         "whitelist: NOT_IN_WHITELIST"
       );

@@ -87,6 +87,7 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
 
     function unregisterPool(address _pool) external override onlyOwner {
         require(PoolWeightMap[_pool].weight != 0, "spf.unregisterPool: POOL_NOT_REGISTERED");
+        require(PoolWeightMap[_pool].exitYieldPriceOfWeight == 0, "spf.unregisterPool: POOL_HAS_UNREGISTERED");
 
         priceOfWeight += ((_calPendingFactoryReward() * tenK) / totalWeight);
         lastTimeUpdatePriceOfWeight = block.timestamp;

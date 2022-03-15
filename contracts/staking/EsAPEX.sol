@@ -15,7 +15,7 @@ contract EsAPEX is IERC20, Whitelist {
 
     constructor(address _stakingPoolFactory) {
         owner = msg.sender;
-        addWhitelist(_stakingPoolFactory);
+        _addWhitelist(_stakingPoolFactory);
     }
 
     function mint(address to, uint256 value) external onlyWhitelist returns (bool) {
