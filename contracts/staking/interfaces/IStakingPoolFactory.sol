@@ -2,16 +2,17 @@
 pragma solidity ^0.8.0;
 
 interface IStakingPoolFactory {
-    struct PoolInfo {
-        address pool;
+    struct PoolWeight {
         uint256 weight;
+        uint256 lastYieldPriceOfWeight; //multiplied by 10000
+        uint256 exitYieldPriceOfWeight;
     }
 
     event WeightUpdated(address indexed by, address indexed pool, uint256 weight);
 
     event PoolRegistered(address indexed by, address indexed poolToken, address indexed pool, uint256 weight);
 
-    event PoolUnRegistered(address indexed by, address indexed poolToken, address indexed pool);
+    event PoolUnRegistered(address indexed by, address indexed pool);
 
     event SetYieldLockTime(uint256 yieldLockTime);
 
@@ -30,6 +31,8 @@ interface IStakingPoolFactory {
     event SetVeApeX(address veApeX);
 
     event SetStakingPoolTemplate(address oldTemplate, address newTemplate);
+
+    event SyncYieldPriceOfWeight(uint256 oldYieldPriceOfWeight, uint256 newYieldPriceOfWeight);
 
     function apeX() external view returns (address);
 
@@ -59,35 +62,27 @@ interface IStakingPoolFactory {
 
     function remainForOtherVest() external view returns (uint256);
 
-    /// @notice get stakingPool's poolToken
-    function poolTokenMap(address pool) external view returns (address);
-
-    /// @notice get stakingPool's address of poolToken
-    /// @param poolToken staked token.
-    function getPoolAddress(address poolToken) external view returns (address);
-
     /// @notice check if can update reward ratio
     function shouldUpdateRatio() external view returns (bool);
 
-    /// @notice calculate yield reward of poolToken since lastYieldDistribution
-    /// @param poolToken staked token.
-    function calStakingPoolApeXReward(uint256 lastYieldDistribution, address poolToken)
-        external
-        view
-        returns (uint256 reward);
+    /// @notice calculate yield reward of poolToken since lastYieldPriceOfWeight
+    function calStakingPoolApeXReward(address token) external view returns (uint256 reward, uint256 newPriceOfWeight);
+
+    function calPendingFactoryReward() external view returns (uint256 reward);
+
+    function calLatestPriceOfWeight() external view returns (uint256);
+
+    function syncYieldPriceOfWeight() external returns (uint256 reward);
 
     /// @notice update yield reward rate
     function updateApeXPerSec() external;
 
+    function setStakingPoolTemplate(address _template) external;
+
     /// @notice create a new stakingPool
     /// @param poolToken stakingPool staked token.
-    /// @param initBlock when to yield reward.
     /// @param weight new pool's weight between all other stakingPools.
-    function createPool(
-        address poolToken,
-        uint256 initBlock,
-        uint256 weight
-    ) external;
+    function createPool(address poolToken, uint256 weight) external;
 
     /// @notice register apeX pool to factory
     /// @param pool the exist pool.

@@ -44,7 +44,7 @@ describe("stakingPool contract", function () {
       endTimestamp,
       lockTime,
     ]);
-    apeXPool = await ApeXPool.deploy(stakingPoolFactory.address, apeXToken.address, initTimestamp);
+    apeXPool = await ApeXPool.deploy(stakingPoolFactory.address, apeXToken.address);
     esApeXToken = await MockEsApeX.deploy(stakingPoolFactory.address);
     veApeXToken = await VeAPEX.deploy(stakingPoolFactory.address);
 
@@ -54,19 +54,19 @@ describe("stakingPool contract", function () {
     await stakingPoolFactory.setStakingPoolTemplate(stakingPoolTemplate.address);
 
     await stakingPoolFactory.registerApeXPool(apeXPool.address, 21);
-    await stakingPoolFactory.createPool(slpToken.address, initTimestamp, 79);
-    slpStakingPool = StakingPoolTemplate.attach((await stakingPoolFactory.pools(slpToken.address))[0]);
+    await stakingPoolFactory.createPool(slpToken.address, 79);
+    slpStakingPool = StakingPoolTemplate.attach(await stakingPoolFactory.tokenPoolMap(slpToken.address));
 
     await apeXToken.mint(owner.address, 100_0000);
     await apeXToken.approve(apeXPool.address, 100_0000);
+    await apeXToken.mint(stakingPoolFactory.address, 100_0000_0000);
+    await slpToken.mint(owner.address, 100_0000);
+    await slpToken.approve(slpStakingPool.address, 100_0000);
+
     await esApeXToken.setFactory(owner.address);
     await esApeXToken.mint(owner.address, 100_0000);
     await esApeXToken.setFactory(stakingPoolFactory.address);
     await esApeXToken.approve(stakingPoolFactory.address, 100_0000);
-
-    await apeXToken.mint(stakingPoolFactory.address, 1000_0000);
-    await slpToken.mint(owner.address, 100_0000);
-    await slpToken.approve(slpStakingPool.address, 100_0000);
   });
 
   describe("stake", function () {
@@ -138,7 +138,7 @@ describe("stakingPool contract", function () {
       await network.provider.send("evm_mine");
       await apeXPool.processRewards();
       let amount = (await esApeXToken.balanceOf(owner.address)).toNumber();
-      await esApeXToken.approve(stakingPoolFactory.address, 10000000);
+      await esApeXToken.approve(stakingPoolFactory.address, 1000000000000);
 
       await apeXPool.vest(amount);
       await network.provider.send("evm_mine");
@@ -323,13 +323,19 @@ describe("stakingPool contract", function () {
 
     it("query pendingYieldRewards", async function () {
       let oldPricePerWeight = (await slpStakingPool.yieldRewardsPerWeight()).toNumber();
-      let oldLastYieldDistribution = (await slpStakingPool.lastYieldDistribution()).toNumber();
+
+      let result = await stakingPoolFactory.PoolWeightMap(slpStakingPool.address);
+      let oldLastYieldPriceOfWeight = result.lastYieldPriceOfWeight.toNumber();
+
       await network.provider.send("evm_mine");
       await slpStakingPool.syncWeightPrice();
       let newPricePerWeight = (await slpStakingPool.yieldRewardsPerWeight()).toNumber();
-      let newLastYieldDistribution = (await slpStakingPool.lastYieldDistribution()).toNumber();
+
+      result = await stakingPoolFactory.PoolWeightMap(slpStakingPool.address);
+      let newLastYieldPriceOfWeight = result.lastYieldPriceOfWeight.toNumber();
+
       expect(newPricePerWeight).to.greaterThan(oldPricePerWeight);
-      expect(newLastYieldDistribution).to.greaterThan(oldLastYieldDistribution);
+      expect(newLastYieldPriceOfWeight).to.greaterThan(oldLastYieldPriceOfWeight);
     });
   });
 
