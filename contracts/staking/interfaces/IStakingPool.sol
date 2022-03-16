@@ -20,7 +20,7 @@ interface IStakingPool {
 
     event Staked(address indexed to, uint256 depositId, uint256 amount, uint256 lockFrom, uint256 lockUntil);
 
-    event Synchronized(address indexed by, uint256 yieldRewardsPerWeight, uint256 lastYieldDistribution);
+    event Synchronized(address indexed by, uint256 yieldRewardsPerWeight);
 
     event UpdateStakeLock(address indexed by, uint256 depositId, uint256 lockFrom, uint256 lockUntil);
 
@@ -40,11 +40,7 @@ interface IStakingPool {
 
     function getDepositsLength(address _user) external view returns (uint256);
 
-    function initialize(
-        address _factory,
-        address _poolToken,
-        uint256 _initTimestamp
-    ) external;
+    function initialize(address _factory, address _poolToken) external;
 
     /// @notice Process yield reward (esApeX) of msg.sender
     function processRewards() external;
