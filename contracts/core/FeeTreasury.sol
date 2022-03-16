@@ -17,13 +17,13 @@ contract FeeTreasury is Ownable {
     event RewardForCashbackChanged(address indexed oldReward, address indexed newReward);
     event OperatorChanged(address indexed oldOperator, address indexed newOperator);
     event SettlementIntervalChanged(uint256 oldInterval, uint256 newInterval);
-    event DistrbuteToStaking(
+    event DistributeToStaking(
         address indexed rewardForStaking,
         uint256 ethAmount, 
         uint256 usdcAmount,
         uint256 timestamp
     );
-    event DistrbuteToCashback(
+    event DistributeToCashback(
         address indexed rewardForCashback, 
         uint256 ethAmount, 
         uint256 usdcAmount,
@@ -107,7 +107,14 @@ contract FeeTreasury is Ownable {
     function batchRemoveLiquidity(address[] memory amms) external check {
         for (uint256 i = 0; i < amms.length; i++) {
             address amm = amms[i];
+            // first burn to remove liquidity before
             uint256 liquidity = IERC20(amm).balanceOf(address(this));
+            if (liquidity == 0) continue;
+            TransferHelper.safeTransfer(amm, amm, liquidity);
+            IAmm(amm).burn(address(this));
+            // after first burn could be minted more liquidity in this address
+            // so make a second burn 
+            liquidity = IERC20(amm).balanceOf(address(this));
             if (liquidity == 0) continue;
             TransferHelper.safeTransfer(amm, amm, liquidity);
             IAmm(amm).burn(address(this));
@@ -154,15 +161,15 @@ contract FeeTreasury is Ownable {
         if (wethBalance > 0) IWETH(WETH).withdraw(wethBalance);
     }
 
-    function distrbute() external check {
+    function distribute() external check {
         require(rewardForCashback != address(0), "NOT_FOUND_REWARD_FOR_CASHBACK");
         uint256 ethBalance = address(this).balance;
         uint256 usdcBalance = IERC20(USDC).balanceOf(address(this));
 
         if (rewardForStaking == address(0)) {
-            TransferHelper.safeTransferETH(rewardForCashback, ethBalance);
-            TransferHelper.safeTransfer(USDC, rewardForCashback, usdcBalance);
-            emit DistrbuteToCashback(rewardForCashback, ethBalance, usdcBalance, block.timestamp);
+            if (ethBalance > 0) TransferHelper.safeTransferETH(rewardForCashback, ethBalance);
+            if (usdcBalance > 0) TransferHelper.safeTransfer(USDC, rewardForCashback, usdcBalance);
+            emit DistributeToCashback(rewardForCashback, ethBalance, usdcBalance, block.timestamp);
         } else {
             uint256 ethForStaking = ethBalance * ratioForStaking / 100;
             uint256 ethForCashback = ethBalance - ethForStaking;
@@ -170,13 +177,13 @@ contract FeeTreasury is Ownable {
             uint256 usdcForStaking = usdcBalance * ratioForStaking / 100;
             uint256 usdcForCashback = usdcBalance - usdcForStaking;
 
-            TransferHelper.safeTransferETH(rewardForStaking, ethForStaking);
-            TransferHelper.safeTransferETH(rewardForCashback, ethForCashback);
-            TransferHelper.safeTransfer(USDC, rewardForStaking, usdcForStaking);
-            TransferHelper.safeTransfer(USDC, rewardForCashback, usdcForCashback);
+            if (ethForStaking > 0) TransferHelper.safeTransferETH(rewardForStaking, ethForStaking);
+            if (ethForCashback > 0) TransferHelper.safeTransferETH(rewardForCashback, ethForCashback);
+            if (usdcForStaking > 0) TransferHelper.safeTransfer(USDC, rewardForStaking, usdcForStaking);
+            if (usdcForCashback > 0) TransferHelper.safeTransfer(USDC, rewardForCashback, usdcForCashback);
             
-            emit DistrbuteToStaking(rewardForStaking, ethForStaking, usdcForStaking, block.timestamp);
-            emit DistrbuteToCashback(rewardForCashback, ethForCashback, usdcForCashback, block.timestamp);
+            emit DistributeToStaking(rewardForStaking, ethForStaking, usdcForStaking, block.timestamp);
+            emit DistributeToCashback(rewardForCashback, ethForCashback, usdcForCashback, block.timestamp);
         }
         
         nextSettleTime = nextSettleTime + settlementInterval;
