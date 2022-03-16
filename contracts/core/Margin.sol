@@ -672,7 +672,7 @@ contract Margin is IMargin, IVault, Reentrant {
             debtRatio = 10000;
         } else if (quoteSize > 0) {
             uint256 quoteAmount = quoteSize.abs();
-            //simulate to close short, markPriceAcc bigger, asset undervalue
+            // simulate closing short, markPriceAcc bigger, asset undervalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
@@ -684,8 +684,7 @@ contract Margin is IMargin, IVault, Reentrant {
         } else {
             uint256 quoteAmount = quoteSize.abs();
 
-            //simulate closing long, markPriceAcc smaller, debt overvalue
-            
+            // simulate closing long, markPriceAcc smaller, debt overvalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
