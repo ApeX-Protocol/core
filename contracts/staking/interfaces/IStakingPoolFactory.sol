@@ -34,6 +34,8 @@ interface IStakingPoolFactory {
 
     event SyncYieldPriceOfWeight(uint256 oldYieldPriceOfWeight, uint256 newYieldPriceOfWeight);
 
+    event WithdrawApeX(address to, uint256 amount);
+
     function apeX() external view returns (address);
 
     function esApeX() external view returns (address);
@@ -98,6 +100,8 @@ interface IStakingPoolFactory {
     function transferYieldTo(address to, uint256 amount) external;
 
     function transferYieldToTreasury(uint256 amount) external;
+
+    function withdrawApeX(address to, uint256 amount) external;
 
     /// @notice change a pool's weight
     /// @param poolAddr the pool.
