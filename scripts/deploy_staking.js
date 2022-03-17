@@ -1,7 +1,26 @@
 const { ethers, upgrades } = require("hardhat");
 const { BigNumber } = require("@ethersproject/bignumber");
+const verifyStr = "npx hardhat verify --network";
 
-let signer;
+//// ArbitrumOne
+const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
+const treasuryAddress = ""; // PCVTreasury address
+const slpTokenAddress = ""; // APEX-WETH slp
+//// Testnet
+const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
+const treasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06"; // PCVTreasury address
+const slpTokenAddress = "0x473BfBD8bda825f7E39e4Fa826D9a8B5129cE4E7"; // APEX-WETH slp
+
+const apeXPerSec = BigNumber.from("82028346620490110");
+const secSpanPerUpdate = 14 * 24 * 3600; //two weeks
+const initTimestamp = Math.round(new Date().getTime() / 1000);
+const endTimestamp = initTimestamp + 365 * 24 * 3600; //one year after init time
+const sixMonth = 180 * 24 * 3600;
+const apeXPoolWeight = 21;
+const slpPoolWeight = 79;
+const remainForOtherVest = 50;
+const minRemainRatioAfterBurn = 6000;
+
 let esApeX;
 let veApeX;
 let apeXPool;
@@ -9,47 +28,11 @@ let slpPool;
 let stakingPoolTemplate;
 let stakingPoolFactory;
 
-let apeXTokenAddress = "0x851356ae760d987E095750cCeb3bC6014560891C";
-let slpTokenAddress = "0xf5059a5D33d5853360D16C683c16e67980206f36";
-let stakingPoolFactoryAddress = "0xAA292E8611aDF267e563f334Ee42320aC96D0463";
-let apeXPoolAddress = "0x720472c8ce72c2A2D711333e064ABD3E6BbEAdd3";
-let slpPoolAddress = "0x74fcA3bE84BBd0bAE9C973Ca2d16821FEa867fE8";
-let esApeXAddress = "0xe8D2A1E88c91DCd5433208d4152Cc4F399a7e91d";
-let veApeXAddress = "0x5067457698Fd6Fa1C6964e416b3f42713513B3dD";
-
-let treasury = "0xba5129359491007F82C79C4e1f322B6341C28D8F";
-const apeXAmountForStaking = BigNumber.from("3000000000000000000000000");
-let apeXPerSec = BigNumber.from("82028346620490110");
-let secSpanPerUpdate = 1209600; //two weeks
-let initTimestamp = 1641781192;
-let endTimestamp = 1673288342; //one year after init time
-let apeXPoolWeight = 21;
-let slpPoolWeight = 79;
-let sixMonth = 15552000;
-let remainForOtherVest = 50;
-let minRemainRatioAfterBurn = 6000;
-
 const main = async () => {
-  // await mockTokens();
-  // await createContracts();
-  await flow();
+  await createContracts();
 };
 
-async function mockTokens() {
-  [signer] = await hre.ethers.getSigners();
-  const MockToken = await ethers.getContractFactory("MockToken");
-  let apeXToken = await MockToken.deploy("apeX Token", "apeX");
-  console.log(`let apeXTokenAddress = "${apeXToken.address}"`);
-
-  let slpToken = await MockToken.deploy("slp token", "slp");
-  console.log(`let slpTokenAddress = "${slpToken.address}"`);
-
-  await apeXToken.mint(signer.address, 10000);
-  console.log((await apeXToken.balanceOf(signer.address)).toNumber());
-}
-
 async function createContracts() {
-  [signer] = await hre.ethers.getSigners();
   const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
   const StakingPool = await ethers.getContractFactory("StakingPool");
   const ApeXPool = await ethers.getContractFactory("ApeXPool");
@@ -57,19 +40,34 @@ async function createContracts() {
   const VeAPEX = await ethers.getContractFactory("VeAPEX");
 
   stakingPoolTemplate = await StakingPool.deploy();
+  console.log("stakingPoolTemplate:", stakingPoolTemplate.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolTemplate.address);
+
   stakingPoolFactory = await StakingPoolFactory.deploy();
+  console.log("StakingPoolFactory:", stakingPoolFactory.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
+
   await stakingPoolFactory.initialize(
-    apeXTokenAddress,
-    treasury,
+    apeXAddress,
+    treasuryAddress,
     apeXPerSec,
     secSpanPerUpdate,
     initTimestamp,
     endTimestamp,
     sixMonth
   );
-  apeXPool = await ApeXPool.deploy(stakingPoolFactory.address, apeXTokenAddress);
+
+  apeXPool = await ApeXPool.deploy(stakingPoolFactory.address, apeXAddress);
+  console.log("ApeXPool:", apeXPool.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, apeXPool.address, stakingPoolFactory.address, apeXAddress);
+
   esApeX = await EsAPEX.deploy(stakingPoolFactory.address);
+  console.log("EsAPEX:", esApeX.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, esApeX.address, stakingPoolFactory.address);
+
   veApeX = await VeAPEX.deploy(stakingPoolFactory.address);
+  console.log("VeAPEX:", veApeX.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, veApeX.address, stakingPoolFactory.address);
 
   await stakingPoolFactory.setRemainForOtherVest(remainForOtherVest);
   await stakingPoolFactory.setMinRemainRatioAfterBurn(minRemainRatioAfterBurn);
@@ -78,47 +76,10 @@ async function createContracts() {
   await stakingPoolFactory.setStakingPoolTemplate(stakingPoolTemplate.address);
 
   await stakingPoolFactory.registerApeXPool(apeXPool.address, apeXPoolWeight);
+
   await stakingPoolFactory.createPool(slpTokenAddress, slpPoolWeight);
   slpPool = StakingPool.attach(await stakingPoolFactory.tokenPoolMap(slpTokenAddress));
-
-  console.log(`let stakingPoolFactoryAddress = "${stakingPoolFactory.address}"`);
-  console.log(`let apeXPoolAddress = "${apeXPool.address}"`);
-  console.log(`let slpPoolAddress = "${slpPool.address}"`);
-  console.log(`let esApeXAddress = "${esApeX.address}"`);
-  console.log(`let veApeXAddress = "${veApeX.address}"`);
-}
-
-async function flow() {
-  [signer] = await hre.ethers.getSigners();
-  const MockToken = await ethers.getContractFactory("MockToken");
-  const EsAPEX = await ethers.getContractFactory("EsAPEX");
-  const VeAPEX = await ethers.getContractFactory("VeAPEX");
-  const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
-  const StakingPool = await ethers.getContractFactory("StakingPool");
-
-  stakingPoolFactory = StakingPoolFactory.attach(stakingPoolFactoryAddress);
-  apeXPool = StakingPool.attach(apeXPoolAddress);
-  slpPool = StakingPool.attach(slpPoolAddress);
-
-  apeXToken = MockToken.attach(apeXTokenAddress);
-  slpToken = MockToken.attach(slpTokenAddress);
-
-  esApeX = EsAPEX.attach(esApeXAddress);
-  veApeX = VeAPEX.attach(veApeXAddress);
-
-  await apeXToken.mint(stakingPoolFactory.address, apeXAmountForStaking);
-  await slpToken.mint(signer.address, 1000000000000);
-  await slpToken.approve(slpPool.address, 1000000000000);
-  await apeXToken.mint(signer.address, 10000);
-  await apeXToken.approve(apeXPool.address, 10000);
-
-  console.log("before claim: ", (await esApeX.balanceOf(signer.address)).toString());
-  await slpPool.stake(10000, 0);
-  await slpPool.processRewards();
-  await stakingPoolFactory.changePoolWeight(apeXPool.address, 22);
-  await apeXPool.stake(10000, 0);
-  await apeXPool.processRewards();
-  console.log("after claim: ", (await esApeX.balanceOf(signer.address)).toString());
+  console.log("slpPool:", slpPool.address);
 }
 
 main()
