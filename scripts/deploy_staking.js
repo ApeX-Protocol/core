@@ -3,9 +3,9 @@ const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
 //// ArbitrumOne
-const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
-const treasuryAddress = ""; // PCVTreasury address
-const slpTokenAddress = ""; // APEX-WETH slp
+// const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
+// const treasuryAddress = ""; // PCVTreasury address
+// const slpTokenAddress = ""; // APEX-WETH slp
 //// Testnet
 const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
 const treasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06"; // PCVTreasury address
@@ -44,9 +44,6 @@ async function createContracts() {
   console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolTemplate.address);
 
   stakingPoolFactory = await StakingPoolFactory.deploy();
-  console.log("StakingPoolFactory:", stakingPoolFactory.address);
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
-
   await stakingPoolFactory.initialize(
     apeXAddress,
     treasuryAddress,
@@ -56,6 +53,19 @@ async function createContracts() {
     endTimestamp,
     sixMonth
   );
+  console.log("StakingPoolFactory:", stakingPoolFactory.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
+
+  stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
+    apeXAddress,
+    treasuryAddress,
+    apeXPerSec,
+    secSpanPerUpdate,
+    initTimestamp,
+    endTimestamp,
+    sixMonth,
+  ]);
+  console.log("StakingPoolFactory:", stakingPoolFactory.address);
 
   apeXPool = await ApeXPool.deploy(stakingPoolFactory.address, apeXAddress);
   console.log("ApeXPool:", apeXPool.address);
