@@ -63,12 +63,12 @@ contract EsAPEX is IERC20, Whitelist {
     }
 
     function _approve(
-        address owner,
+        address _owner,
         address spender,
         uint256 value
     ) private {
-        allowance[owner][spender] = value;
-        emit Approval(owner, spender, value);
+        allowance[_owner][spender] = value;
+        emit Approval(_owner, spender, value);
     }
 
     function _transfer(
