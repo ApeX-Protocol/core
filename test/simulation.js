@@ -20,11 +20,13 @@ describe("Simulations", function () {
   let ammAddress;
   let amm;
   let provider = ethers.provider;
-  let beta = 70;
+  let beta = 50;
   let leverage = 10;
+  let arbThreshold = 1005;
+  const ARB_MULTIPLIER = 1000;
 
   const tokenQuantity = ethers.utils.parseUnits("250000", "ether");
-  const baseLiquidity = ethers.utils.parseUnits("1000", "ether");
+  const baseLiquidity = ethers.utils.parseUnits("500", "ether");
   const infDeadline = "9999999999";
 
   // normal distribution needed for geometric brownian motion of price in
@@ -95,29 +97,50 @@ describe("Simulations", function () {
       await baseToken.connect(alice).approve(router.address, tokenQuantity);
       await baseToken.mint(bob.address, tokenQuantity);
       await baseToken.connect(bob).approve(router.address, tokenQuantity);
-      // get the price out of the 112x112 format & display with 18 decimal accuracy
-      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("20", "ether"), ethers.utils.parseUnits("20000", "ether"), 1, infDeadline);
 
-      // NOT LIQUIDATABLE await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("4000", "ether"), ethers.utils.parseUnits("8000", "ether"), infDeadline);
-      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("4000", "ether"),  ethers.utils.parseUnits("8000", "ether"), infDeadline);
-      // check that trader position exists
-      let position = await margin.getPosition(alice.address);
+      let reserves = await amm.getReserves();
+      let ammXpreTrade = reserves[0];
+      console.log("ammXpreTrade: ", ammXpreTrade.toString());
 
-      await margin.liquidate(alice.address);
+      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("20000", "ether"), 1, infDeadline);
+
+      reserves = await amm.getReserves();
+      let ammXpostTrade = reserves[0];
+      console.log("ammXpostTrade: ", ammXpostTrade.toString());
+      let baseAmount = ammXpreTrade.sub(ammXpostTrade);
+      // let originalBaseAmount = baseAmount.add(marginAmount);
+
+      console.log(baseAmount.toString());
+      // console.log(originalBaseAmount);
+
+      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("100", "ether"), ethers.utils.parseUnits("10000", "ether"), ethers.utils.parseUnits("100000", "ether"), infDeadline);
+
+      reserves = await amm.getReserves();
+      let ammXpreLiq = reserves[0];
+
+      console.log("ammXpreLiq: ", ammXpreLiq.toString());
+      //let position = await margin.getPosition(alice.address);
+      //console.log(position[1].toString());
+
+      await margin.liquidate(alice.address, owner.address);
+
+      reserves = await amm.getReserves();
+      let ammXpostLiq = reserves[0];
+      console.log("ammXpostLiq: " + ammXpostLiq.toString());
+      let pnl = ammXpostLiq.sub(ammXpreLiq);
+      console.log(pnl.toString());
+
+      position = await margin.getPosition(alice.address);
+      console.log(position[1].toString());
+      console.log(baseAmount.sub(pnl).toString());
+
       // check that alice's position has been liquidated
+      expect(position[2].isZero()).to.be.true;
+
       await router.connect(bob).closePosition(baseToken.address, quoteToken.address, 10000, infDeadline, true);
     });
   });
 
-  // TODO consider if this function is necessary
-  function getMarginAcc(quoteAmount, vUSD, marketPrice) {
-    let v1 = 2 * beta / vUSD;
-    let v2 = 1 / ((1 / quoteAmount - v1) * marketPrice * 10);
-    return v2.abs();
-  }
-
-  // TODO in order to set price via price oracle, change reserves in price oracle for test
-  // TODO what is the price that I'm starting with effectively
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       let simSteps = 750;
@@ -164,9 +187,20 @@ describe("Simulations", function () {
         lastPrice = lastPrice * Math.exp((mu - sig*sig / 2) * 0.02 + sig * randn_bm());
         await priceOracle.setReserve(baseToken.address, quoteToken.address, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits(Math.floor(lastPrice * 1000000000000).toString(), 6));
         let price = await priceOracle.getIndexPrice(ammAddress);
+
         let reserves = await amm.getReserves();
-        // get the price out of the 112x112 format & display with 18 decimal accuracy
         let lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+
+        // arbitrageur gets opportunity to take his trade (should change arb trade sizes? TODO)
+        if (lastPriceAmm * ARB_MULTIPLIER / price > arbThreshold) {
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("2500", "ether"), ethers.utils.parseUnits("1000000", "ether"), infDeadline);
+        } else if (price * ARB_MULTIPLIER / lastPriceAmm > arbThreshold) {
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("2500", "ether"), 1, infDeadline);
+        }
+
+        reserves = await amm.getReserves();
+        lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+
         // consider that a trade occurs whenever S is negative, this happens
         // roughly 10% of the time w/ delta = 0.3, w/ delta = 0.2 it's 1.5% of
         // the time
@@ -180,7 +214,7 @@ describe("Simulations", function () {
           await baseToken.connect(trader).approve(router.address, tokenQuantity);
 
           let side;
-          let quoteAmount = ethers.utils.parseUnits("10000", "ether");
+          let quoteAmount = ethers.utils.parseUnits("5000", "ether");
           let marginAmount = quoteAmount.mul(ethers.utils.parseUnits("1", "ether")).div(lastPriceAmm).div(10);
           let reserves = await amm.getReserves();
           let ammXpreTrade = reserves[0];
@@ -211,28 +245,6 @@ describe("Simulations", function () {
         }
 
         logger.write(price + ", " + lastPriceAmm);
-
-        // TODO this rebase does the opposite of what I'd expect, it rebases in the other direction
-        /*
-        if (lastPriceAmm * 100 / price > 110 || price * 100 / lastPriceAmm > 110) {
-          try {
-            await amm.rebase();
-            let raw = await amm.lastPrice();
-            // get the price out of the 112x112 format & display with 18 decimal accuracy
-            let lastPriceAmm = raw.div("5192296858534816");
-            console.log("post rebase: " + lastPriceAmm.toString());
-          } catch(e) {
-          }
-        }
-        */
-
-        // arbitrageur gets opportunity to take his trade (should change arb trade sizes? TODO)
-        let arbThreshold = 101;
-        if (lastPriceAmm * 100 / price > arbThreshold) {
-            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("5000", "ether"), ethers.utils.parseUnits("1000000", "ether"), infDeadline);
-        } else if (price * 100 / lastPriceAmm > arbThreshold) {
-            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("5000", "ether"), 1, infDeadline);
-        }
 
         reserves = await amm.getReserves();
         // get the price out of the 112x112 format & display with 18 decimal accuracy
