@@ -20,7 +20,7 @@ describe("Simulations", function () {
   let ammAddress;
   let amm;
   let provider = ethers.provider;
-  let beta = 50;
+  let beta = 125;
   let leverage = 10;
   let arbThreshold = 1005;
   const ARB_MULTIPLIER = 1000;
@@ -92,7 +92,7 @@ describe("Simulations", function () {
     await config.setLiquidateFeeRatio(1);
   });
 
-  describe("check pool pnl given beta", function () {
+  describe.skip("check pool pnl given beta", function () {
     it("liquidates a long position properly", async function () {
       await baseToken.mint(alice.address, tokenQuantity);
       await baseToken.connect(alice).approve(router.address, tokenQuantity);
@@ -141,9 +141,9 @@ describe("Simulations", function () {
       let fundingFee = await margin.calFundingFee(alice.address);
       console.log("funding fee: " + fundingFee.toString());
 
-      let amounts = await amm.estimateSwap(quoteToken.address, baseToken.address, quoteAmount, 0);
-      let outputAmount = amounts[1];
-      console.log(outputAmount.toString());
+      let amounts = await amm.estimateSwap(baseToken.address, quoteToken.address, 0, quoteAmount);
+      let inputAmount = amounts[0];
+      console.log(inputAmount.toString());
 
       await margin.liquidate(alice.address, owner.address);
 
@@ -157,22 +157,8 @@ describe("Simulations", function () {
       console.log("diff: " + ammXpostLiq.sub(ammXpreLiq));
       console.log("k: ", ammYpostLiq.mul(ammXpostLiq).toString());
 
-      let pnl = ammXpostLiq.sub(ammXpreLiq).sub(outputAmount)
+      let pnl = ammXpostLiq.sub(ammXpreLiq).sub(inputAmount)
       console.log("pnl: " + pnl.toString());
-
-      for (let x = 0; x < tenk; x++) {
-        await router.connect(bob).closePosition(baseToken.address, quoteToken.address, ethers.utils.parseUnits("10000", "ether"), infDeadline, true);
-      }
-
-      reserves = await amm.getReserves();
-      let ammXpostClose = reserves[0];
-      let ammYpostClose = reserves[1];
-      console.log("ammXpostClose: " + ammXpostClose.toString());
-      console.log("ammYpostClose: " + ammYpostClose.toString());
-      lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
-      console.log("price after bob closes his long: " + lastPriceAmm.toString());
-
-      console.log("real pnl: " + ammXpostClose.sub(ammXpreTrade).toString());
     });
 
     it("liquidates a short position properly", async function () {
@@ -223,9 +209,9 @@ describe("Simulations", function () {
       let fundingFee = await margin.calFundingFee(alice.address);
       console.log("funding fee: " + fundingFee.toString());
 
-      let amounts = await amm.estimateSwap(baseToken.address, quoteToken.address, 0, quoteAmount);
-      let inputAmount = amounts[0];
-      console.log("input amount: " + inputAmount.toString());
+      let amounts = await amm.estimateSwap(quoteToken.address, baseToken.address, quoteAmount, 0);
+      let outputAmount = amounts[1];
+      console.log("input amount: " + outputAmount.toString());
 
       await margin.liquidate(alice.address, owner.address);
 
@@ -239,13 +225,13 @@ describe("Simulations", function () {
       console.log("diff: " + ammXpostLiq.sub(ammXpreLiq));
       console.log("k: ", ammYpostLiq.mul(ammXpostLiq).toString());
 
-      let pnl = ammXpreLiq.sub(ammXpostLiq).sub(inputAmount);
+      let pnl = outputAmount.sub(ammXpreLiq.sub(ammXpostLiq));
       console.log("pnl: " + pnl.toString());
     });
 
   });
 
-  describe.skip("simulation involving arbitrageur and random trades", function () {
+  describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       let simSteps = 750;
       let logger = fs.createWriteStream('sim_' + beta + '_' + simSteps + '.csv');
@@ -356,11 +342,11 @@ describe("Simulations", function () {
           if (canLiq) {
             let baseShift;
             if (trades[j][2] == 0) {
-              let amounts = await amm.estimateSwap(quoteToken.address, baseToken.address, quoteAmount, 0);
-              baseShift = amounts[1];
-            } else {
               let amounts = await amm.estimateSwap(baseToken.address, quoteToken.address, 0, quoteAmount);
               baseShift = amounts[0];
+            } else {
+              let amounts = await amm.estimateSwap(quoteToken.address, baseToken.address, quoteAmount, 0);
+              baseShift = amounts[1];
             }
 
             let reserves = await amm.getReserves();
@@ -375,10 +361,12 @@ describe("Simulations", function () {
               let ammXpostLiq = reserves[0];
               // the order of subtraction differs betweeen long/short only to
               // ensure results that are always positive
-              let pnl = ammXpostLiq.sub(ammXpreLiq).sub(baseShift);
+              let pnl;
               if (trades[j][2] == 0) {
+                pnl = ammXpostLiq.sub(ammXpreLiq).sub(baseShift);
                 logger.write(", 1, ");
               } else {
+                pnl = baseShift.sub(ammXpreLiq.sub(ammXpostLiq));
                 logger.write(", -1, ");
               }
               logger.write(trades[j][1] + ", " + pnl + "\n");
