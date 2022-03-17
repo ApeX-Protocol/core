@@ -89,59 +89,163 @@ describe("Simulations", function () {
     await router.addLiquidity(baseToken.address, quoteToken.address, baseLiquidity, 1, infDeadline, false);
 
     await config.setBeta(beta);
+    await config.setLiquidateFeeRatio(1);
   });
 
-  describe.skip("check pool pnl given beta", function () {
-    it("liquidates a position properly", async function () {
+  describe("check pool pnl given beta", function () {
+    it("liquidates a long position properly", async function () {
       await baseToken.mint(alice.address, tokenQuantity);
       await baseToken.connect(alice).approve(router.address, tokenQuantity);
       await baseToken.mint(bob.address, tokenQuantity);
       await baseToken.connect(bob).approve(router.address, tokenQuantity);
 
       let reserves = await amm.getReserves();
+      let lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+      console.log("price before alice opens long: " + lastPriceAmm.toString());
       let ammXpreTrade = reserves[0];
+      let ammYpreTrade = reserves[1];
       console.log("ammXpreTrade: ", ammXpreTrade.toString());
+      console.log("ammYpreTrade: ", ammYpreTrade.toString());
+      console.log("k: ", ammYpreTrade.mul(ammXpreTrade).toString());
 
-      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("1", "ether"), ethers.utils.parseUnits("20000", "ether"), 1, infDeadline);
+      let marginAmount = ethers.utils.parseUnits("1" , "ether");
+      let quoteAmount = ethers.utils.parseUnits("20000" , "ether");
+      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 0, marginAmount, quoteAmount, 1, infDeadline);
 
       reserves = await amm.getReserves();
+      lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+      console.log("price after alice opens long: " + lastPriceAmm.toString());
       let ammXpostTrade = reserves[0];
+      let ammYpostTrade = reserves[1];
       console.log("ammXpostTrade: ", ammXpostTrade.toString());
-      let baseAmount = ammXpreTrade.sub(ammXpostTrade);
-      // let originalBaseAmount = baseAmount.add(marginAmount);
+      console.log("ammYpostTrade: ", ammYpostTrade.toString());
+      console.log("k: ", ammYpostTrade.mul(ammXpostTrade).toString());
+      let baseAmount = ammXpreTrade.sub(ammXpostTrade).add(marginAmount);
 
-      console.log(baseAmount.toString());
-      // console.log(originalBaseAmount);
-
-      await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("100", "ether"), ethers.utils.parseUnits("10000", "ether"), ethers.utils.parseUnits("100000", "ether"), infDeadline);
+      console.log("base amount: " + baseAmount.toString());
+      let tenk = 7;
+      for (let x = 0; x < tenk; x++) {
+        await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("100", "ether"), ethers.utils.parseUnits("10000", "ether"), ethers.utils.parseUnits("100000", "ether"), infDeadline);
+      }
 
       reserves = await amm.getReserves();
       let ammXpreLiq = reserves[0];
-
+      let ammYpreLiq = reserves[1];
+      lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+      console.log("price after bob opens short: " + lastPriceAmm.toString());
       console.log("ammXpreLiq: ", ammXpreLiq.toString());
+      console.log("ammYpreLiq: " + ammYpreLiq.toString());
+      console.log("k: ", ammYpreLiq.mul(ammXpreLiq).toString());
       //let position = await margin.getPosition(alice.address);
       //console.log(position[1].toString());
+      let fundingFee = await margin.calFundingFee(alice.address);
+      console.log("funding fee: " + fundingFee.toString());
+
+      let amounts = await amm.estimateSwap(quoteToken.address, baseToken.address, quoteAmount, 0);
+      let outputAmount = amounts[1];
+      console.log(outputAmount.toString());
 
       await margin.liquidate(alice.address, owner.address);
 
       reserves = await amm.getReserves();
+      lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+      console.log("price after alice is liquidated: " + lastPriceAmm.toString());
       let ammXpostLiq = reserves[0];
+      let ammYpostLiq = reserves[1];
       console.log("ammXpostLiq: " + ammXpostLiq.toString());
-      let pnl = ammXpostLiq.sub(ammXpreLiq);
-      console.log(pnl.toString());
+      console.log("ammYpostLiq: " + ammYpostLiq.toString());
+      console.log("diff: " + ammXpostLiq.sub(ammXpreLiq));
+      console.log("k: ", ammYpostLiq.mul(ammXpostLiq).toString());
 
-      position = await margin.getPosition(alice.address);
-      console.log(position[1].toString());
-      console.log(baseAmount.sub(pnl).toString());
+      let pnl = ammXpostLiq.sub(ammXpreLiq).sub(outputAmount)
+      console.log("pnl: " + pnl.toString());
 
-      // check that alice's position has been liquidated
-      expect(position[2].isZero()).to.be.true;
+      for (let x = 0; x < tenk; x++) {
+        await router.connect(bob).closePosition(baseToken.address, quoteToken.address, ethers.utils.parseUnits("10000", "ether"), infDeadline, true);
+      }
 
-      await router.connect(bob).closePosition(baseToken.address, quoteToken.address, 10000, infDeadline, true);
+      reserves = await amm.getReserves();
+      let ammXpostClose = reserves[0];
+      let ammYpostClose = reserves[1];
+      console.log("ammXpostClose: " + ammXpostClose.toString());
+      console.log("ammYpostClose: " + ammYpostClose.toString());
+      lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+      console.log("price after bob closes his long: " + lastPriceAmm.toString());
+
+      console.log("real pnl: " + ammXpostClose.sub(ammXpreTrade).toString());
     });
+
+    it("liquidates a short position properly", async function () {
+      await baseToken.mint(alice.address, tokenQuantity);
+      await baseToken.connect(alice).approve(router.address, tokenQuantity);
+      await baseToken.mint(bob.address, tokenQuantity);
+      await baseToken.connect(bob).approve(router.address, tokenQuantity);
+
+      let reserves = await amm.getReserves();
+      let lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+      console.log("price before alice opens long: " + lastPriceAmm.toString());
+      let ammXpreTrade = reserves[0];
+      let ammYpreTrade = reserves[1];
+      console.log("ammXpreTrade: ", ammXpreTrade.toString());
+      console.log("ammYpreTrade: ", ammYpreTrade.toString());
+      console.log("k: ", ammYpreTrade.mul(ammXpreTrade).toString());
+
+      let marginAmount = ethers.utils.parseUnits("1" , "ether");
+      let quoteAmount = ethers.utils.parseUnits("20000" , "ether");
+      await router.connect(alice).openPositionWithWallet(baseToken.address, quoteToken.address, 1, marginAmount, quoteAmount, quoteAmount.mul(2), infDeadline);
+
+      reserves = await amm.getReserves();
+      lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+      console.log("price after alice opens short: " + lastPriceAmm.toString());
+      let ammXpostTrade = reserves[0];
+      let ammYpostTrade = reserves[1];
+      console.log("ammXpostTrade: ", ammXpostTrade.toString());
+      console.log("ammYpostTrade: ", ammYpostTrade.toString());
+      console.log("k: ", ammYpostTrade.mul(ammXpostTrade).toString());
+      let baseAmount = ammXpreTrade.sub(ammXpostTrade).add(marginAmount);
+
+      console.log("base amount: " + baseAmount.toString());
+      let tenk = 7;
+      for (let x = 0; x < tenk; x++) {
+        await router.connect(bob).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("100", "ether"), ethers.utils.parseUnits("10000", "ether"), 1, infDeadline);
+      }
+
+      reserves = await amm.getReserves();
+      let ammXpreLiq = reserves[0];
+      let ammYpreLiq = reserves[1];
+      lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+      console.log("price after bob opens long: " + lastPriceAmm.toString());
+      console.log("ammXpreLiq: ", ammXpreLiq.toString());
+      console.log("ammYpreLiq: " + ammYpreLiq.toString());
+      console.log("k: ", ammYpreLiq.mul(ammXpreLiq).toString());
+      //let position = await margin.getPosition(alice.address);
+      //console.log(position[1].toString());
+      let fundingFee = await margin.calFundingFee(alice.address);
+      console.log("funding fee: " + fundingFee.toString());
+
+      let amounts = await amm.estimateSwap(baseToken.address, quoteToken.address, 0, quoteAmount);
+      let inputAmount = amounts[0];
+      console.log("input amount: " + inputAmount.toString());
+
+      await margin.liquidate(alice.address, owner.address);
+
+      reserves = await amm.getReserves();
+      lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
+      console.log("price after alice is liquidated: " + lastPriceAmm.toString());
+      let ammXpostLiq = reserves[0];
+      let ammYpostLiq = reserves[1];
+      console.log("ammXpostLiq: " + ammXpostLiq.toString());
+      console.log("ammYpostLiq: " + ammYpostLiq.toString());
+      console.log("diff: " + ammXpostLiq.sub(ammXpreLiq));
+      console.log("k: ", ammYpostLiq.mul(ammXpostLiq).toString());
+
+      let pnl = ammXpreLiq.sub(ammXpostLiq).sub(inputAmount);
+      console.log("pnl: " + pnl.toString());
+    });
+
   });
 
-  describe("simulation involving arbitrageur and random trades", function () {
+  describe.skip("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
       let simSteps = 750;
       let logger = fs.createWriteStream('sim_' + beta + '_' + simSteps + '.csv');
@@ -167,6 +271,7 @@ describe("Simulations", function () {
       // active open trades
       let trades = [];
 
+      let quoteAmount = ethers.utils.parseUnits("5000", "ether");
       // Exact simulation of Hawkes process with exponentially decaying intensity 2013
       for (let i = 0; i < simSteps; i++) {
         if (i%25 === 0) console.log("SIMULATION STEP #" + i + "\n");
@@ -214,7 +319,6 @@ describe("Simulations", function () {
           await baseToken.connect(trader).approve(router.address, tokenQuantity);
 
           let side;
-          let quoteAmount = ethers.utils.parseUnits("5000", "ether");
           let marginAmount = quoteAmount.mul(ethers.utils.parseUnits("1", "ether")).div(lastPriceAmm).div(10);
           let reserves = await amm.getReserves();
           let ammXpreTrade = reserves[0];
@@ -231,14 +335,8 @@ describe("Simulations", function () {
           }
           reserves = await amm.getReserves();
           let ammXpostTrade = reserves[0];
-          //console.log(side);
-          //console.log(ammXpreTrade.toString());
-          //console.log(ammXpostTrade.toString());
           let baseAmount = ammXpreTrade.sub(ammXpostTrade);
           let originalBaseAmount = baseAmount.add(marginAmount);
-          //console.log(marginAmount.toString());
-          //console.log(baseAmount.toString());
-          //console.log(originalBaseAmount.toString());
           trades.push([trader, lastPriceAmm, side, originalBaseAmount]);
         } else {
           logger.write("0, ");
@@ -247,7 +345,6 @@ describe("Simulations", function () {
         logger.write(price + ", " + lastPriceAmm);
 
         reserves = await amm.getReserves();
-        // get the price out of the 112x112 format & display with 18 decimal accuracy
         lastPriceAmm = reserves[1].mul(ethers.utils.parseUnits("1", "ether")).div(reserves[0]);
 
         let liq = false;
@@ -257,6 +354,15 @@ describe("Simulations", function () {
           let canLiq = await margin.canLiquidate(trader.address);
           let position = await router.getPosition(baseToken.address, quoteToken.address, trader.address);
           if (canLiq) {
+            let baseShift;
+            if (trades[j][2] == 0) {
+              let amounts = await amm.estimateSwap(quoteToken.address, baseToken.address, quoteAmount, 0);
+              baseShift = amounts[1];
+            } else {
+              let amounts = await amm.estimateSwap(baseToken.address, quoteToken.address, 0, quoteAmount);
+              baseShift = amounts[0];
+            }
+
             let reserves = await amm.getReserves();
             let ammXpreLiq = reserves[0];
             await margin.liquidate(trader.address, owner.address);
@@ -264,12 +370,12 @@ describe("Simulations", function () {
 
             // verify that the position is zero'd out
             if (position.quoteSize.isZero()) {
-              reserves = await amm.getReserves();
               let originalBaseAmount = trades[j][3];
+              reserves = await amm.getReserves();
               let ammXpostLiq = reserves[0];
               // the order of subtraction differs betweeen long/short only to
               // ensure results that are always positive
-              let pnl = originalBaseAmount.sub(ammXpostLiq.sub(ammXpreLiq));
+              let pnl = ammXpostLiq.sub(ammXpreLiq).sub(baseShift);
               if (trades[j][2] == 0) {
                 logger.write(", 1, ");
               } else {
