@@ -3,7 +3,9 @@ const { BigNumber } = require("@ethersproject/bignumber");
 const fs = require('fs');
 const seedrandom = require('seedrandom');
 
-let generator = seedrandom('apeX');
+let seed = "monkey";
+
+let generator = seedrandom(seed);
 
 describe("Simulations", function () {
   let owner;
@@ -20,12 +22,14 @@ describe("Simulations", function () {
   let ammAddress;
   let amm;
   let provider = ethers.provider;
-  let beta = 125;
+  let beta = 130;
   let leverage = 10;
   let arbThreshold = 1005;
+  let simSteps = 1000;
   const ARB_MULTIPLIER = 1000;
 
   const tokenQuantity = ethers.utils.parseUnits("250000", "ether");
+  const arbQuantity = ethers.utils.parseUnits("4500", "ether");
   const baseLiquidity = ethers.utils.parseUnits("500", "ether");
   const infDeadline = "9999999999";
 
@@ -233,8 +237,7 @@ describe("Simulations", function () {
 
   describe("simulation involving arbitrageur and random trades", function () {
     it("generates simulation data", async function () {
-      let simSteps = 750;
-      let logger = fs.createWriteStream('sim_' + beta + '_' + simSteps + '.csv');
+      let logger = fs.createWriteStream('sim_' + beta + '_' + simSteps + '_' + seed + '.csv');
       logger.write("Trade, Oracle Price, Pool Price, Liquidation, Liquidation Entry Price, Pool PnL\n");
 
       await baseToken.mint(arbitrageur.address, tokenQuantity);
@@ -242,7 +245,7 @@ describe("Simulations", function () {
 
       // variables for geometric brownian motion
       let mu = 0;
-      let sig = 0.002;
+      let sig = 0.007;
       let lastPrice = 2000;
 
       // variables for the hawkes process simulation
@@ -284,9 +287,9 @@ describe("Simulations", function () {
 
         // arbitrageur gets opportunity to take his trade (should change arb trade sizes? TODO)
         if (lastPriceAmm * ARB_MULTIPLIER / price > arbThreshold) {
-            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("2500", "ether"), ethers.utils.parseUnits("1000000", "ether"), infDeadline);
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 1, ethers.utils.parseUnits("5", "ether"), arbQuantity, ethers.utils.parseUnits("1000000", "ether"), infDeadline);
         } else if (price * ARB_MULTIPLIER / lastPriceAmm > arbThreshold) {
-            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("5", "ether"), ethers.utils.parseUnits("2500", "ether"), 1, infDeadline);
+            await router.connect(arbitrageur).openPositionWithWallet(baseToken.address, quoteToken.address, 0, ethers.utils.parseUnits("5", "ether"), arbQuantity, 1, infDeadline);
         }
 
         reserves = await amm.getReserves();
@@ -361,6 +364,7 @@ describe("Simulations", function () {
               let ammXpostLiq = reserves[0];
               // the order of subtraction differs betweeen long/short only to
               // ensure results that are always positive
+
               let pnl;
               if (trades[j][2] == 0) {
                 pnl = ammXpostLiq.sub(ammXpreLiq).sub(baseShift);
@@ -369,6 +373,11 @@ describe("Simulations", function () {
                 pnl = baseShift.sub(ammXpreLiq.sub(ammXpostLiq));
                 logger.write(", -1, ");
               }
+              // TODO make sure this funding fee calculation makes sense
+              //let fundingFee = await margin.calFundingFee(trader.address);
+              //console.log("funding fee: " + fundingFee.toString());
+              //pnl = pnl.sub(fundingFee);
+
               logger.write(trades[j][1] + ", " + pnl + "\n");
               liq = true;
               trades.splice(j, 1);

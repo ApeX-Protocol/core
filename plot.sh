@@ -1,7 +1,7 @@
 output=$1
 
-pnl=$(printf %.4f $(echo "$(awk -F', ' '{s+=$6}; END {print s}' $1) / 10^18" | bc -l))
-sq_pnl=$(printf %.4f $(awk -F', ' '{ s += $6^2 / 10^30 }; END {print s}' $1))
+sq_pnl=$(printf %.3f $(awk -F', ' '{ s += $6^2 / 10^30 }; END {print s}' $1))
+pnl=$(printf %.5f $(echo "$(awk -F', ' '{s+=$6}; END {print s}' $1) / 10^18" | bc -l))
 beta=$(echo $1 | awk -F'[^0-9]+' '{ print $2 }')
 steps=$(echo $1 | awk -F'[^0-9]+' '{ print $3 }')
 
