@@ -15,26 +15,21 @@ contract EsAPEX is IERC20, Whitelist {
 
     constructor(address _stakingPoolFactory) {
         owner = msg.sender;
-        _addWhitelist(_stakingPoolFactory);
+        _addOperator(_stakingPoolFactory);
     }
 
-    function mint(address to, uint256 value) external onlyWhitelist returns (bool) {
+    function mint(address to, uint256 value) external onlyOperator returns (bool) {
         _mint(to, value);
         return true;
     }
 
-    function burn(address from, uint256 value) external onlyWhitelist returns (bool) {
+    function burn(address from, uint256 value) external onlyOperator returns (bool) {
         _burn(from, value);
         return true;
     }
 
-    function transfer(address to, uint256 value) external override onlyWhitelist returns (bool) {
+    function transfer(address to, uint256 value) external override operatorOrWhitelist returns (bool) {
         _transfer(msg.sender, to, value);
-        return true;
-    }
-
-    function approve(address spender, uint256 value) external override returns (bool) {
-        _approve(msg.sender, spender, value);
         return true;
     }
 
@@ -42,11 +37,16 @@ contract EsAPEX is IERC20, Whitelist {
         address from,
         address to,
         uint256 value
-    ) external override onlyWhitelist returns (bool) {
+    ) external override operatorOrWhitelist returns (bool) {
         if (allowance[from][msg.sender] != type(uint256).max) {
             allowance[from][msg.sender] = allowance[from][msg.sender] - value;
         }
         _transfer(from, to, value);
+        return true;
+    }
+
+    function approve(address spender, uint256 value) external override returns (bool) {
+        _approve(msg.sender, spender, value);
         return true;
     }
 
