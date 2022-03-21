@@ -2,41 +2,34 @@
 pragma solidity ^0.8.0;
 
 import "../core/interfaces/IERC20.sol";
+import "../utils/Whitelist.sol";
 
-contract EsAPEX is IERC20 {
+contract EsAPEX is IERC20, Whitelist {
     string public constant override name = "esApeX Token";
     string public constant override symbol = "esApeX";
     uint8 public constant override decimals = 18;
 
-    address public stakingPoolFactory;
     uint256 public override totalSupply;
     mapping(address => uint256) public override balanceOf;
     mapping(address => mapping(address => uint256)) public override allowance;
 
     constructor(address _stakingPoolFactory) {
-        stakingPoolFactory = _stakingPoolFactory;
+        owner = msg.sender;
+        _addOperator(_stakingPoolFactory);
     }
 
-    function mint(address to, uint256 value) external returns (bool) {
-        require(msg.sender == stakingPoolFactory, "esApeX.mint: NO_AUTHORITY");
+    function mint(address to, uint256 value) external onlyOperator returns (bool) {
         _mint(to, value);
         return true;
     }
 
-    function burn(address from, uint256 value) external returns (bool) {
-        require(msg.sender == stakingPoolFactory, "esApeX.burn: NO_AUTHORITY");
+    function burn(address from, uint256 value) external onlyOperator returns (bool) {
         _burn(from, value);
         return true;
     }
 
-    function transfer(address to, uint256 value) external override returns (bool) {
-        require(msg.sender == stakingPoolFactory, "esApeX.transfer: NO_AUTHORITY");
+    function transfer(address to, uint256 value) external override operatorOrWhitelist returns (bool) {
         _transfer(msg.sender, to, value);
-        return true;
-    }
-
-    function approve(address spender, uint256 value) external override returns (bool) {
-        _approve(msg.sender, spender, value);
         return true;
     }
 
@@ -44,12 +37,16 @@ contract EsAPEX is IERC20 {
         address from,
         address to,
         uint256 value
-    ) external override returns (bool) {
-        require(msg.sender == stakingPoolFactory, "esApeX.transferFrom: NO_AUTHORITY");
+    ) external override operatorOrWhitelist returns (bool) {
         if (allowance[from][msg.sender] != type(uint256).max) {
             allowance[from][msg.sender] = allowance[from][msg.sender] - value;
         }
         _transfer(from, to, value);
+        return true;
+    }
+
+    function approve(address spender, uint256 value) external override returns (bool) {
+        _approve(msg.sender, spender, value);
         return true;
     }
 
@@ -66,12 +63,12 @@ contract EsAPEX is IERC20 {
     }
 
     function _approve(
-        address owner,
+        address _owner,
         address spender,
         uint256 value
     ) private {
-        allowance[owner][spender] = value;
-        emit Approval(owner, spender, value);
+        allowance[_owner][spender] = value;
+        emit Approval(_owner, spender, value);
     }
 
     function _transfer(

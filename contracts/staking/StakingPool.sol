@@ -14,23 +14,13 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
 
     address public override poolToken;
     IStakingPoolFactory public factory;
-    uint256 public lastYieldDistribution; //timestamp
     uint256 public yieldRewardsPerWeight;
     uint256 public usersLockingWeight;
     mapping(address => User) public users;
 
-    function initialize(
-        address _factory,
-        address _poolToken,
-        uint256 _initTimestamp
-    ) external override initializer {
-        require(_factory != address(0), "spf.initialize: INVALID_FACTORY");
-        require(_initTimestamp > 0, "spf.initialize: INVALID_INIT_TIMESTAMP");
-        require(_poolToken != address(0), "spf.initialize: INVALID_POOL_TOKEN");
-
+    function initialize(address _factory, address _poolToken) external override initializer {
         factory = IStakingPoolFactory(_factory);
         poolToken = _poolToken;
-        lastYieldDistribution = _initTimestamp;
     }
 
     function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
@@ -120,7 +110,6 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
         }
     }
 
-    //only can extend lock time
     function updateStakeLock(uint256 _id, uint256 _lockUntil) external override {
         uint256 now256 = block.timestamp;
         require(_lockUntil > now256, "sp.updateStakeLock: INVALID_LOCK_UNTIL");
@@ -170,24 +159,16 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
             factory.updateApeXPerSec();
         }
 
-        uint256 endTimestamp = factory.endTimestamp();
-        uint256 currentTimestamp = block.timestamp;
-        if (lastYieldDistribution >= endTimestamp || lastYieldDistribution >= currentTimestamp) {
-            return;
-        }
+        uint256 apeXReward = factory.syncYieldPriceOfWeight();
+
         if (usersLockingWeight == 0) {
-            lastYieldDistribution = currentTimestamp;
             return;
         }
 
-        uint256 apeXReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
         yieldRewardsPerWeight += (apeXReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
-        lastYieldDistribution = currentTimestamp > endTimestamp ? endTimestamp : currentTimestamp;
-
-        emit Synchronized(msg.sender, yieldRewardsPerWeight, lastYieldDistribution);
+        emit Synchronized(msg.sender, yieldRewardsPerWeight);
     }
 
-    //update weight price, then if apeX, add deposits; if not, stake as pool.
     function _processRewards(address _staker, User storage user) internal {
         syncWeightPrice();
 
@@ -198,15 +179,14 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
             user.subYieldRewards;
         if (yieldAmount == 0) return;
 
-        //mint esApeX to _staker
         factory.mintEsApeX(_staker, yieldAmount);
     }
 
     function pendingYieldRewards(address _staker) external view returns (uint256 pending) {
         uint256 newYieldRewardsPerWeight = yieldRewardsPerWeight;
 
-        if (block.timestamp > lastYieldDistribution && usersLockingWeight != 0) {
-            uint256 apeXReward = factory.calStakingPoolApeXReward(lastYieldDistribution, poolToken);
+        if (usersLockingWeight != 0) {
+            (uint256 apeXReward, ) = factory.calStakingPoolApeXReward(poolToken);
             newYieldRewardsPerWeight += (apeXReward * REWARD_PER_WEIGHT_MULTIPLIER) / usersLockingWeight;
         }
 

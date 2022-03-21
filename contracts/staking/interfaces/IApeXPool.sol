@@ -47,7 +47,7 @@ interface IApeXPool {
 
     event YieldClaimed(address indexed by, uint256 depositId, uint256 amount, uint256 lockFrom, uint256 lockUntil);
 
-    event Synchronized(address indexed by, uint256 yieldRewardsPerWeight, uint256 lastYieldDistribution);
+    event Synchronized(address indexed by, uint256 yieldRewardsPerWeight);
 
     event UpdateStakeLock(address indexed by, uint256 depositId, bool isEsApeX, uint256 lockFrom, uint256 lockUntil);
 

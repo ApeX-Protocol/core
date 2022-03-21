@@ -8,13 +8,15 @@ describe("stakingPoolFactory contract", function () {
   let veApeXToken;
   let stakingPoolTemplate;
   let apexPool;
+  let anotherApexPool;
+  let fakeApexPool;
   let stakingPoolFactory;
 
-  let initTimestamp = 1641781192;
-  let endTimestamp = 1673288342;
+  let initTimestamp = 1641781192; //10 January 2022 10:19:52
+  let endTimestamp = 1673288342; //10 January 2023 02:19:02
   let secSpanPerUpdate = 2;
   let apeXPerSec = 100;
-  let lockTime = 3600 * 24 * 180;
+  let lockTime = 3600 * 24 * 180; //half year
 
   let owner;
   let addr1;
@@ -42,7 +44,9 @@ describe("stakingPoolFactory contract", function () {
       endTimestamp,
       lockTime,
     ]);
-    apexPool = await ApeXPool.deploy(stakingPoolFactory.address, apexToken.address, initTimestamp);
+    apexPool = await ApeXPool.deploy(stakingPoolFactory.address, apexToken.address);
+    fakeApexPool = await ApeXPool.deploy(stakingPoolFactory.address, apexToken.address);
+    fakeApexPoolWithSlpToken = await ApeXPool.deploy(stakingPoolFactory.address, slpToken.address);
     esApeXToken = await EsAPEX.deploy(stakingPoolFactory.address);
     veApeXToken = await VeAPEX.deploy(stakingPoolFactory.address);
 
@@ -56,37 +60,193 @@ describe("stakingPoolFactory contract", function () {
     await apexToken.mint(stakingPoolFactory.address, "100000000000000000000");
   });
 
+  describe("initialize", function () {
+    it("reverted when initialize factory again", async function () {
+      await expect(
+        stakingPoolFactory.initialize(
+          ethers.constants.AddressZero,
+          ethers.constants.AddressZero,
+          apeXPerSec,
+          secSpanPerUpdate,
+          initTimestamp,
+          endTimestamp,
+          lockTime
+        )
+      ).to.be.revertedWith("Initializable: contract is already initialized");
+    });
+  });
+
+  describe("setStakingPoolTemplate", function () {
+    it("can set not-null address", async function () {
+      await stakingPoolFactory.setStakingPoolTemplate(addr1.address);
+      expect(await stakingPoolFactory.stakingPoolTemplate()).to.be.equal(addr1.address);
+    });
+
+    it("reverted when set by unauthorized account", async function () {
+      await expect(
+        stakingPoolFactory.connect(addr1).setStakingPoolTemplate(ethers.constants.AddressZero)
+      ).to.be.revertedWith("Ownable: REQUIRE_OWNER");
+    });
+
+    it("revert when set null address", async function () {
+      await expect(stakingPoolFactory.setStakingPoolTemplate(ethers.constants.AddressZero)).to.be.reverted;
+    });
+  });
+
   describe("createPool", function () {
     it("create a pool and register", async function () {
-      await stakingPoolFactory.createPool(slpToken.address, initTimestamp, 79);
+      await stakingPoolFactory.createPool(slpToken.address, 79);
       expect(await stakingPoolFactory.totalWeight()).to.be.equal(100);
     });
 
-    it("revert when create pool with invalid initTimestamp", async function () {
-      await expect(stakingPoolFactory.createPool(slpToken.address, 0, 79)).to.be.revertedWith(
-        "spf.initialize: INVALID_INIT_TIMESTAMP"
+    it("reverted when create by unauthorized account", async function () {
+      await expect(stakingPoolFactory.connect(addr1).createPool(slpToken.address, 79)).to.be.revertedWith(
+        "Ownable: REQUIRE_OWNER"
       );
     });
 
     it("revert when create pool with invalid poolToken", async function () {
-      await expect(stakingPoolFactory.createPool(constants.ZERO_ADDRESS, 10, 79)).to.be.revertedWith(
-        "spf.initialize: INVALID_POOL_TOKEN"
+      await expect(stakingPoolFactory.createPool(constants.ZERO_ADDRESS, 79)).to.be.revertedWith(
+        "spf.createPool: ZERO_ADDRESS"
+      );
+    });
+
+    it("revert when create pool with apeX", async function () {
+      await expect(stakingPoolFactory.createPool(apexToken.address, 79)).to.be.revertedWith(
+        "spf.createPool: CANT_APEX"
+      );
+    });
+
+    it("revert when create pool while not set template", async function () {
+      const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
+      let spf = await upgrades.deployProxy(StakingPoolFactory, [
+        addr1.address,
+        addr1.address,
+        apeXPerSec,
+        secSpanPerUpdate,
+        initTimestamp,
+        endTimestamp,
+        lockTime,
+      ]);
+
+      await expect(spf.createPool(apexToken.address, 79)).to.be.revertedWith("spf.createPool: ZERO_TEMPLATE");
+    });
+
+    it("revert when initialize a pool again", async function () {
+      const StakingPoolTemplate = await ethers.getContractFactory("StakingPool");
+      await stakingPoolFactory.createPool(slpToken.address, 79);
+      slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
+      slpPool = await StakingPoolTemplate.attach(slpPoolAddress);
+      await expect(slpPool.initialize(stakingPoolFactory.address, slpToken.address)).to.be.revertedWith(
+        "Initializable: contract is already initialized"
       );
     });
 
     it("revert when create pool with exist poolToken", async function () {
-      await stakingPoolFactory.createPool(slpToken.address, 10, 79);
-      await expect(stakingPoolFactory.createPool(slpToken.address, 10, 79)).to.be.revertedWith(
+      await stakingPoolFactory.createPool(slpToken.address, 79);
+      await expect(stakingPoolFactory.createPool(slpToken.address, 79)).to.be.revertedWith(
+        "spf.registerPool: POOL_TOKEN_REGISTERED"
+      );
+    });
+
+    describe("create an unregistered pool again", function () {
+      beforeEach(async function () {
+        await stakingPoolFactory.createPool(slpToken.address, 79);
+      });
+
+      it("can create pool", async function () {
+        let slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
+        await stakingPoolFactory.unregisterPool(slpPoolAddress);
+
+        await stakingPoolFactory.createPool(slpToken.address, 69);
+        expect(await stakingPoolFactory.totalWeight()).to.be.equal(90);
+      });
+    });
+  });
+
+  describe("registerApeXPool", function () {
+    it("reverted when register by unauthorized account", async function () {
+      await expect(stakingPoolFactory.connect(addr1).registerApeXPool(slpToken.address, 79)).to.be.revertedWith(
+        "Ownable: REQUIRE_OWNER"
+      );
+    });
+
+    it("reverted when register non apeX pool", async function () {
+      await expect(stakingPoolFactory.registerApeXPool(fakeApexPoolWithSlpToken.address, 79)).to.be.revertedWith(
+        "spf.registerApeXPool: MUST_APEX"
+      );
+    });
+
+    it("reverted when register apeX pool already", async function () {
+      await expect(stakingPoolFactory.registerApeXPool(fakeApexPool.address, 79)).to.be.revertedWith(
         "spf.registerPool: POOL_TOKEN_REGISTERED"
       );
     });
   });
 
-  describe("registerApeXPool", function () {
-    it("revert when register a registered stakingPool", async function () {
-      await expect(stakingPoolFactory.registerApeXPool(apexPool.address, 79)).to.be.revertedWith(
-        "spf.registerPool: POOL_REGISTERED"
+  describe("unregisterPool", function () {
+    it("unregister a registered stakingPool", async function () {
+      await stakingPoolFactory.unregisterPool(apexPool.address);
+      expect(await stakingPoolFactory.totalWeight()).to.be.equal(0);
+    });
+
+    it("reverted when unregister by unauthorized account", async function () {
+      await expect(stakingPoolFactory.connect(addr1).unregisterPool(slpToken.address)).to.be.revertedWith(
+        "Ownable: REQUIRE_OWNER"
       );
+    });
+
+    it("revert when unregister a unregistered stakingPool", async function () {
+      await expect(stakingPoolFactory.unregisterPool(fakeApexPool.address)).to.be.revertedWith(
+        "spf.unregisterPool: POOL_NOT_REGISTERED"
+      );
+    });
+
+    describe("after unregister pool", function () {
+      let StakingPoolTemplate;
+      beforeEach(async function () {
+        StakingPoolTemplate = await ethers.getContractFactory("StakingPool");
+        await stakingPoolFactory.createPool(slpToken.address, 79);
+      });
+
+      it("can process exist reward after unregister pool", async function () {
+        let slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
+        let slpPool = await StakingPoolTemplate.attach(slpPoolAddress);
+        await slpToken.mint(owner.address, 100_0000);
+        await slpToken.approve(slpPool.address, 100_0000);
+        await slpPool.stake(10000, 0);
+        await slpPool.processRewards();
+
+        let oldEsApeXBalance = (await esApeXToken.balanceOf(owner.address)).toNumber();
+        await stakingPoolFactory.unregisterPool(slpPoolAddress);
+
+        await slpPool.processRewards();
+        let newEsApeXBalance = (await esApeXToken.balanceOf(owner.address)).toNumber();
+        expect(newEsApeXBalance).to.greaterThan(oldEsApeXBalance);
+      });
+
+      it("final reward of unregister pool is fixed", async function () {
+        let slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
+        let slpPool = await StakingPoolTemplate.attach(slpPoolAddress);
+        await slpToken.mint(owner.address, 100_0000);
+        await slpToken.approve(slpPool.address, 100_0000);
+        await slpPool.stake(10000, 0);
+        await slpPool.processRewards();
+
+        await stakingPoolFactory.unregisterPool(slpPoolAddress);
+        await slpPool.processRewards();
+        let newEsApeXBalance = (await esApeXToken.balanceOf(owner.address)).toNumber();
+
+        await network.provider.send("evm_mine");
+        await slpPool.processRewards();
+        let finalEsApeXBalance = (await esApeXToken.balanceOf(owner.address)).toNumber();
+        expect(finalEsApeXBalance).to.equal(newEsApeXBalance);
+
+        await network.provider.send("evm_mine");
+        await slpPool.processRewards();
+        let finalEsApeXBalance1 = (await esApeXToken.balanceOf(owner.address)).toNumber();
+        expect(finalEsApeXBalance1).to.equal(newEsApeXBalance);
+      });
     });
   });
 
@@ -95,6 +255,7 @@ describe("stakingPoolFactory contract", function () {
       await network.provider.send("evm_mine");
       await stakingPoolFactory.updateApeXPerSec();
       expect(await stakingPoolFactory.apeXPerSec()).to.be.equal(97);
+
       await network.provider.send("evm_mine");
       await stakingPoolFactory.updateApeXPerSec();
       expect(await stakingPoolFactory.apeXPerSec()).to.be.equal(94);
@@ -111,15 +272,40 @@ describe("stakingPoolFactory contract", function () {
       await stakingPoolFactory.changePoolWeight(apexPool.address, 89);
       expect(await stakingPoolFactory.totalWeight()).to.be.equal(89);
     });
+
+    it("revert when change pool weight with invalid user", async function () {
+      await expect(stakingPoolFactory.connect(addr1).changePoolWeight(apexPool.address, 89)).to.be.revertedWith(
+        "Ownable: REQUIRE_OWNER"
+      );
+    });
+
+    it("revert when pool not exist", async function () {
+      await expect(stakingPoolFactory.changePoolWeight(addr1.address, 89)).to.be.revertedWith(
+        "spf.changePoolWeight: POOL_NOT_EXIST"
+      );
+    });
+
+    it("revert when change pool weight to 0 weight", async function () {
+      await stakingPoolFactory.unregisterPool(apexPool.address);
+      await expect(stakingPoolFactory.changePoolWeight(apexPool.address, 0)).to.be.revertedWith(
+        "spf.changePoolWeight: POOL_INVALID"
+      );
+    });
+
+    it("revert when change pool weight to 0", async function () {
+      await expect(stakingPoolFactory.changePoolWeight(apexPool.address, 0)).to.be.revertedWith(
+        "spf.changePoolWeight: CANT_CHANGE_TO_ZERO_WEIGHT"
+      );
+    });
   });
 
   describe("calStakingPoolApeXReward", function () {
     it("calculate reward after some time", async function () {
       await network.provider.send("evm_mine");
       await stakingPoolFactory.updateApeXPerSec();
-      let latestBlock = (await stakingPoolFactory.lastUpdateTimestamp()).toNumber();
-      //(latestBlock-0) * 97
-      expect(await stakingPoolFactory.calStakingPoolApeXReward(0, apexToken.address)).to.be.equal(latestBlock * 97);
+      let result = await stakingPoolFactory.calStakingPoolApeXReward(apexToken.address);
+      let pending = (await stakingPoolFactory.calPendingFactoryReward()).toNumber();
+      expect(result[0].toNumber()).to.lessThanOrEqual(pending);
     });
   });
 
@@ -127,6 +313,14 @@ describe("stakingPoolFactory contract", function () {
     it("reverted when transfer apeX by unauthorized account", async function () {
       await expect(stakingPoolFactory.transferYieldTo(addr1.address, 10)).to.be.revertedWith(
         "spf.transferYieldTo: ACCESS_DENIED"
+      );
+    });
+  });
+
+  describe("transferYieldToTreasury", function () {
+    it("reverted when transfer apeX to treasury by unauthorized account", async function () {
+      await expect(stakingPoolFactory.transferYieldToTreasury(10)).to.be.revertedWith(
+        "spf.transferYieldToTreasury: ACCESS_DENIED"
       );
     });
   });
@@ -175,6 +369,50 @@ describe("stakingPoolFactory contract", function () {
     it("reverted when burn VeApeX by unauthorized account", async function () {
       await expect(stakingPoolFactory.burnVeApeX(addr1.address, 10)).to.be.revertedWith(
         "spf.burnVeApeX: ACCESS_DENIED"
+      );
+    });
+  });
+
+  describe("setEsApeX", function () {
+    it("reverted when set EsApeX by unauthorized account", async function () {
+      await expect(stakingPoolFactory.connect(addr1).setEsApeX(addr1.address)).to.be.revertedWith(
+        "Ownable: REQUIRE_OWNER"
+      );
+    });
+  });
+
+  describe("setVeApeX", function () {
+    it("reverted when set VeApeX by unauthorized account", async function () {
+      await expect(stakingPoolFactory.connect(addr1).setVeApeX(addr1.address)).to.be.revertedWith(
+        "Ownable: REQUIRE_OWNER"
+      );
+    });
+  });
+
+  describe("setMinRemainRatioAfterBurn", function () {
+    it("reverted when set by unauthorized account", async function () {
+      await expect(stakingPoolFactory.connect(addr1).setMinRemainRatioAfterBurn(10)).to.be.revertedWith(
+        "Ownable: REQUIRE_OWNER"
+      );
+    });
+
+    it("reverted when set number bigger than 10k", async function () {
+      await expect(stakingPoolFactory.setMinRemainRatioAfterBurn(10001)).to.be.revertedWith(
+        "spf.setMinRemainRatioAfterBurn: INVALID_VALUE"
+      );
+    });
+  });
+
+  describe("setRemainForOtherVest", function () {
+    it("reverted when set by unauthorized account", async function () {
+      await expect(stakingPoolFactory.connect(addr1).setRemainForOtherVest(10)).to.be.revertedWith(
+        "Ownable: REQUIRE_OWNER"
+      );
+    });
+
+    it("reverted when set number bigger than 100", async function () {
+      await expect(stakingPoolFactory.setRemainForOtherVest(101)).to.be.revertedWith(
+        "spf.setRemainForOtherVest: INVALID_VALUE"
       );
     });
   });

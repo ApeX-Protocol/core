@@ -58,14 +58,9 @@ describe("FeeTreasury contract", function () {
     await amm3.initialize(weth.address, wbtc.address, marginAddress);
 
     const FeeTreasury = await ethers.getContractFactory("FeeTreasury");
-    feeTreasury = await FeeTreasury.deploy(
-      swapRouter.address,
-      usdc.address,
-      operator.address,
-      rewardForStaking.address,
-      rewardForCashback.address,
-      1000000
-    );
+    feeTreasury = await FeeTreasury.deploy(swapRouter.address, usdc.address, operator.address, 1000000);
+    await feeTreasury.setRewardForStaking(rewardForStaking.address);
+    await feeTreasury.setRewardForCashback(rewardForCashback.address);
   });
 
   describe("batchRemoveLiquidity", function () {
@@ -120,7 +115,7 @@ describe("FeeTreasury contract", function () {
     });
   });
 
-  describe("distrbute", function () {
+  describe("distribute", function () {
     beforeEach(async function () {
       await weth.transfer(amm1.address, 1000);
       await amm1.mint(feeTreasury.address);
@@ -133,14 +128,14 @@ describe("FeeTreasury contract", function () {
     });
 
     it("not operator", async function () {
-      await expect(feeTreasury.distrbute()).to.be.revertedWith("FORBIDDEN");
+      await expect(feeTreasury.distribute()).to.be.revertedWith("FORBIDDEN");
     });
 
     it("operator execute", async function () {
       let feeTreasuryWithOperator = feeTreasury.connect(operator);
       await feeTreasuryWithOperator.batchRemoveLiquidity([amm2.address]);
       await feeTreasuryWithOperator.batchSwapToETH([wbtc.address]);
-      await feeTreasuryWithOperator.distrbute();
+      await feeTreasuryWithOperator.distribute();
     });
   });
 });
