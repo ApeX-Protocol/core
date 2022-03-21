@@ -106,7 +106,7 @@ describe("esApeX contract", function () {
   });
 
   describe("transferFrom", function () {
-    it.only("can transferFrom by whitelist", async function () {
+    it("can transferFrom by whitelist", async function () {
       await esApeXToken.connect(addr1).mint(owner.address, 100);
       await esApeXToken.addManyWhitelist([addr2.address]);
       await esApeXToken.approve(addr2.address, 100);
