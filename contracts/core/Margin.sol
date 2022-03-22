@@ -34,11 +34,6 @@ contract Margin is IMargin, IVault, Reentrant {
         factory = msg.sender;
     }
 
-    function netPosition() external view override returns (int256) {
-        require(totalQuoteLong < type(uint128).max, "Margin.netPosition: OVERFLOW");
-        return int256(totalQuoteLong).subU(totalQuoteShort);
-    }
-
     function initialize(
         address baseToken_,
         address quoteToken_,
@@ -581,6 +576,11 @@ contract Margin is IMargin, IVault, Reentrant {
                 position.tradeSize
             );
         }
+    }
+
+    function netPosition() external view override returns (int256) {
+        require(totalQuoteLong < type(uint128).max, "Margin.netPosition: OVERFLOW");
+        return int256(totalQuoteLong).subU(totalQuoteShort);
     }
 
     //query swap exact quote to base
