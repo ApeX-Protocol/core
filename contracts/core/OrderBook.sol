@@ -5,11 +5,15 @@ import "../utils/Ownable.sol";
 import "../utils/Reentrant.sol";
 import "./interfaces/IOrderBook.sol";
 import "../libraries/TransferHelper.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "hardhat/console.sol";
 
 contract OrderBook is IOrderBook, Ownable, Reentrant {
+    using ECDSA for bytes32;
+
     address public routerForKeeper;
 
-    mapping(address => mapping(uint256 => bool)) public traderNonces;
+    mapping(bytes => bool) public usedNonce;
 
     constructor(address _routerForKeeper) {
         require(_routerForKeeper != address(0), "OrderBook: ZERO_ADDRESS");
@@ -18,18 +22,29 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
     }
 
     function executeOpenPositionOrder(
-        address _trader,
-        address payable _feeReceiver,
-        uint256 _orderIndex,
-        bytes calldata data
-    ) external override nonReentrant {
-        (OpenPositionOrder memory order, uint256 t) = abi.decode(data, (OpenPositionOrder, uint256));
-        //check
+        OpenPositionOrder memory order,
+        bytes memory signature,
+        uint256[] memory c
+    ) external nonReentrant {
+        require(verify(order, signature, c));
         require(order.baseToken != address(0), "OrderBook.executeOpenPositionOrder: ORDER_NOT_FOUND");
+        //execute
 
-        TransferHelper.safeTransferETH(_feeReceiver, order.executionFee);
+        usedNonce[order.nonce] = true;
+    }
 
-        emit ExecuteOpenPositionOrder(_trader, _feeReceiver, _orderIndex);
+    function verify(
+        OpenPositionOrder memory order,
+        bytes memory signature,
+        uint256[] memory c
+    ) public view returns (bool) {
+        uint256 a = 1234;
+        string memory b = "hello";
+        address recover = keccak256(abi.encode(a, b, c)).toEthSignedMessageHash().recover(signature);
+        require(order.trader == recover, "NOT_SIGNER");
+        require(!usedNonce[order.nonce], "NONCE_USED");
+        require(block.timestamp < order.deadline, "EXPIRED");
+        return true;
     }
 
     function setRouterForKeeper(address _routerForKeeper) external override onlyOwner {

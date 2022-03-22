@@ -1,6 +1,7 @@
 const { expect } = require("chai");
 
 let owner;
+let addr1;
 let weth;
 let config;
 let pairFactory;
@@ -8,20 +9,10 @@ let marginFactory;
 let ammFactory;
 let routerForKeeper;
 let orderBook;
-let aLongPosition = {
-  baseToken: "0x1067256b996A020Ced3013B92cfB3746204B898C",
-  quoteToken: "0x1067256b996A020Ced3013B92cfB3746204B898C",
-  marginAmount: 10000,
-  baseAmountLimit: 10000,
-  quoteAmount: 10000,
-  executionFee: 10000,
-  deadline: 10000,
-  isLong: true,
-};
 
 describe("OrderBook Contract", function () {
   beforeEach(async function () {
-    [owner] = await ethers.getSigners();
+    [owner, addr1] = await ethers.getSigners();
 
     const MockWETH = await ethers.getContractFactory("MockWETH");
     weth = await MockWETH.deploy();
@@ -53,11 +44,42 @@ describe("OrderBook Contract", function () {
     });
   });
 
-  describe("executeOpenPositionOrder", function () {
-    it("execute a new open position order", async function () {});
+  describe.only("executeOpenPositionOrder", function () {
+    it("execute a new open position order", async function () {
+      // var serialize = require("serialize-javascript");
+      let order = {
+        trader: owner.address,
+        baseToken: addr1.address,
+        quoteToken: addr1.address,
+        isLong: 1,
+        baseAmount: 10000,
+        quoteAmount: 30000,
+        baseAmountLimit: 10000,
+        limitPrice: 10000,
+        deadline: 10000,
+        nonce: ethers.utils.formatBytes32String("fasdfas"),
+      };
+      let abiCoder = await ethers.utils.defaultAbiCoder;
+      data = abiCoder.encode(["uint256", "string", "uint256[]"], [1234, "hello", [6, 9]]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+      await orderBook.executeOpenPositionOrder(order, signature, [6, 9]);
+    });
   });
 
   describe("executeClosePositionOrder", function () {
     it("execute a new close position order", async function () {});
   });
 });
+
+function hexStringToByteArray(hexString) {
+  if (hexString.length % 2 !== 0) {
+    throw "Must have an even number of hex digits to convert to bytes";
+  }
+  var numBytes = hexString.length / 2;
+  var byteArray = new Uint8Array(numBytes);
+  for (var i = 0; i < numBytes; i++) {
+    byteArray[i] = parseInt(hexString.substr(i * 2, 2), 16);
+  }
+  return byteArray.slice(1);
+}
