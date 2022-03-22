@@ -10,6 +10,7 @@ interface IConfig {
     event RouterUnregistered(address indexed router);
     event SetLiquidateFeeRatio(uint256 oldLiquidateFeeRatio, uint256 liquidateFeeRatio);
     event SetLiquidateThreshold(uint256 oldLiquidateThreshold, uint256 liquidateThreshold);
+    event SetLpWithdrawThreshold(uint256 oldLpWithdrawThreshold, uint256 lpWithdrawThreshold);
     event SetInitMarginRatio(uint256 oldInitMarginRatio, uint256 initMarginRatio);
     event SetBeta(uint256 oldBeta, uint256 beta);
     event SetFeeParameter(uint256 oldFeeParameter, uint256 feeParameter);
@@ -38,6 +39,9 @@ interface IConfig {
 
     /// @notice get rebase gap of amm.
     function rebasePriceGap() external view returns (uint256);
+
+    /// @notice get lp withdraw threshold of amm.
+    function lpWithdrawThreshold() external view returns (uint256);
 
     function rebaseInterval() external view returns (uint256);
 
@@ -74,6 +78,10 @@ interface IConfig {
     /// @notice Set a new liquidate threshold of margin
     /// @param threshold new liquidate threshold of margin.
     function setLiquidateThreshold(uint256 threshold) external;
+  
+     /// @notice Set a new lp withdraw threshold of amm
+    /// @param lpWithdrawThreshold new lp withdraw threshold of amm.
+    function setLpWithdrawThreshold(uint256 lpWithdrawThreshold) external;
 
     /// @notice Set a new liquidate fee of margin
     /// @param feeRatio new liquidate fee of margin.

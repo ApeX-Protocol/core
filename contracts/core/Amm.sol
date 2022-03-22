@@ -15,9 +15,11 @@ import "../libraries/UQ112x112.sol";
 import "../libraries/Math.sol";
 import "../libraries/FullMath.sol";
 import "../libraries/ChainAdapter.sol";
+import "../libraries/SignedMath.sol";
 
 contract Amm is IAmm, LiquidityERC20, Reentrant {
     using UQ112x112 for uint224;
+    using SignedMath for int256;
 
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
 
@@ -74,19 +76,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
+        // only router can add liquidity
+        require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN"); 
+
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
+        
         // get real baseReserve
-        int256 baseTokenOfNetPosition = IMargin(margin).netPosition();
-
-        // the same block the lp can do only  one liquidity operation
-        uint256 blockNumber = ChainAdapter.blockNumber();
-        require(lpLatestOperation[to] != blockNumber, "Amm.mint: ONE_BLOCK_TWICE_LP_OPERATION");
-        lpLatestOperation[to] = blockNumber;
-
-        require(int256(uint256(_baseReserve)) + baseTokenOfNetPosition <= 2**112, "Amm.mint:NetPosition_VALUE_WRONT");
-
-        int256 realBaseReserveSigned = int256(uint256(_baseReserve)) + baseTokenOfNetPosition;
-        uint256 realBaseReserve = uint256(realBaseReserveSigned);
+        uint256 realBaseReserve = getRealBaseReserve();
 
         baseAmount = IERC20(baseToken).balanceOf(address(this));
         require(baseAmount > 0, "Amm.mint: ZERO_BASE_AMOUNT");
@@ -133,21 +129,16 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
+        require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN"); 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         liquidity = balanceOf[address(this)];
-
-        // the same block the lp can do only  one liquidity operation
-        uint256 blockNumber = ChainAdapter.blockNumber();
-        require(lpLatestOperation[to] != blockNumber, "Amm.mint: ONE_BLOCK_TWICE_LP_OPERATION");
-        lpLatestOperation[to] = blockNumber;
-
-
+        
         // get real baseReserve
-        int256 baseTokenOfNetPosition = IMargin(margin).netPosition();
-        int256 realBaseReserveSigned = int256(uint256(_baseReserve)) + baseTokenOfNetPosition;
-        uint256 realBaseReserve = uint256(realBaseReserveSigned);
+        uint256 realBaseReserve = getRealBaseReserve();
 
+       // calculate the fee
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
+
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
         baseAmount = (liquidity * realBaseReserve) / _totalSupply; // using balances ensures pro-rata distribution
@@ -156,15 +147,48 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
 
-        //add price check
-        require((_baseReserve - baseAmount)* _quoteReserve== (_quoteReserve - quoteAmount)* _baseReserve, "Amm.mint: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME");
+        //add price check todo 
+        require((_baseReserve - baseAmount)* _quoteReserve== (_quoteReserve - quoteAmount)* _baseReserve, "Amm.burn: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME");
+        
+       // gurantee the netpostion close in a tolerant sliappage after remove liquidity 
+        int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
 
+        uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
+        require( quoteTokenOfNetPosition.abs() * 100 < ( _quoteReserve - quoteAmount) * lpWithdrawThreshold , "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW"); 
+      
+        
         _burn(address(this), liquidity);
         _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve, false);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
         IVault(margin).withdraw(msg.sender, to, baseAmount);
         emit Burn(msg.sender, to, baseAmount, quoteAmount, liquidity);
+    }
+
+    function getRealBaseReserve() public view returns (uint256 realBaseReserve)  {
+
+         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+         
+        int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
+        require(int256(uint256(_quoteReserve)) + quoteTokenOfNetPosition <= 2**112, "Amm.mint:NetPosition_VALUE_WRONT");
+
+        uint256 baseTokenOfNetPosition;
+        uint256[2] memory result;
+        if(quoteTokenOfNetPosition < 0) {
+            // long todo
+            result = estimateSwap(baseToken, quoteToken, 0,  quoteTokenOfNetPosition.abs());
+            baseTokenOfNetPosition = result[0];
+
+            realBaseReserve  = uint256(_baseReserve) - baseTokenOfNetPosition;
+        
+        } else {
+             //short  todo
+            result = estimateSwap(quoteToken, baseToken, quoteTokenOfNetPosition.abs(), 0);
+            baseTokenOfNetPosition = result[0];
+            // 
+            realBaseReserve  = uint256(_baseReserve) + baseTokenOfNetPosition;
+        }
+
     }
 
     /// @notice
@@ -261,9 +285,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external view override returns (uint256[2] memory amounts) {
+    ) public view override returns (uint256[2] memory amounts) {
         (, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
     }
+
+    //query max liquidity todo
 
     function getReserves()
         public
