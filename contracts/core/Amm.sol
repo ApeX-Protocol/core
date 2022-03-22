@@ -39,6 +39,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     uint32 private blockTimestampLast;
     uint256 private lastBlockNumber;
     uint256 private rebaseTimestampLast;
+    mapping(address => uint256) public lpLatestOperation;
 
     modifier onlyMargin() {
         require(margin == msg.sender, "Amm: ONLY_MARGIN");
@@ -76,6 +77,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         // get real baseReserve
         int256 baseTokenOfNetPosition = IMargin(margin).netPosition();
+
+        // the same block the lp can do only  one liquidity operation
+        uint256 blockNumber = ChainAdapter.blockNumber();
+        require(lpLatestOperation[to] != blockNumber, "Amm.mint: ONE_BLOCK_TWICE_LP_OPERATION");
+        lpLatestOperation[to] = blockNumber;
+
         require(int256(uint256(_baseReserve)) + baseTokenOfNetPosition <= 2**112, "Amm.mint:NetPosition_VALUE_WRONT");
 
         int256 realBaseReserveSigned = int256(uint256(_baseReserve)) + baseTokenOfNetPosition;
@@ -102,6 +109,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(liquidity > 0, "Amm.mint: INSUFFICIENT_LIQUIDITY_MINTED");
         _mint(to, liquidity);
 
+        //price check 
+        require((_baseReserve + baseAmount)*_quoteReserve== (_quoteReserve + quoteAmount)* _baseReserve, "Amm.mint: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME");
+
         _update(_baseReserve + baseAmount, _quoteReserve + quoteAmount, _baseReserve, _quoteReserve, false);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
@@ -126,6 +136,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         liquidity = balanceOf[address(this)];
 
+        // the same block the lp can do only  one liquidity operation
+        uint256 blockNumber = ChainAdapter.blockNumber();
+        require(lpLatestOperation[to] != blockNumber, "Amm.mint: ONE_BLOCK_TWICE_LP_OPERATION");
+        lpLatestOperation[to] = blockNumber;
+
+
         // get real baseReserve
         int256 baseTokenOfNetPosition = IMargin(margin).netPosition();
         int256 realBaseReserveSigned = int256(uint256(_baseReserve)) + baseTokenOfNetPosition;
@@ -139,6 +155,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
 
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
+
+        //add price check
+        require((_baseReserve - baseAmount)* _quoteReserve== (_quoteReserve - quoteAmount)* _baseReserve, "Amm.mint: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME");
+
         _burn(address(this), liquidity);
         _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve, false);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
