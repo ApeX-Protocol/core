@@ -26,13 +26,16 @@ contract Margin is IMargin, IVault, Reentrant {
     mapping(address => uint256) public traderLatestOperation;
     uint256 public override reserve;
     uint256 public lastUpdateCPF; //last timestamp update cpf
-    int256 public override netPosition; //base token
-    uint256 internal totalQuoteLong;
-    uint256 internal totalQuoteShort;
+    uint256 public totalQuoteLong;
+    uint256 public totalQuoteShort;
     int256 internal latestCPF; //latestCPF with 1e18 multiplied
 
     constructor() {
         factory = msg.sender;
+    }
+
+    function netPosition() external view override returns (int256) {
+        return int256(totalQuoteLong).subU(totalQuoteShort);
     }
 
     function initialize(
@@ -209,12 +212,10 @@ contract Margin is IMargin, IVault, Reentrant {
             traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
             traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount) + fundingFee;
             totalQuoteLong = totalQuoteLong + quoteAmount;
-            netPosition = netPosition.addU(baseAmount);
         } else {
             traderPosition.quoteSize = traderPosition.quoteSize.addU(quoteAmount);
             traderPosition.baseSize = traderPosition.baseSize.subU(baseAmount) + fundingFee;
             totalQuoteShort = totalQuoteShort + quoteAmount;
-            netPosition = netPosition.subU(baseAmount);
         }
         require(traderPosition.quoteSize.abs() <= quoteAmountMax, "Margin.openPosition: INIT_MARGIN_RATIO");
 
@@ -257,7 +258,6 @@ contract Margin is IMargin, IVault, Reentrant {
             baseAmount = _querySwapBaseWithAmm(isLong, quoteSizeAbs);
             if (isLong) {
                 totalQuoteLong = totalQuoteLong - quoteSizeAbs;
-                netPosition = netPosition.subU(baseAmount);
                 remainBaseAmount = traderPosition.baseSize.subU(baseAmount) + fundingFee;
                 if (remainBaseAmount < 0) {
                     IAmm(amm).forceSwap(
@@ -273,7 +273,6 @@ contract Margin is IMargin, IVault, Reentrant {
                 }
             } else {
                 totalQuoteShort = totalQuoteShort - quoteSizeAbs;
-                netPosition = netPosition.addU(baseAmount);
                 remainBaseAmount = traderPosition.baseSize.addU(baseAmount) + fundingFee;
                 if (remainBaseAmount < 0) {
                     IAmm(amm).forceSwap(
@@ -303,12 +302,10 @@ contract Margin is IMargin, IVault, Reentrant {
 
             if (isLong) {
                 totalQuoteLong = totalQuoteLong - quoteAmount;
-                netPosition = netPosition.subU(baseAmount);
                 traderPosition.quoteSize = traderPosition.quoteSize.addU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.subU(baseAmount) + fundingFee;
             } else {
                 totalQuoteShort = totalQuoteShort - quoteAmount;
-                netPosition = netPosition.addU(baseAmount);
                 traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount) + fundingFee;
             }
@@ -372,7 +369,6 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 _quoteAmount = quoteAmount;
             if (isLong) {
                 totalQuoteLong = totalQuoteLong - _quoteAmount;
-                netPosition = netPosition.subU(baseAmount);
                 IAmm(amm).forceSwap(
                     _trader,
                     baseToken,
@@ -382,7 +378,6 @@ contract Margin is IMargin, IVault, Reentrant {
                 );
             } else {
                 totalQuoteShort = totalQuoteShort - _quoteAmount;
-                netPosition = netPosition.addU(baseAmount);
                 IAmm(amm).forceSwap(
                     _trader,
                     quoteToken,
