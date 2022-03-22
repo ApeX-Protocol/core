@@ -35,6 +35,7 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     function netPosition() external view override returns (int256) {
+        require(totalQuoteLong < type(uint128).max, "overflow");
         return int256(totalQuoteLong).subU(totalQuoteShort);
     }
 
