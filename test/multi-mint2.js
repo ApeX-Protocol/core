@@ -37,35 +37,12 @@ describe("multimint2 contract", function () {
   });
 
   it("burn  4560 in  0 month", async function () {
-    //await nftSquid.setStartTime(ct + 500);
-   
-    // console.log("balance: ", balance.div(exp1).toString());
 
       let tx = await multiMint2.multiMint(10, {value: ethers.utils.parseEther("4.5")});
       let txReceipt = await tx.wait();
-      // console.log(txReceipt);
+       console.log(txReceipt);
     
-   
-    //console.log("mint nft successfully: ", txReceipt);
-  
 
-
-    
-    // await nftSquid.setSquidStartTime(ct + 6000);
-    // await ethers.provider.send("evm_setNextBlockTimestamp", [ct + 6000]);
-    // await network.provider.send("evm_mine");
-
-  
-
-
-    // expect(args[1].div(exp1).toString()).to.be.equal("123635");
-    // expect(args[0].toString()).to.be.equal("4559");
-
-    // await nftSquid.withdrawETH(owner.address);
-    // let balanceAfter = await ethers.provider.getBalance(owner.address);
-    // expect(balanceAfter.div(exp1).toString()).to.be.equal("9998");
-    // let apexAmount = await erc20.balanceOf(nftSquid.address);
-    // expect(apexAmount.div(exp1).toString()).to.be.equal("0");
   });
 
 
