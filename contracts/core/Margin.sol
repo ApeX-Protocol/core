@@ -579,8 +579,8 @@ contract Margin is IMargin, IVault, Reentrant {
     }
 
     function netPosition() external view override returns (int256) {
-        require(totalQuoteLong < type(uint128).max, "Margin.netPosition: OVERFLOW");
-        return int256(totalQuoteLong).subU(totalQuoteShort);
+        require(totalQuoteShort < type(uint128).max, "Margin.netPosition: OVERFLOW"); 
+        return int256(totalQuoteShort).subU(totalQuoteLong);
     }
 
     //query swap exact quote to base

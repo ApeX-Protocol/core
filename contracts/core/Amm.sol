@@ -138,7 +138,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
-        // only router can add liquidity 
+        // only router can burn liquidity 
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         liquidity = balanceOf[address(this)];
@@ -201,13 +201,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         uint256[2] memory result;
         if (quoteTokenOfNetPosition < 0) {
-            // long todo （+， -）
+            // long  （+， -）
             result = estimateSwap(baseToken, quoteToken, 0, quoteTokenOfNetPosition.abs());
             baseTokenOfNetPosition = result[0];
 
             realBaseReserve = uint256(_baseReserve) + baseTokenOfNetPosition;
         } else {
-            //short  todo（-， +）
+            //short  （-， +）
             result = estimateSwap(quoteToken, baseToken, quoteTokenOfNetPosition.abs(), 0);
             baseTokenOfNetPosition = result[1];
             //
@@ -296,11 +296,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-        if (quoteReserveFromExternal * 100 >= quoteReserveFromInternal * (100 + gap)) {
-            quoteReserveAfter = (uint256(_quoteReserve) * (100 + gap)) / 100;
-        } else {
-            quoteReserveAfter = (uint256(_quoteReserve) * (100 - gap)) / 100;
-        }
+       
+        quoteReserveAfter = (_quoteReserve * quoteReserveFromExternal) / quoteReserveFromInternal;
+        
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
