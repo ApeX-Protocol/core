@@ -20,8 +20,4 @@ contract MultiMintForUsers {
             INftSquid(nftAddress).transferFrom(address(this), to, id);
         }
     }
-
-
-
-
 }

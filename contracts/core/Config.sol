@@ -20,7 +20,7 @@ contract Config is IConfig, Ownable {
     uint256 public override lpWithdrawThreshold = 10; // 1-100
 
     mapping(address => bool) public override routerMap;
-    mapping(address => bool) public override isEmergencyRouter;
+    mapping(address => bool) public override inEmergency;
 
     constructor() {
         owner = msg.sender;
@@ -76,7 +76,6 @@ contract Config is IConfig, Ownable {
         emit SetFeeParameter(feeParameter, newFeeParameter);
         feeParameter = newFeeParameter;
     }
-
    
     function setLpWithdrawThreshold(uint256 newLpWithdrawThreshold) external override onlyOwner {
         require(lpWithdrawThreshold > 1 && lpWithdrawThreshold <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD");
@@ -106,9 +105,9 @@ contract Config is IConfig, Ownable {
         emit RouterUnregistered(router);
     }
 
-    function setEmergencyRouter(address router) external override onlyOwner {
+    function setEmergency(address router) external override onlyOwner {
         require(routerMap[router], "Config: UNREGISTERED");
-        isEmergencyRouter[router] = true;
-        emit SetEmergencyRouter(router);
+        inEmergency[router] = true;
+        emit SetEmergency(router);
     }
 }

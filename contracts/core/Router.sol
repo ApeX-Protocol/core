@@ -6,6 +6,7 @@ import "./interfaces/IPairFactory.sol";
 import "./interfaces/IAmm.sol";
 import "./interfaces/IMargin.sol";
 import "./interfaces/ILiquidityERC20.sol";
+import "./interfaces/IConfig.sol";
 import "./interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/SignedMath.sol";
@@ -14,6 +15,7 @@ import "../libraries/ChainAdapter.sol";
 contract Router is IRouter {
     using SignedMath for int256;
 
+    address public immutable override config;
     address public immutable override pairFactory;
     address public immutable override pcvTreasury;
     address public immutable override WETH;
@@ -26,11 +28,19 @@ contract Router is IRouter {
         _;
     }
 
+    modifier notEmergency() {
+        bool inEmergency = IConfig(config).inEmergency(address(this));
+        require(inEmergency == false, "Router: IN_EMERGENCY");
+        _;
+    }
+
     constructor(
+        address config_,
         address pairFactory_,
         address pcvTreasury_,
         address _WETH
     ) {
+        config = config_;
         pairFactory = pairFactory_;
         pcvTreasury = pcvTreasury_;
         WETH = _WETH;
@@ -47,7 +57,7 @@ contract Router is IRouter {
         uint256 quoteAmountMin,
         uint256 deadline,
         bool pcv
-    ) external override ensure(deadline) returns (uint256 quoteAmount, uint256 liquidity) {
+    ) external override ensure(deadline) notEmergency returns (uint256 quoteAmount, uint256 liquidity) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(baseToken, quoteToken);
@@ -73,6 +83,7 @@ contract Router is IRouter {
         payable
         override
         ensure(deadline)
+        notEmergency
         returns (
             uint256 ethAmount,
             uint256 quoteAmount,
@@ -102,7 +113,7 @@ contract Router is IRouter {
         uint256 liquidity,
         uint256 baseAmountMin,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 quoteAmount) {
+    ) external override ensure(deadline) notEmergency returns (uint256 baseAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
@@ -115,7 +126,7 @@ contract Router is IRouter {
         uint256 liquidity,
         uint256 ethAmountMin,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 ethAmount, uint256 quoteAmount) {
+    ) external override ensure(deadline) notEmergency returns (uint256 ethAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
         _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
@@ -130,14 +141,14 @@ contract Router is IRouter {
         address quoteToken,
         address holder,
         uint256 amount
-    ) external override {
+    ) external override notEmergency {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.deposit: NOT_FOUND_MARGIN");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, amount);
         IMargin(margin).addMargin(holder, amount);
     }
 
-    function depositETH(address quoteToken, address holder) external payable override {
+    function depositETH(address quoteToken, address holder) external payable override notEmergency {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.depositETH: NOT_FOUND_MARGIN");
         uint256 amount = msg.value;
@@ -172,7 +183,7 @@ contract Router is IRouter {
         uint256 quoteAmount,
         uint256 baseAmountLimit,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount) {
+    ) external override ensure(deadline) notEmergency returns (uint256 baseAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
@@ -194,7 +205,7 @@ contract Router is IRouter {
         uint256 quoteAmount,
         uint256 baseAmountLimit,
         uint256 deadline
-    ) external payable override ensure(deadline) returns (uint256 baseAmount) {
+    ) external payable override ensure(deadline) notEmergency returns (uint256 baseAmount) {
         address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
         _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
@@ -219,7 +230,7 @@ contract Router is IRouter {
         uint256 quoteAmount,
         uint256 baseAmountLimit,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount) {
+    ) external override ensure(deadline) notEmergency returns (uint256 baseAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);

@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 interface IRouter {
+    function config() external view returns (address);
+    
     function pairFactory() external view returns (address);
 
     function pcvTreasury() external view returns (address);
