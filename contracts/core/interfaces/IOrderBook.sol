@@ -15,6 +15,18 @@ interface IOrderBook {
         bytes nonce;
     }
 
+    struct ClosePositionOrder {
+        address trader;
+        address baseToken;
+        address quoteToken;
+        uint8 side;
+        uint256 quoteAmount;
+        uint256 limitPrice;
+        uint256 deadline;
+        bool autoWithdraw;
+        bytes nonce;
+    }
+
     event SetRouterForKeeper(address newRouterForKeeper);
 
     event ExecuteOpenPositionOrder(address trader, address feeReceiver, uint256 index);

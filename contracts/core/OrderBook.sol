@@ -24,7 +24,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
     }
 
     function executeOpenPositionOrder(OpenPositionOrder memory order, bytes memory signature) external nonReentrant {
-        require(verify(order, signature));
+        require(verifyOpen(order, signature));
         require(order.baseToken != address(0), "OrderBook.executeOpenPositionOrder: ORDER_NOT_FOUND");
         require(order.side == 0 || order.side == 1, "OrderBook.executeOpenPositionOrder: INVALID_SIDE");
 
@@ -55,11 +55,50 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         usedNonce[order.nonce] = true;
     }
 
-    function verify(OpenPositionOrder memory order, bytes memory signature) public view returns (bool) {
+    function executeClosePositionOrder(ClosePositionOrder memory order, bytes memory signature) external nonReentrant {
+        require(verifyClose(order, signature));
+        require(order.baseToken != address(0), "OrderBook.executeClosePositionOrder: ORDER_NOT_FOUND");
+        require(order.side == 0 || order.side == 1, "OrderBook.executeClosePositionOrder: INVALID_SIDE");
+
+        uint256 currentPrice = IRouterForKeeper(routerForKeeper).getSpotPriceWithMultiplier(
+            order.baseToken,
+            order.quoteToken
+        );
+
+        //check price
+        if (order.side == 0) {
+            require(currentPrice >= order.limitPrice, "OrderBook.executeClosePositionOrder: WRONG_PRICE");
+        } else {
+            require(currentPrice <= order.limitPrice, "OrderBook.executeClosePositionOrder: WRONG_PRICE");
+        }
+
+        //execute
+        IRouterForKeeper(routerForKeeper).closePosition(
+            order.baseToken,
+            order.quoteToken,
+            order.trader,
+            order.trader,
+            order.quoteAmount,
+            order.deadline,
+            order.autoWithdraw
+        );
+
+        usedNonce[order.nonce] = true;
+    }
+
+    function verifyOpen(OpenPositionOrder memory order, bytes memory signature) public view returns (bool) {
         address recover = keccak256(abi.encode(order)).toEthSignedMessageHash().recover(signature);
-        require(order.trader == recover, "OrderBook.verify: NOT_SIGNER");
-        require(!usedNonce[order.nonce], "OrderBook.verify: NONCE_USED");
-        require(block.timestamp < order.deadline, "OrderBook.verify: EXPIRED");
+        require(order.trader == recover, "OrderBook.verifyOpen: NOT_SIGNER");
+        require(!usedNonce[order.nonce], "OrderBook.verifyOpen: NONCE_USED");
+        require(block.timestamp < order.deadline, "OrderBook.verifyOpen: EXPIRED");
+        return true;
+    }
+
+    function verifyClose(ClosePositionOrder memory order, bytes memory signature) public view returns (bool) {
+        address recover = keccak256(abi.encode(order)).toEthSignedMessageHash().recover(signature);
+        require(order.trader == recover, "OrderBook.verifyClose: NOT_SIGNER");
+        require(!usedNonce[order.nonce], "OrderBook.verifyClose: NONCE_USED");
+        require(block.timestamp < order.deadline, "OrderBook.verifyClose: EXPIRED");
         return true;
     }
 

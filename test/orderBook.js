@@ -16,6 +16,8 @@ let routerForKeeper;
 let orderBook;
 let orderStruct =
   "tuple(address trader, address baseToken, address quoteToken, uint8 side, uint256 baseAmount, uint256 quoteAmount, uint256 baseAmountLimit, uint256 limitPrice, uint256 deadline, bytes nonce)";
+let closeOrderStruct =
+  "tuple(address trader, address baseToken, address quoteToken, uint8 side, uint256 quoteAmount, uint256 limitPrice, uint256 deadline, bool autoWithdraw, bytes nonce)";
 let order;
 
 describe("OrderBook Contract", function () {
@@ -73,7 +75,7 @@ describe("OrderBook Contract", function () {
       baseAmountLimit: 1000,
       limitPrice: "2100000000000000000", //2.1
       deadline: 999999999999,
-      nonce: ethers.utils.formatBytes32String("this is nonce"),
+      nonce: ethers.utils.formatBytes32String("this is open long nonce"),
     };
 
     orderShort = {
@@ -86,7 +88,31 @@ describe("OrderBook Contract", function () {
       baseAmountLimit: 100000,
       limitPrice: "1900000000000000000", //1.9
       deadline: 999999999999,
-      nonce: ethers.utils.formatBytes32String("this is nonce"),
+      nonce: ethers.utils.formatBytes32String("this is open short nonce"),
+    };
+
+    closeOrder = {
+      trader: owner.address,
+      baseToken: weth.address,
+      quoteToken: usdc.address,
+      side: 0,
+      quoteAmount: 30000,
+      limitPrice: "1900000000000000000", //1.9
+      deadline: 999999999999,
+      autoWithdraw: false,
+      nonce: ethers.utils.formatBytes32String("this is close long nonce"),
+    };
+
+    closeOrderShort = {
+      trader: owner.address,
+      baseToken: weth.address,
+      quoteToken: usdc.address,
+      side: 1,
+      quoteAmount: 30000,
+      limitPrice: "2100000000000000000", //2.1
+      deadline: 999999999999,
+      autoWithdraw: false,
+      nonce: ethers.utils.formatBytes32String("this is close short nonce"),
     };
   });
 
@@ -125,7 +151,7 @@ describe("OrderBook Contract", function () {
 
       order.side = 1 - order.side;
       await expect(orderBook.executeOpenPositionOrder(order, signature)).to.be.revertedWith(
-        "OrderBook.verify: NOT_SIGNER"
+        "OrderBook.verifyOpen: NOT_SIGNER"
       );
     });
 
@@ -135,7 +161,7 @@ describe("OrderBook Contract", function () {
 
       await orderBook.executeOpenPositionOrder(order, signature);
       await expect(orderBook.executeOpenPositionOrder(order, signature)).to.be.revertedWith(
-        "OrderBook.verify: NONCE_USED"
+        "OrderBook.verifyOpen: NONCE_USED"
       );
     });
 
@@ -145,13 +171,80 @@ describe("OrderBook Contract", function () {
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
       await expect(orderBook.executeOpenPositionOrder(order, signature)).to.be.revertedWith(
-        "OrderBook.verify: EXPIRED"
+        "OrderBook.verifyOpen: EXPIRED"
       );
     });
   });
 
   describe("executeClosePositionOrder", function () {
-    it("execute a new close position order", async function () {});
+    describe("open long first", async function () {
+      let abiCoder;
+      beforeEach(async function () {
+        abiCoder = await ethers.utils.defaultAbiCoder;
+        data = abiCoder.encode([orderStruct], [order]);
+        let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+        await orderBook.executeOpenPositionOrder(order, signature);
+      });
+
+      it("execute a new close long position order", async function () {
+        let data = abiCoder.encode([closeOrderStruct], [closeOrder]);
+        let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+        await orderBook.executeClosePositionOrder(closeOrder, signature);
+        let result = await router.getPosition(weth.address, usdc.address, owner.address);
+        expect(result.quoteSize.toNumber()).to.be.equal(0);
+      });
+    });
+
+    describe("open short first", async function () {
+      let abiCoder;
+      beforeEach(async function () {
+        abiCoder = await ethers.utils.defaultAbiCoder;
+
+        data = abiCoder.encode([orderStruct], [orderShort]);
+        signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+        await orderBook.executeOpenPositionOrder(orderShort, signature);
+      });
+
+      it("execute a new close short position order", async function () {
+        data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
+        let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+        await orderBook.executeClosePositionOrder(closeOrderShort, signature);
+        let result = await router.getPosition(weth.address, usdc.address, owner.address);
+        expect(result.quoteSize.toNumber()).to.be.equal(0);
+      });
+
+      it("revert when execute a wrong order", async function () {
+        data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
+        let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+        closeOrderShort.side = 1 - closeOrderShort.side;
+        await expect(orderBook.executeClosePositionOrder(closeOrderShort, signature)).to.be.revertedWith(
+          "OrderBook.verifyClose: NOT_SIGNER"
+        );
+      });
+
+      it("revert when execute an used order", async function () {
+        data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
+        let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+        await orderBook.executeClosePositionOrder(closeOrderShort, signature);
+        await expect(orderBook.executeClosePositionOrder(closeOrderShort, signature)).to.be.revertedWith(
+          "OrderBook.verifyClose: NONCE_USED"
+        );
+      });
+
+      it("revert when execute a expired order", async function () {
+        closeOrderShort.deadline = 10000;
+        data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
+        let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+        await expect(orderBook.executeClosePositionOrder(closeOrderShort, signature)).to.be.revertedWith(
+          "OrderBook.verifyClose: EXPIRED"
+        );
+      });
+    });
   });
 });
 
