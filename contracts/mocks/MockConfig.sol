@@ -16,7 +16,8 @@ contract MockConfig  {
     event SetBeta(uint256 oldBeta, uint256 beta);
     event SetFeeParameter(uint256 oldFeeParameter, uint256 feeParameter);
     event SetMaxCPFBoost(uint256 oldMaxCPFBoost, uint256 maxCPFBoost);
-
+    event SetLpWithdrawThreshold(uint256 oldLpWithdrawThreshold, uint256 lpWithdrawThreshold);
+   
     address public  priceOracle;
 
     uint8 public  beta = 50; // 50-200，50 means 0.5
@@ -27,7 +28,7 @@ contract MockConfig  {
     uint256 public  liquidateThreshold = 10000; //if 10000, means debt ratio < 100%
     uint256 public  liquidateFeeRatio = 100; //if 100, means liquidator bot get 1% as fee
     uint256 public  feeParameter = 11; // 100 * (1/fee-1)
-
+    uint256 public  lpWithdrawThreshold = 10; // 1-100
     mapping(address => bool) public  routerMap;
 
     // constructor() {
@@ -102,4 +103,11 @@ contract MockConfig  {
 
         emit RouterUnregistered(router);
     }
+
+        function setLpWithdrawThreshold(uint256 newLpWithdrawThreshold) external  {
+        require(lpWithdrawThreshold > 1 && lpWithdrawThreshold <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD");
+        emit SetLpWithdrawThreshold(lpWithdrawThreshold, newLpWithdrawThreshold);
+        lpWithdrawThreshold = newLpWithdrawThreshold;
+    }
+    
 }
