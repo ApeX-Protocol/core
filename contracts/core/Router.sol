@@ -9,6 +9,7 @@ import "./interfaces/ILiquidityERC20.sol";
 import "./interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/SignedMath.sol";
+import "../libraries/ChainAdapter.sol";
 
 contract Router is IRouter {
     using SignedMath for int256;
@@ -16,6 +17,9 @@ contract Router is IRouter {
     address public immutable override pairFactory;
     address public immutable override pcvTreasury;
     address public immutable override WETH;
+
+    // user => amm => block
+    mapping(address => mapping(address => uint256)) public userLastOperation;
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, "Router: EXPIRED");
@@ -48,7 +52,7 @@ contract Router is IRouter {
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(baseToken, quoteToken);
         }
-
+        _checkLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(baseToken, msg.sender, amm, baseAmount);
         if (pcv) {
             (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
@@ -79,7 +83,7 @@ contract Router is IRouter {
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(WETH, quoteToken);
         }
-
+        _checkLastOperation(msg.sender, amm);
         ethAmount = msg.value;
         IWETH(WETH).deposit{value: ethAmount}();
         assert(IWETH(WETH).transfer(amm, ethAmount));
@@ -100,6 +104,7 @@ contract Router is IRouter {
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        _checkLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
         (baseAmount, quoteAmount, ) = IAmm(amm).burn(msg.sender);
         require(baseAmount >= baseAmountMin, "Router.removeLiquidity: INSUFFICIENT_BASE_AMOUNT");
@@ -112,6 +117,7 @@ contract Router is IRouter {
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 ethAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
+        _checkLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
         (ethAmount, quoteAmount, ) = IAmm(amm).burn(address(this));
         require(ethAmount >= ethAmountMin, "Router.removeLiquidityETH: INSUFFICIENT_ETH_AMOUNT");
@@ -361,5 +367,11 @@ contract Router is IRouter {
         uint256 numerator = reserveIn * amountOut * 1000;
         uint256 denominator = (reserveOut - amountOut) * 999;
         amountIn = numerator / denominator + 1;
+    }
+
+    function _checkLastOperation(address user, address amm) internal {
+        uint256 blockNumber = ChainAdapter.blockNumber();
+        require(userLastOperation[user][amm] != blockNumber, "Router.checkLastOperation: FORBIDDEN");
+        userLastOperation[user][amm] = blockNumber;
     }
 }
