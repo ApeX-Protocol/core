@@ -6,7 +6,7 @@ interface IOrderBook {
         address trader;
         address baseToken;
         address quoteToken;
-        uint8 isLong;
+        uint8 side;
         uint256 baseAmount;
         uint256 quoteAmount;
         uint256 baseAmountLimit;

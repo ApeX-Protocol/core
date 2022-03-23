@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "./interfaces/IRouterForKeeper.sol";
 import "./interfaces/IPairFactory.sol";
 import "./interfaces/IMargin.sol";
+import "./interfaces/IAmm.sol";
 import "./interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/SignedMath.sol";
@@ -26,6 +27,17 @@ contract RouterForKeeper is IRouterForKeeper {
 
     receive() external payable {
         assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
+    }
+
+    function getSpotPriceWithMultiplier(address baseToken, address quoteToken)
+        external
+        view
+        override
+        returns (uint256 spotPriceWithMultiplier)
+    {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        (uint256 reserveBase, uint256 reserveQuote, ) = IAmm(amm).getReserves();
+        return (reserveQuote * 1e18) / reserveBase;
     }
 
     function deposit(

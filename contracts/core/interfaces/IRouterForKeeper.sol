@@ -6,6 +6,11 @@ interface IRouterForKeeper {
 
     function WETH() external view returns (address);
 
+    function getSpotPriceWithMultiplier(address baseToken, address quoteToken)
+        external
+        view
+        returns (uint256 spotPriceWithMultiplier);
+
     function deposit(
         address baseToken,
         address quoteToken,
