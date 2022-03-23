@@ -119,12 +119,13 @@ async function createRouter() {
   // }
 
   const Router = await ethers.getContractFactory("Router");
-  router = await Router.deploy(pairFactory.address, pcvTreasury.address, wethAddress);
+  router = await Router.deploy(config.address, pairFactory.address, pcvTreasury.address, wethAddress);
   console.log("Router:", router.address);
   console.log(
     verifyStr,
     process.env.HARDHAT_NETWORK,
     router.address,
+    config.address,
     pairFactory.address,
     pcvTreasury.address,
     wethAddress

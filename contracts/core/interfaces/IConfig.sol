@@ -15,7 +15,7 @@ interface IConfig {
     event SetBeta(uint256 oldBeta, uint256 beta);
     event SetFeeParameter(uint256 oldFeeParameter, uint256 feeParameter);
     event SetMaxCPFBoost(uint256 oldMaxCPFBoost, uint256 maxCPFBoost);
-    event SetEmergencyRouter(address indexed router);
+    event SetEmergency(address indexed router);
 
     /// @notice get price oracle address.
     function priceOracle() external view returns (address);
@@ -50,7 +50,7 @@ interface IConfig {
 
     function maxCPFBoost() external view returns (uint256);
 
-    function isEmergencyRouter(address router) external view returns (bool);
+    function inEmergency(address router) external view returns (bool);
 
     function registerRouter(address router) external;
 
@@ -97,5 +97,5 @@ interface IConfig {
 
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
 
-    function setEmergencyRouter(address router) external;
+    function setEmergency(address router) external;
 }

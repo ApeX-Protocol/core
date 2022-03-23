@@ -75,7 +75,11 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
+<<<<<<< HEAD
         // only router can add liquidity
+=======
+        // only router can add liquidity 
+>>>>>>> upstream/dev
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
@@ -136,25 +140,38 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
+<<<<<<< HEAD
         // only router can burn liquidity
+=======
+        // only router can burn liquidity 
+>>>>>>> upstream/dev
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         liquidity = balanceOf[address(this)];
 
         // get real baseReserve
         uint256 realBaseReserve = getRealBaseReserve();
+<<<<<<< HEAD
 
+=======
+     
+>>>>>>> upstream/dev
         // calculate the fee
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
+<<<<<<< HEAD
         baseAmount = (liquidity * realBaseReserve) / _totalSupply;
+=======
+        baseAmount = (liquidity * realBaseReserve) / _totalSupply; 
+>>>>>>> upstream/dev
         // quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
 
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
 
+<<<<<<< HEAD
         // gurantee the netpostion close in a tolerant sliappage after remove liquidity
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
 
@@ -165,6 +182,16 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW"
         );
 
+=======
+         // gurantee the netpostion close in a tolerant sliappage after remove liquidity
+        int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
+    
+        uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
+        require(
+            quoteTokenOfNetPosition.abs() * 100 < (_quoteReserve - quoteAmount) * lpWithdrawThreshold,
+            "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW"
+        );
+>>>>>>> upstream/dev
         require(
             (_baseReserve - baseAmount) * _quoteReserve * 999 <= (_quoteReserve - quoteAmount) * _baseReserve * 1000,
             "Amm.burn: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME"
@@ -176,7 +203,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         _burn(address(this), liquidity);
         _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve, false);
-        if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
+        if (feeOn) kLast = uint256(baseReserve) * quoteReserve;  
 
         IVault(margin).withdraw(msg.sender, to, baseAmount);
         emit Burn(msg.sender, to, baseAmount, quoteAmount, liquidity);
@@ -200,6 +227,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             // long  （+， -）
             result = estimateSwap(baseToken, quoteToken, 0, quoteTokenOfNetPosition.abs());
             baseTokenOfNetPosition = result[0];
+<<<<<<< HEAD
 
             realBaseReserve = uint256(_baseReserve) + baseTokenOfNetPosition;
         } else {
@@ -207,6 +235,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             result = estimateSwap(quoteToken, baseToken, quoteTokenOfNetPosition.abs(), 0);
             baseTokenOfNetPosition = result[1];
             //
+=======
+            realBaseReserve = uint256(_baseReserve) + baseTokenOfNetPosition;
+        } else {
+            // short （-， +）
+            result = estimateSwap(quoteToken, baseToken, quoteTokenOfNetPosition.abs(), 0);
+            baseTokenOfNetPosition = result[1];
+>>>>>>> upstream/dev
             realBaseReserve = uint256(_baseReserve) - baseTokenOfNetPosition;
         }
     }
@@ -292,8 +327,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
+       
         quoteReserveAfter = (_quoteReserve * quoteReserveFromExternal) / quoteReserveFromInternal;
-
+        
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
@@ -411,7 +447,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 reserve1 = _quoteReserve + inputAmount;
             }
         } else {
-            //swapOutput
+            // swapOutput
             if (outputToken == baseToken) {
                 require(outputAmount < _baseReserve, "AMM._estimateSwap: INSUFFICIENT_LIQUIDITY");
                 inputAmount = _getAmountIn(outputAmount, _quoteReserve, _baseReserve);
@@ -488,21 +524,17 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         require(baseReserveNew <= type(uint112).max && quoteReserveNew <= type(uint112).max, "AMM._update: OVERFLOW");
 
         uint32 blockTimestamp = uint32(block.timestamp % 2**32);
-
         uint32 timeElapsed = blockTimestamp - blockTimestampLast; // overflow is desired
-
         // last price means last block price.
         if (timeElapsed > 0 && baseReserveOld != 0 && quoteReserveOld != 0) {
             // * never overflows, and + overflow is desired
             price0CumulativeLast += uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld)) * timeElapsed;
             price1CumulativeLast += uint256(UQ112x112.encode(baseReserveOld).uqdiv(quoteReserveOld)) * timeElapsed;
-
             // update twap
             IPriceOracle(IConfig(config).priceOracle()).updateAmmTwap(address(this));
         }
 
         uint256 blockNumberDelta = ChainAdapter.blockNumber() - lastBlockNumber;
-
         //every arbi block number calculate
         if (blockNumberDelta > 0 && baseReserveOld != 0) {
             lastPrice = uint256(UQ112x112.encode(quoteReserveOld).uqdiv(baseReserveOld));
