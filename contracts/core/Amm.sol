@@ -17,6 +17,7 @@ import "../libraries/FullMath.sol";
 import "../libraries/ChainAdapter.sol";
 import "../libraries/SignedMath.sol";
 
+
 contract Amm is IAmm, LiquidityERC20, Reentrant {
     using UQ112x112 for uint224;
     using SignedMath for int256;
@@ -76,7 +77,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
-        // only router can add liquidity
+        // only router can add liquidity 
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
@@ -137,46 +138,49 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
+        // only router can add liquidity 
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         liquidity = balanceOf[address(this)];
 
         // get real baseReserve
         uint256 realBaseReserve = getRealBaseReserve();
-
+     
         // calculate the fee
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
-        baseAmount = (liquidity * realBaseReserve) / _totalSupply; // using balances ensures pro-rata distribution
+        baseAmount = (liquidity * realBaseReserve) / _totalSupply; 
         // quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
 
+
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
 
-        //price check  0.1%
-        require(
-            (_baseReserve - baseAmount) * _quoteReserve * 999 <= (_quoteReserve - quoteAmount) * _baseReserve * 1000,
-            "Amm.mint: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME"
-        );
-        require(
-            (_quoteReserve - quoteAmount) * _baseReserve * 1000 <= (_baseReserve - baseAmount) * _quoteReserve * 1001,
-            "Amm.mint: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME"
-        );
-
-        // gurantee the netpostion close in a tolerant sliappage after remove liquidity
+         // gurantee the netpostion close in a tolerant sliappage after remove liquidity
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
-
+    
         uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
+  
         require(
             quoteTokenOfNetPosition.abs() * 100 < (_quoteReserve - quoteAmount) * lpWithdrawThreshold,
             "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW"
         );
 
+   
+        require(
+            (_baseReserve - baseAmount) * _quoteReserve * 999 <= (_quoteReserve - quoteAmount) * _baseReserve * 1000,
+            "Amm.burn: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME"
+        );
+        require(
+            (_quoteReserve - quoteAmount) * _baseReserve * 1000 <= (_baseReserve - baseAmount) * _quoteReserve * 1001,
+            "Amm.burn: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME"
+        );
+
         _burn(address(this), liquidity);
         _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve, false);
-        if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
+        if (feeOn) kLast = uint256(baseReserve) * quoteReserve;  
 
         IVault(margin).withdraw(msg.sender, to, baseAmount);
         emit Burn(msg.sender, to, baseAmount, quoteAmount, liquidity);
@@ -186,9 +190,15 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
 
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
+
         require(int256(uint256(_quoteReserve)) + quoteTokenOfNetPosition <= 2**112, "Amm.mint:NetPosition_VALUE_WRONT");
 
         uint256 baseTokenOfNetPosition;
+
+        if (quoteTokenOfNetPosition == 0) {
+            return uint256(_baseReserve);
+        }
+
         uint256[2] memory result;
         if (quoteTokenOfNetPosition < 0) {
             // long todo （+， -）
