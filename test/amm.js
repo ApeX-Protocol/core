@@ -306,5 +306,78 @@ describe("Amm", function () {
       await amm.transfer(amm.address, liquidity.mul(999).div(1000));
       await expect(amm.burn(owner.address)).to.be.revertedWith("Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW");
     });
+    it("get max liquidity", async function () {
+      // price AAA/usdt = 1/10
+      console.log("---------test begin---------");
+      await AAAToken.transfer(amm.address, ethers.BigNumber.from("1000000").mul(exp1));
+
+      // 100W AAA, 10W usdc
+      await expect(amm.mint(owner.address))
+        .to.emit(amm, "Mint")
+        .withArgs(
+          owner.address,
+          owner.address,
+          ethers.BigNumber.from("1000000").mul(exp1),
+          100000000000,
+          ethers.BigNumber.from("316227766016836933")
+        );
+
+      let reserveInit = await amm.getReserves();
+      console.log("reserveInit: {}, {}", reserveInit[0].toString(), reserveInit[1].toString());
+      // alice swap in
+      const marginAlice = margin.connect(alice);
+
+      // alice swap 100AAA to usdt
+      let tx1 = await marginAlice.swapProxy(
+        alice.address,
+        AAAToken.address,
+        USDT.address,
+        ethers.BigNumber.from("100").mul(exp1),
+        0
+      );
+      const swapRes = await tx1.wait();
+      let eventabi = [
+        "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
+      ];
+
+      let iface1 = new ethers.utils.Interface(eventabi);
+      let log1 = iface1.parseLog(swapRes.logs[1]);
+      let args1 = log1["args"];
+      console.log("swap input AAA for vusd event input  : ", args1.inputAmount.toString());
+      console.log("swap input AAA for vusd event output: ", args1.outputAmount.toString());
+      expect(args1.outputAmount).to.equal(9989002);
+      console.log("2 swap successfully!");
+
+      // alice swap out
+      let tx2 = await marginAlice.swapProxy(
+        alice.address,
+        AAAToken.address,
+        USDT.address,
+        0,
+        ethers.BigNumber.from("100").mul(exp2)
+      );
+      // alice swap to 100 usdt
+      const swapRes2 = await tx2.wait();
+      let log2 = iface1.parseLog(swapRes2.logs[1]);
+      let args2 = log2["args"];
+      // console.log("swap output vusd  for AAA event input  : ", args2.inputAmount.toString());
+      // console.log("swap output vusd  for AAA event output: ", args2.outputAmount.toString());
+      expect(args2.inputAmount).to.equal(ethers.BigNumber.from("1002203414634867914265"));
+
+      let liquidity = await amm.balanceOf(owner.address);
+      console.log("liquidity: ", liquidity);
+      let maxLiquidity = await amm.getTheMaxBurnLiquidity();
+      console.log("maxLiquidity: ", maxLiquidity);
+      // await amm.transfer(amm.address, liquidity.mul(999).div(10000));
+      // await amm.burn(owner.address);
+
+      let reserve = await amm.getReserves();
+      console.log("reserve: ", reserve[1]);
+      await marginAlice.setNetPosition(ethers.BigNumber.from("-5000").mul(exp2));
+      let maxLiquidity1 = await amm.getTheMaxBurnLiquidity();
+      console.log("maxLiquidity1: ", maxLiquidity1);
+      await amm.transfer(amm.address, maxLiquidity1);
+      await amm.burn(owner.address);
+    });
   });
 });

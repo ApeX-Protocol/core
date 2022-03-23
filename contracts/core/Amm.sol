@@ -318,12 +318,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 realBaseReserve = getRealBaseReserve();
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
         uint256 _totalSupply = totalSupply + getFeeLiquidity();
+
         uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
 
         uint256 maxWithdrawQuoteAmount = _quoteReserve - (quoteTokenOfNetPosition.abs() * 100) / lpWithdrawThreshold;
 
         uint256 maxWithdrawBaseAmount = (maxWithdrawQuoteAmount * _baseReserve) / _quoteReserve;
-        
+
         maxLiquidity = (maxWithdrawBaseAmount * _totalSupply) / realBaseReserve;
     }
 
@@ -342,7 +343,6 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                     uint256 feeParameter = IConfig(config).feeParameter();
                     uint256 denominator = (rootK * feeParameter) / 100 + rootKLast;
                     liquidity = numerator / denominator;
-                    
                 }
             }
         }
