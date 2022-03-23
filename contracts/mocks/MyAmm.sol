@@ -109,4 +109,12 @@ contract MyAmm is IAmm, LiquidityERC20  {
     ) external view override returns (uint256[2] memory amounts) {
 
     }
+
+    function getFeeLiquidity() external override view returns (uint256) {
+
+    }
+
+    function getTheMaxBurnLiquidity() external override view returns (uint256 maxLiquidity) {
+
+    }
 }

@@ -317,7 +317,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     }
 
     //query max withdraw liquidity
-    function getTheMaxBurnLiquidity() public view returns (uint256 maxLiquidity) {
+    function getTheMaxBurnLiquidity() public view  override returns (uint256 maxLiquidity) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         // get real baseReserve
         uint256 realBaseReserve = getRealBaseReserve();
@@ -333,7 +333,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         maxLiquidity = (maxWithdrawBaseAmount * _totalSupply) / realBaseReserve;
     }
 
-    function getFeeLiquidity() public view returns (uint256) {
+    function getFeeLiquidity() public view override returns (uint256) {
         address feeTo = IAmmFactory(factory).feeTo();
         bool feeOn = feeTo != address(0);
         uint256 _kLast = kLast; // gas savings
