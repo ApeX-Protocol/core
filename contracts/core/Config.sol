@@ -19,6 +19,7 @@ contract Config is IConfig, Ownable {
     uint256 public override feeParameter = 11; // 100 * (1/fee-1)
 
     mapping(address => bool) public override routerMap;
+    mapping(address => bool) public override isEmergencyRouter;
 
     constructor() {
         owner = msg.sender;
@@ -81,7 +82,6 @@ contract Config is IConfig, Ownable {
         beta = newBeta;
     }
 
-    //must be careful, expose all traders's position
     function registerRouter(address router) external override onlyOwner {
         require(router != address(0), "Config: ZERO_ADDRESS");
         require(!routerMap[router], "Config: REGISTERED");
@@ -96,5 +96,11 @@ contract Config is IConfig, Ownable {
         delete routerMap[router];
 
         emit RouterUnregistered(router);
+    }
+
+    function setEmergencyRouter(address router) external override onlyOwner {
+        require(routerMap[router], "Config: UNREGISTERED");
+        isEmergencyRouter[router] = true;
+        emit SetEmergencyRouter(router);
     }
 }

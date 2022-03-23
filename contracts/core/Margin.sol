@@ -23,7 +23,6 @@ contract Margin is IMargin, IVault, Reentrant {
     address public override quoteToken;
     mapping(address => Position) public traderPositionMap;
     mapping(address => int256) public traderCPF; //trader's latestCPF checkpoint, to calculate funding fee
-    mapping(address => uint256) public traderLatestOperation;
     uint256 public override reserve;
     uint256 public lastUpdateCPF; //last timestamp update cpf
     uint256 public totalQuoteLong;
@@ -67,9 +66,7 @@ contract Margin is IMargin, IVault, Reentrant {
         uint256 withdrawAmount
     ) external override nonReentrant {
         require(withdrawAmount > 0, "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT");
-        if (msg.sender != trader) {
-            require(IConfig(config).routerMap(msg.sender), "Margin.removeMargin: FORBIDDEN");
-        }
+        require(IConfig(config).routerMap(msg.sender), "Margin.removeMargin: FORBIDDEN");
         int256 _latestCPF = updateCPF();
 
         Position memory traderPosition = traderPositionMap[trader];
@@ -125,14 +122,9 @@ contract Margin is IMargin, IVault, Reentrant {
         uint8 side,
         uint256 quoteAmount
     ) external override nonReentrant returns (uint256 baseAmount) {
-        uint256 blockNumber = ChainAdapter.blockNumber();
-        require(traderLatestOperation[trader] != blockNumber, "Margin.openPosition: ONE_BLOCK_TWICE_OPERATION");
-        traderLatestOperation[trader] = blockNumber;
         require(side == 0 || side == 1, "Margin.openPosition: INVALID_SIDE");
         require(quoteAmount > 0, "Margin.openPosition: ZERO_QUOTE_AMOUNT");
-        if (msg.sender != trader) {
-            require(IConfig(config).routerMap(msg.sender), "Margin.openPosition: FORBIDDEN");
-        }
+        require(IConfig(config).routerMap(msg.sender), "Margin.openPosition: FORBIDDEN");
         int256 _latestCPF = updateCPF();
 
         Position memory traderPosition = traderPositionMap[trader];
@@ -226,12 +218,7 @@ contract Margin is IMargin, IVault, Reentrant {
         nonReentrant
         returns (uint256 baseAmount)
     {
-        uint256 blockNumber = ChainAdapter.blockNumber();
-        require(traderLatestOperation[trader] != blockNumber, "Margin.closePosition: ONE_BLOCK_TWICE_OPERATION");
-        traderLatestOperation[trader] = blockNumber;
-        if (msg.sender != trader) {
-            require(IConfig(config).routerMap(msg.sender), "Margin.closePosition: FORBIDDEN");
-        }
+        require(IConfig(config).routerMap(msg.sender), "Margin.openPosition: FORBIDDEN");
         int256 _latestCPF = updateCPF();
 
         Position memory traderPosition = traderPositionMap[trader];
@@ -323,11 +310,7 @@ contract Margin is IMargin, IVault, Reentrant {
             uint256 bonus
         )
     {
-        require(
-            traderLatestOperation[msg.sender] != ChainAdapter.blockNumber(),
-            "Margin.liquidate: ONE_BLOCK_TWICE_OPERATION"
-        );
-
+        require(IConfig(config).routerMap(msg.sender), "Margin.openPosition: FORBIDDEN");
         int256 _latestCPF = updateCPF();
         Position memory traderPosition = traderPositionMap[trader];
         int256 baseSize = traderPosition.baseSize;

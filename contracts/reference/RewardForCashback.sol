@@ -12,7 +12,7 @@ contract RewardForCashback is Reentrant, Ownable {
 
     event SetEmergency(bool emergency);
     event SetSigner(address signer, bool state);
-    event Claim(address indexed user, address[] tokens, uint256[] amounts, bytes nonce);
+    event Claim(address indexed user, address[] tokens, uint256[] amounts, bytes nonce, uint8 useFor);
 
     address public WETH;
     bool public emergency;
@@ -51,10 +51,11 @@ contract RewardForCashback is Reentrant, Ownable {
         uint256[] calldata amounts,
         bytes calldata nonce,
         uint256 expireAt,
+        uint8 useFor,
         bytes memory signature
     ) external nonReentrant {
         require(!emergency, "EMERGENCY");
-        verify(user, tokens, amounts, nonce, expireAt, signature);
+        verify(user, tokens, amounts, nonce, expireAt, useFor, signature);
         usedNonce[nonce] = true;
         for (uint256 i = 0; i < tokens.length; i++) {
             if (tokens[i] == WETH) {
@@ -63,7 +64,7 @@ contract RewardForCashback is Reentrant, Ownable {
                 TransferHelper.safeTransfer(tokens[i], user, amounts[i]);
             }
         }
-        emit Claim(user, tokens, amounts, nonce);
+        emit Claim(user, tokens, amounts, nonce, useFor);
     }
 
     function verify(
@@ -72,9 +73,10 @@ contract RewardForCashback is Reentrant, Ownable {
         uint256[] calldata amounts,
         bytes calldata nonce,
         uint256 expireAt,
+        uint8 useFor,
         bytes memory signature
     ) public view returns (bool) {
-        address recover = keccak256(abi.encode(user, tokens, amounts, nonce, expireAt, address(this)))
+        address recover = keccak256(abi.encode(user, tokens, amounts, nonce, expireAt, useFor, address(this)))
             .toEthSignedMessageHash()
             .recover(signature);
         require(signers[recover], "NOT_SIGNER");
