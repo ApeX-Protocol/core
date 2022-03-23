@@ -104,6 +104,13 @@ interface IRouter {
         uint256 deadline
     ) external returns (uint256 baseAmount, uint256 withdrawAmount);
 
+    function liquidate(
+        address baseToken,
+        address quoteToken,
+        address trader,
+        address to
+    ) external returns (uint256 quoteAmount, uint256 baseAmount, uint256 bonus);
+
     function getReserves(address baseToken, address quoteToken)
         external
         view

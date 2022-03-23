@@ -52,7 +52,7 @@ contract Router is IRouter {
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(baseToken, quoteToken);
         }
-        _checkLastOperation(msg.sender, amm);
+        _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(baseToken, msg.sender, amm, baseAmount);
         if (pcv) {
             (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
@@ -83,7 +83,7 @@ contract Router is IRouter {
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(WETH, quoteToken);
         }
-        _checkLastOperation(msg.sender, amm);
+        _recordLastOperation(msg.sender, amm);
         ethAmount = msg.value;
         IWETH(WETH).deposit{value: ethAmount}();
         assert(IWETH(WETH).transfer(amm, ethAmount));
@@ -104,7 +104,7 @@ contract Router is IRouter {
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
-        _checkLastOperation(msg.sender, amm);
+        _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
         (baseAmount, quoteAmount, ) = IAmm(amm).burn(msg.sender);
         require(baseAmount >= baseAmountMin, "Router.removeLiquidity: INSUFFICIENT_BASE_AMOUNT");
@@ -117,7 +117,7 @@ contract Router is IRouter {
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 ethAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
-        _checkLastOperation(msg.sender, amm);
+        _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
         (ethAmount, quoteAmount, ) = IAmm(amm).burn(address(this));
         require(ethAmount >= ethAmountMin, "Router.removeLiquidityETH: INSUFFICIENT_ETH_AMOUNT");
@@ -173,6 +173,8 @@ contract Router is IRouter {
         uint256 baseAmountLimit,
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.openPositionWithWallet: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionWithWallet: INSUFFICIENT_SIDE");
@@ -193,6 +195,8 @@ contract Router is IRouter {
         uint256 baseAmountLimit,
         uint256 deadline
     ) external payable override ensure(deadline) returns (uint256 baseAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.openPositionETHWithWallet: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionETHWithWallet: INSUFFICIENT_SIDE");
@@ -216,6 +220,8 @@ contract Router is IRouter {
         uint256 baseAmountLimit,
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.openPositionWithMargin: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionWithMargin: INSUFFICIENT_SIDE");
@@ -234,6 +240,8 @@ contract Router is IRouter {
         uint256 deadline,
         bool autoWithdraw
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         if (!autoWithdraw) {
@@ -265,6 +273,8 @@ contract Router is IRouter {
         uint256 quoteAmount,
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         
@@ -288,6 +298,21 @@ contract Router is IRouter {
             IWETH(WETH).withdraw(withdrawAmount);
             TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
         }
+    }
+
+    function liquidate(
+        address baseToken,
+        address quoteToken,
+        address trader,
+        address to
+    ) external override returns (uint256 quoteAmount, uint256 baseAmount, uint256 bonus) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        uint256 blockNumber = ChainAdapter.blockNumber();
+        require(userLastOperation[msg.sender][amm] != blockNumber, "Router.liquidate: FORBIDDEN");
+
+        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
+        require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
+        (quoteAmount, baseAmount, bonus) = IMargin(margin).liquidate(trader, to);
     }
 
     function getReserves(address baseToken, address quoteToken)
@@ -369,7 +394,7 @@ contract Router is IRouter {
         amountIn = numerator / denominator + 1;
     }
 
-    function _checkLastOperation(address user, address amm) internal {
+    function _recordLastOperation(address user, address amm) internal {
         uint256 blockNumber = ChainAdapter.blockNumber();
         require(userLastOperation[user][amm] != blockNumber, "Router.checkLastOperation: FORBIDDEN");
         userLastOperation[user][amm] = blockNumber;
