@@ -75,11 +75,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
-<<<<<<< HEAD
-        // only router can add liquidity
-=======
+
         // only router can add liquidity 
->>>>>>> upstream/dev
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
@@ -140,38 +137,27 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
-<<<<<<< HEAD
-        // only router can burn liquidity
-=======
+
         // only router can burn liquidity 
->>>>>>> upstream/dev
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         liquidity = balanceOf[address(this)];
 
         // get real baseReserve
         uint256 realBaseReserve = getRealBaseReserve();
-<<<<<<< HEAD
 
-=======
-     
->>>>>>> upstream/dev
         // calculate the fee
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
-<<<<<<< HEAD
         baseAmount = (liquidity * realBaseReserve) / _totalSupply;
-=======
-        baseAmount = (liquidity * realBaseReserve) / _totalSupply; 
->>>>>>> upstream/dev
+
         // quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
 
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
 
-<<<<<<< HEAD
         // gurantee the netpostion close in a tolerant sliappage after remove liquidity
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
 
@@ -182,16 +168,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW"
         );
 
-=======
-         // gurantee the netpostion close in a tolerant sliappage after remove liquidity
-        int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
-    
-        uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
-        require(
-            quoteTokenOfNetPosition.abs() * 100 < (_quoteReserve - quoteAmount) * lpWithdrawThreshold,
-            "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW"
-        );
->>>>>>> upstream/dev
+
         require(
             (_baseReserve - baseAmount) * _quoteReserve * 999 <= (_quoteReserve - quoteAmount) * _baseReserve * 1000,
             "Amm.burn: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME"
@@ -227,21 +204,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             // long  （+， -）
             result = estimateSwap(baseToken, quoteToken, 0, quoteTokenOfNetPosition.abs());
             baseTokenOfNetPosition = result[0];
-<<<<<<< HEAD
 
             realBaseReserve = uint256(_baseReserve) + baseTokenOfNetPosition;
         } else {
             //short  （-， +）
             result = estimateSwap(quoteToken, baseToken, quoteTokenOfNetPosition.abs(), 0);
             baseTokenOfNetPosition = result[1];
-            //
-=======
-            realBaseReserve = uint256(_baseReserve) + baseTokenOfNetPosition;
-        } else {
-            // short （-， +）
-            result = estimateSwap(quoteToken, baseToken, quoteTokenOfNetPosition.abs(), 0);
-            baseTokenOfNetPosition = result[1];
->>>>>>> upstream/dev
+            
             realBaseReserve = uint256(_baseReserve) - baseTokenOfNetPosition;
         }
     }

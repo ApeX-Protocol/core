@@ -162,7 +162,6 @@ describe("Amm", function () {
       // alice swap 1000000AAA to usdt
       // alice swap in
       let price2 = await amm.lastPrice();
-<<<<<<< HEAD
 
       // let reserver = await amm.getReserves();
       await expect(
@@ -175,20 +174,7 @@ describe("Amm", function () {
         )
       ).to.be.revertedWith("AMM._update: TRADINGSLIPPAGE_TOO_LARGE");
 
-=======
 
-      // let reserver = await amm.getReserves();
-      await expect(
-        marginAlice.swapProxy(
-          alice.address,
-          AAAToken.address,
-          USDT.address,
-          ethers.BigNumber.from("10000000").mul(exp1),
-          0
-        )
-      ).to.be.revertedWith("AMM._update: TRADINGSLIPPAGE_TOO_LARGE");
-
->>>>>>> upstream/dev
       let tx1 = await marginAlice.swapProxy(
         alice.address,
         AAAToken.address,
@@ -282,7 +268,6 @@ describe("Amm", function () {
         USDT.address,
         ethers.BigNumber.from("100").mul(exp1),
         0
-<<<<<<< HEAD
       );
       const swapRes = await tx1.wait();
       let eventabi = [
@@ -305,30 +290,6 @@ describe("Amm", function () {
         0,
         ethers.BigNumber.from("100").mul(exp2)
       );
-=======
-      );
-      const swapRes = await tx1.wait();
-      let eventabi = [
-        "event Swap(address indexed trader, address indexed inputToken, address indexed outputToken, uint256 inputAmount, uint256 outputAmount);",
-      ];
-
-      let iface1 = new ethers.utils.Interface(eventabi);
-      let log1 = iface1.parseLog(swapRes.logs[1]);
-      let args1 = log1["args"];
-      console.log("swap input AAA for vusd event input  : ", args1.inputAmount.toString());
-      console.log("swap input AAA for vusd event output: ", args1.outputAmount.toString());
-      expect(args1.outputAmount).to.equal(9989002);
-      console.log("2 swap successfully!");
-
-      // alice swap out
-      let tx2 = await marginAlice.swapProxy(
-        alice.address,
-        AAAToken.address,
-        USDT.address,
-        0,
-        ethers.BigNumber.from("100").mul(exp2)
-      );
->>>>>>> upstream/dev
       // alice swap to 100 usdt
       const swapRes2 = await tx2.wait();
       let log2 = iface1.parseLog(swapRes2.logs[1]);
@@ -336,7 +297,6 @@ describe("Amm", function () {
       // console.log("swap output vusd  for AAA event input  : ", args2.inputAmount.toString());
       // console.log("swap output vusd  for AAA event output: ", args2.outputAmount.toString());
       expect(args2.inputAmount).to.equal(ethers.BigNumber.from("1002203414634867914265"));
-<<<<<<< HEAD
 
       let liquidity = await amm.balanceOf(owner.address);
       console.log("liquidity: ", liquidity);
@@ -419,17 +379,6 @@ describe("Amm", function () {
       console.log("maxLiquidity1: ", maxLiquidity1);
       await amm.transfer(amm.address, maxLiquidity1);
       await amm.burn(owner.address);
-=======
-
-      let liquidity = await amm.balanceOf(owner.address);
-      console.log("liquidity: ", liquidity);
-      // net position  200 usdc  （-，+）
-      let reserve = await amm.getReserves();
-      console.log("quoteToken: ", reserve[1].toString());
-      await marginAlice.setNetPosition(ethers.BigNumber.from("100000").mul(exp2).sub(reserve[1]));
-      await amm.transfer(amm.address, liquidity.mul(999).div(1000));
-      await expect(amm.burn(owner.address)).to.be.revertedWith("Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW");
->>>>>>> upstream/dev
     });
   });
 });
