@@ -35,10 +35,10 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   await attachApeXToken();
-  await createPriceOracle();
+  // await createPriceOracle();
   await createConfig();
   await createPairFactory();
-  await createPCVTreasury();
+  // await createPCVTreasury();
   await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
@@ -66,11 +66,11 @@ async function createConfig() {
   console.log("Config:", config.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, config.address);
 
-  // if (priceOracle == null) {
-  //   let priceOracleAddress = "0x713D7e019eC5e48F4D6BE8b640D5ed88b95023Bc";
-  //   const PriceOracle = await ethers.getContractFactory("PriceOracle");
-  //   priceOracle = await PriceOracle.attach(priceOracleAddress);
-  // }
+  if (priceOracle == null) {
+    let priceOracleAddress = "0x901F48Cf42406D4b4201435217E27C40d364D44B";
+    const PriceOracle = await ethers.getContractFactory("PriceOracle");
+    priceOracle = await PriceOracle.attach(priceOracleAddress);
+  }
   await config.setPriceOracle(priceOracle.address);
 }
 
@@ -112,11 +112,11 @@ async function createRouter() {
   //   const PairFactory = await ethers.getContractFactory("PairFactory");
   //   pairFactory = await PairFactory.attach(pairFactoryAddress);
   // }
-  // if (pcvTreasury == null) {
-  //   let pcvTreasuryAddress = "0x9a1Ecf2D2C523A69028BDBAb6Fce8A0549addfE7";
-  //   const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
-  //   pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
-  // }
+  if (pcvTreasury == null) {
+    let pcvTreasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
+    const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
+    pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
+  }
 
   const Router = await ethers.getContractFactory("Router");
   router = await Router.deploy(config.address, pairFactory.address, pcvTreasury.address, wethAddress);

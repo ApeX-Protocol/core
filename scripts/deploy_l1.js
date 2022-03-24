@@ -6,8 +6,6 @@ let signer;
 let apeXToken;
 let vipNft;
 let squidNft;
-let apeXToVipNFT = BigNumber.from("20833320000000000000000000");
-let apeXToSquidNFT = BigNumber.from("20520000000000000000000000");
 
 let vipNftName = "ApeX OG NFT";
 let vipNftSymbol = "APEX-OG";
@@ -27,14 +25,19 @@ let genesisNftName = "ApeX Genesis NFT";
 let genesisNftSymbol = "APEX-GNS";
 let genesisNftBaseURI = "";
 
+let eachNFT = BigNumber.from("20000000000000000");
+let maxCount = 56;
+let nftRebate;
+
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  await createApeXToken();
-  await createVipNft();
-  await createNftSquid();
+  // await createApeXToken();
+  // await createVipNft();
+  // await createNftSquid();
+  await createNFTRebate();
   // await createGenesisNFT();
-  await createMulticall2();
+  // await createMulticall2();
 };
 
 async function createApeXToken() {
@@ -73,10 +76,6 @@ async function createVipNft() {
     vipNftCliff,
     vipNftDuration
   );
-
-  // await apeXToken.transfer(vipNft.address, apeXToVipNFT);
-  // let balanceInVip = await apeXToken.balanceOf(vipNft.address);
-  // console.log("ApeX in VIPNFT:", balanceInVip.toString());
 }
 
 async function createNftSquid() {
@@ -107,10 +106,13 @@ async function createNftSquid() {
     squidNftStartTime,
     squidNftEndTime
   );
+}
 
-  // await apeXToken.transfer(squidNft.address, apeXToSquidNFT);
-  // let balance = await apeXToken.balanceOf(squidNft.address);
-  // console.log("ApeX in SquidNft:", balance.toString());
+async function createNFTRebate() {
+  const NFTRebate = await ethers.getContractFactory("NFTRebate");
+  nftRebate = await NFTRebate.deploy(eachNFT, maxCount);
+  console.log("NFTRebate:", nftRebate.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, nftRebate.address, eachNFT.toString(), maxCount);
 }
 
 async function createGenesisNFT() {

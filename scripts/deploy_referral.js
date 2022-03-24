@@ -8,7 +8,7 @@ let invitation;
 let rewardForCashback;
 
 const main = async () => {
-  await createInvitation();
+  // await createInvitation();
   await createRewardForCashback();
 };
 
