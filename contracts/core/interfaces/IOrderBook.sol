@@ -32,16 +32,9 @@ interface IOrderBook {
 
     event SetRouterForKeeper(address newRouterForKeeper);
 
-    event ExecuteOpenPositionOrder(address trader, address feeReceiver, uint256 index);
+    event ExecuteOpen(address trader, address feeReceiver, uint256 index);
 
-    event ExecuteClosePositionOrder(address trader, address feeReceiver, uint256 index);
+    event ExecuteClose(address trader, address feeReceiver, uint256 index);
 
     function setRouterForKeeper(address routerForKeeper) external;
-
-    // function executeOpenPositionOrder(
-    //     address _trader,
-    //     address payable _feeReceiver,
-    //     uint256 _orderIndex,
-    //     bytes calldata data
-    // ) external;
 }

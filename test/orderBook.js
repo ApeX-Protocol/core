@@ -80,6 +80,21 @@ describe("OrderBook Contract", function () {
       nonce: ethers.utils.formatBytes32String("this is open long nonce"),
     };
 
+    wrongOrder = {
+      routerToExecute: routerForKeeper.address,
+      trader: addr1.address,
+      baseToken: weth.address,
+      quoteToken: usdc.address,
+      side: 0,
+      baseAmount: 0, //wrong amount
+      quoteAmount: 30000,
+      baseAmountLimit: 1000,
+      limitPrice: "2100000000000000000",
+      deadline: 999999999999,
+      withWallet: true,
+      nonce: ethers.utils.formatBytes32String("this is wrong open long nonce"),
+    };
+
     orderShort = {
       routerToExecute: routerForKeeper.address,
       trader: owner.address,
@@ -128,7 +143,45 @@ describe("OrderBook Contract", function () {
     });
   });
 
-  describe("executeOpenPositionOrder", function () {
+  describe("batchExecuteOpen", function () {
+    it("can batchExecuteOpen", async function () {
+      let abiCoder = await ethers.utils.defaultAbiCoder;
+      data = abiCoder.encode([orderStruct], [order]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+      await orderBook.batchExecuteOpen(false, [order], [signature]);
+      let result = await router.getPosition(weth.address, usdc.address, owner.address);
+      expect(result.quoteSize.toNumber()).to.be.equal(-30000);
+    });
+
+    it("no revert all when batchExecuteOpen with false", async function () {
+      let abiCoder = await ethers.utils.defaultAbiCoder;
+      data = abiCoder.encode([orderStruct], [order]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+      let data1 = abiCoder.encode([orderStruct], [wrongOrder]);
+      let signature1 = await addr1.signMessage(hexStringToByteArray(ethers.utils.keccak256(data1)));
+
+      await orderBook.batchExecuteOpen(false, [order, wrongOrder], [signature, signature1]);
+      let result = await router.getPosition(weth.address, usdc.address, owner.address);
+      expect(result.quoteSize.toNumber()).to.be.equal(-30000);
+      result = await router.getPosition(weth.address, usdc.address, addr1.address);
+      expect(result.quoteSize.toNumber()).to.be.equal(0);
+    });
+
+    it("revert all when batchExecuteOpen with true", async function () {
+      let abiCoder = await ethers.utils.defaultAbiCoder;
+      data = abiCoder.encode([orderStruct], [order]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+      let data1 = abiCoder.encode([orderStruct], [wrongOrder]);
+      let signature1 = await addr1.signMessage(hexStringToByteArray(ethers.utils.keccak256(data1)));
+
+      await expect(orderBook.batchExecuteOpen(true, [order, wrongOrder], [signature, signature1])).to.be.revertedWith(
+        "_executeOpen: call failed"
+      );
+    });
+  });
+
+  describe("executeOpen", function () {
     let abiCoder;
     beforeEach(async function () {
       abiCoder = await ethers.utils.defaultAbiCoder;
@@ -137,7 +190,7 @@ describe("OrderBook Contract", function () {
       data = abiCoder.encode([orderStruct], [order]);
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-      await orderBook.executeOpenPositionOrder(order, signature);
+      await orderBook.executeOpen(order, signature);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(-30000);
     });
@@ -146,7 +199,7 @@ describe("OrderBook Contract", function () {
       data = abiCoder.encode([orderStruct], [orderShort]);
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-      await orderBook.executeOpenPositionOrder(orderShort, signature);
+      await orderBook.executeOpen(orderShort, signature);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(30000);
     });
@@ -156,19 +209,15 @@ describe("OrderBook Contract", function () {
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
       order.side = 1 - order.side;
-      await expect(orderBook.executeOpenPositionOrder(order, signature)).to.be.revertedWith(
-        "OrderBook.verifyOpen: NOT_SIGNER"
-      );
+      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("OrderBook.verifyOpen: NOT_SIGNER");
     });
 
     it("revert when execute an used order", async function () {
       data = abiCoder.encode([orderStruct], [order]);
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-      await orderBook.executeOpenPositionOrder(order, signature);
-      await expect(orderBook.executeOpenPositionOrder(order, signature)).to.be.revertedWith(
-        "OrderBook.verifyOpen: NONCE_USED"
-      );
+      await orderBook.executeOpen(order, signature);
+      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("OrderBook.verifyOpen: NONCE_USED");
     });
 
     it("revert when execute a expired order", async function () {
@@ -176,9 +225,7 @@ describe("OrderBook Contract", function () {
       data = abiCoder.encode([orderStruct], [order]);
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-      await expect(orderBook.executeOpenPositionOrder(order, signature)).to.be.revertedWith(
-        "OrderBook.verifyOpen: EXPIRED"
-      );
+      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("OrderBook.verifyOpen: EXPIRED");
     });
 
     it("revert when execute to an invalid router", async function () {
@@ -186,27 +233,25 @@ describe("OrderBook Contract", function () {
       data = abiCoder.encode([orderStruct], [order]);
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-      await expect(orderBook.executeOpenPositionOrder(order, signature)).to.be.revertedWith(
-        "OrderBook.executeOpenPositionOrder: WRONG_ROUTER"
-      );
+      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("OrderBook.executeOpen: WRONG_ROUTER");
     });
   });
 
-  describe("executeClosePositionOrder", function () {
+  describe("executeClose", function () {
     describe("open long first", async function () {
       let abiCoder;
       beforeEach(async function () {
         abiCoder = await ethers.utils.defaultAbiCoder;
         data = abiCoder.encode([orderStruct], [order]);
         let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
-        await orderBook.executeOpenPositionOrder(order, signature);
+        await orderBook.executeOpen(order, signature);
       });
 
       it("execute a new close long position order", async function () {
         let data = abiCoder.encode([closeOrderStruct], [closeOrder]);
         let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-        await orderBook.executeClosePositionOrder(closeOrder, signature);
+        await orderBook.executeClose(closeOrder, signature);
         let result = await router.getPosition(weth.address, usdc.address, owner.address);
         expect(result.quoteSize.toNumber()).to.be.equal(0);
       });
@@ -219,14 +264,14 @@ describe("OrderBook Contract", function () {
 
         data = abiCoder.encode([orderStruct], [orderShort]);
         signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
-        await orderBook.executeOpenPositionOrder(orderShort, signature);
+        await orderBook.executeOpen(orderShort, signature);
       });
 
       it("execute a new close short position order", async function () {
         data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
         let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-        await orderBook.executeClosePositionOrder(closeOrderShort, signature);
+        await orderBook.executeClose(closeOrderShort, signature);
         let result = await router.getPosition(weth.address, usdc.address, owner.address);
         expect(result.quoteSize.toNumber()).to.be.equal(0);
       });
@@ -236,7 +281,7 @@ describe("OrderBook Contract", function () {
         let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
         closeOrderShort.side = 1 - closeOrderShort.side;
-        await expect(orderBook.executeClosePositionOrder(closeOrderShort, signature)).to.be.revertedWith(
+        await expect(orderBook.executeClose(closeOrderShort, signature)).to.be.revertedWith(
           "OrderBook.verifyClose: NOT_SIGNER"
         );
       });
@@ -245,8 +290,8 @@ describe("OrderBook Contract", function () {
         data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
         let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-        await orderBook.executeClosePositionOrder(closeOrderShort, signature);
-        await expect(orderBook.executeClosePositionOrder(closeOrderShort, signature)).to.be.revertedWith(
+        await orderBook.executeClose(closeOrderShort, signature);
+        await expect(orderBook.executeClose(closeOrderShort, signature)).to.be.revertedWith(
           "OrderBook.verifyClose: NONCE_USED"
         );
       });
@@ -256,7 +301,7 @@ describe("OrderBook Contract", function () {
         data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
         let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-        await expect(orderBook.executeClosePositionOrder(closeOrderShort, signature)).to.be.revertedWith(
+        await expect(orderBook.executeClose(closeOrderShort, signature)).to.be.revertedWith(
           "OrderBook.verifyClose: EXPIRED"
         );
       });
