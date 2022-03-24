@@ -53,16 +53,6 @@ contract RouterForKeeper is IRouterForKeeper {
         IMargin(margin).addMargin(holder, amount);
     }
 
-    //to check
-    function depositETH(address quoteToken, address holder) external payable override {
-        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
-        require(margin != address(0), "RouterForKeeper.depositETH: NOT_FOUND_MARGIN");
-        uint256 amount = msg.value;
-        IWETH(WETH).deposit{value: amount}();
-        assert(IWETH(WETH).transfer(margin, amount));
-        IMargin(margin).addMargin(holder, amount);
-    }
-
     function openPositionWithWallet(
         address baseToken,
         address quoteToken,

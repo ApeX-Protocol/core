@@ -19,8 +19,6 @@ interface IRouterForKeeper {
         uint256 amount
     ) external;
 
-    function depositETH(address quoteToken, address holder) external payable;
-
     function openPositionWithWallet(
         address baseToken,
         address quoteToken,

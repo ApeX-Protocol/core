@@ -15,9 +15,9 @@ let ammFactory;
 let routerForKeeper;
 let orderBook;
 let orderStruct =
-  "tuple(address trader, address baseToken, address quoteToken, uint8 side, uint256 baseAmount, uint256 quoteAmount, uint256 baseAmountLimit, uint256 limitPrice, uint256 deadline, bytes nonce)";
+  "tuple(address routerToExecute, address trader, address baseToken, address quoteToken, uint8 side, uint256 baseAmount, uint256 quoteAmount, uint256 baseAmountLimit, uint256 limitPrice, uint256 deadline, bool withWallet, bytes nonce)";
 let closeOrderStruct =
-  "tuple(address trader, address baseToken, address quoteToken, uint8 side, uint256 quoteAmount, uint256 limitPrice, uint256 deadline, bool autoWithdraw, bytes nonce)";
+  "tuple(address routerToExecute, address trader, address baseToken, address quoteToken, uint8 side, uint256 quoteAmount, uint256 limitPrice, uint256 deadline, bool autoWithdraw, bytes nonce)";
 let order;
 
 describe("OrderBook Contract", function () {
@@ -66,6 +66,7 @@ describe("OrderBook Contract", function () {
     await weth.approve(routerForKeeper.address, 10000000);
     await config.registerRouter(routerForKeeper.address);
     order = {
+      routerToExecute: routerForKeeper.address,
       trader: owner.address,
       baseToken: weth.address,
       quoteToken: usdc.address,
@@ -75,10 +76,12 @@ describe("OrderBook Contract", function () {
       baseAmountLimit: 1000,
       limitPrice: "2100000000000000000", //2.1
       deadline: 999999999999,
+      withWallet: true,
       nonce: ethers.utils.formatBytes32String("this is open long nonce"),
     };
 
     orderShort = {
+      routerToExecute: routerForKeeper.address,
       trader: owner.address,
       baseToken: weth.address,
       quoteToken: usdc.address,
@@ -88,10 +91,12 @@ describe("OrderBook Contract", function () {
       baseAmountLimit: 100000,
       limitPrice: "1900000000000000000", //1.9
       deadline: 999999999999,
+      withWallet: true,
       nonce: ethers.utils.formatBytes32String("this is open short nonce"),
     };
 
     closeOrder = {
+      routerToExecute: routerForKeeper.address,
       trader: owner.address,
       baseToken: weth.address,
       quoteToken: usdc.address,
@@ -104,6 +109,7 @@ describe("OrderBook Contract", function () {
     };
 
     closeOrderShort = {
+      routerToExecute: routerForKeeper.address,
       trader: owner.address,
       baseToken: weth.address,
       quoteToken: usdc.address,
@@ -172,6 +178,16 @@ describe("OrderBook Contract", function () {
 
       await expect(orderBook.executeOpenPositionOrder(order, signature)).to.be.revertedWith(
         "OrderBook.verifyOpen: EXPIRED"
+      );
+    });
+
+    it("revert when execute to an invalid router", async function () {
+      order.routerToExecute = addr1.address;
+      data = abiCoder.encode([orderStruct], [order]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+      await expect(orderBook.executeOpenPositionOrder(order, signature)).to.be.revertedWith(
+        "OrderBook.executeOpenPositionOrder: WRONG_ROUTER"
       );
     });
   });

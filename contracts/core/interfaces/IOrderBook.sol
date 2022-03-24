@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 interface IOrderBook {
     struct OpenPositionOrder {
+        address routerToExecute;
         address trader;
         address baseToken;
         address quoteToken;
@@ -12,10 +13,12 @@ interface IOrderBook {
         uint256 baseAmountLimit;
         uint256 limitPrice;
         uint256 deadline;
+        bool withWallet;
         bytes nonce;
     }
 
     struct ClosePositionOrder {
+        address routerToExecute;
         address trader;
         address baseToken;
         address quoteToken;

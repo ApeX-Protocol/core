@@ -14,7 +14,6 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
     using ECDSA for bytes32;
 
     address public routerForKeeper;
-
     mapping(bytes => bool) public usedNonce;
 
     constructor(address _routerForKeeper) {
@@ -25,6 +24,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
 
     function executeOpenPositionOrder(OpenPositionOrder memory order, bytes memory signature) external nonReentrant {
         require(verifyOpen(order, signature));
+        require(order.routerToExecute == routerForKeeper, "OrderBook.executeOpenPositionOrder: WRONG_ROUTER");
         require(order.baseToken != address(0), "OrderBook.executeOpenPositionOrder: ORDER_NOT_FOUND");
         require(order.side == 0 || order.side == 1, "OrderBook.executeOpenPositionOrder: INVALID_SIDE");
 
@@ -40,23 +40,36 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         }
 
         //execute
-        IRouterForKeeper(routerForKeeper).openPositionWithWallet(
-            order.baseToken,
-            order.quoteToken,
-            order.trader,
-            order.trader,
-            order.side,
-            order.baseAmount,
-            order.quoteAmount,
-            order.baseAmountLimit,
-            order.deadline
-        );
+        if (order.withWallet) {
+            IRouterForKeeper(routerForKeeper).openPositionWithWallet(
+                order.baseToken,
+                order.quoteToken,
+                order.trader,
+                order.trader,
+                order.side,
+                order.baseAmount,
+                order.quoteAmount,
+                order.baseAmountLimit,
+                order.deadline
+            );
+        } else {
+            IRouterForKeeper(routerForKeeper).openPositionWithMargin(
+                order.baseToken,
+                order.quoteToken,
+                order.trader,
+                order.side,
+                order.quoteAmount,
+                order.baseAmountLimit,
+                order.deadline
+            );
+        }
 
         usedNonce[order.nonce] = true;
     }
 
     function executeClosePositionOrder(ClosePositionOrder memory order, bytes memory signature) external nonReentrant {
         require(verifyClose(order, signature));
+        require(order.routerToExecute == routerForKeeper, "OrderBook.executeClosePositionOrder: WRONG_ROUTER");
         require(order.baseToken != address(0), "OrderBook.executeClosePositionOrder: ORDER_NOT_FOUND");
         require(order.side == 0 || order.side == 1, "OrderBook.executeClosePositionOrder: INVALID_SIDE");
 
