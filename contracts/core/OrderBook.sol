@@ -28,9 +28,9 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
     }
 
     function batchExecuteOpen(
-        bool requireSuccess,
         OpenPositionOrder[] memory orders,
-        bytes[] memory signatures
+        bytes[] memory signatures,
+        bool requireSuccess
     ) external nonReentrant returns (RespData[] memory respData) {
         require(orders.length == signatures.length, "OrderBook.batchExecuteOpen: LENGTH_NOT_MATCH");
         respData = new RespData[](orders.length);
@@ -40,9 +40,9 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
     }
 
     function batchExecuteClose(
-        bool requireSuccess,
         ClosePositionOrder[] memory orders,
-        bytes[] memory signatures
+        bytes[] memory signatures,
+        bool requireSuccess
     ) external nonReentrant returns (RespData[] memory respData) {
         require(orders.length == signatures.length, "OrderBook.batchExecuteClose: LENGTH_NOT_MATCH");
         respData = new RespData[](orders.length);

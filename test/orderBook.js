@@ -126,6 +126,19 @@ describe("OrderBook Contract", function () {
       nonce: ethers.utils.formatBytes32String("this is close long nonce"),
     };
 
+    wrongCloseOrder = {
+      routerToExecute: routerForKeeper.address,
+      trader: addr1.address,
+      baseToken: weth.address,
+      quoteToken: usdc.address,
+      side: 0,
+      quoteAmount: 0,
+      limitPrice: "1900000000000000000", //1.9
+      deadline: 999999999999,
+      autoWithdraw: false,
+      nonce: ethers.utils.formatBytes32String("this is wrong close long nonce"),
+    };
+
     closeOrderShort = {
       routerToExecute: routerForKeeper.address,
       trader: owner.address,
@@ -140,31 +153,25 @@ describe("OrderBook Contract", function () {
     };
   });
 
-  describe("routerForKeeper", function () {
-    it("routerForKeeper", async function () {
-      expect(await orderBook.routerForKeeper()).to.be.equal(routerForKeeper.address);
-    });
-  });
-
   describe("batchExecuteOpen", function () {
     it("can batchExecuteOpen", async function () {
       let abiCoder = await ethers.utils.defaultAbiCoder;
       data = abiCoder.encode([orderStruct], [order]);
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
-      await orderBook.batchExecuteOpen(false, [order], [signature]);
+      await orderBook.batchExecuteOpen([order], [signature], false);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(-30000);
     });
 
-    it("no revert all when batchExecuteOpen with false", async function () {
+    it("not revert all when batchExecuteOpen with false", async function () {
       let abiCoder = await ethers.utils.defaultAbiCoder;
       data = abiCoder.encode([orderStruct], [order]);
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
       let data1 = abiCoder.encode([orderStruct], [wrongOrder]);
       let signature1 = await addr1.signMessage(hexStringToByteArray(ethers.utils.keccak256(data1)));
 
-      await orderBook.batchExecuteOpen(false, [order, wrongOrder], [signature, signature1]);
+      await orderBook.batchExecuteOpen([order, wrongOrder], [signature, signature1], false);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(-30000);
       result = await router.getPosition(weth.address, usdc.address, addr1.address);
@@ -178,9 +185,52 @@ describe("OrderBook Contract", function () {
       let data1 = abiCoder.encode([orderStruct], [wrongOrder]);
       let signature1 = await addr1.signMessage(hexStringToByteArray(ethers.utils.keccak256(data1)));
 
-      await expect(orderBook.batchExecuteOpen(true, [order, wrongOrder], [signature, signature1])).to.be.revertedWith(
+      await expect(orderBook.batchExecuteOpen([order, wrongOrder], [signature, signature1], true)).to.be.revertedWith(
         "_executeOpen: call failed"
       );
+    });
+  });
+
+  describe("batchExecuteClose", function () {
+    let abiCoder;
+    beforeEach(async function () {
+      abiCoder = await ethers.utils.defaultAbiCoder;
+      data = abiCoder.encode([orderStruct], [order]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+      await orderBook.batchExecuteOpen([order], [signature], false);
+    });
+
+    it("can batchExecuteClose", async function () {
+      data = abiCoder.encode([closeOrderStruct], [closeOrder]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+      await orderBook.batchExecuteClose([closeOrder], [signature], false);
+      let result = await router.getPosition(weth.address, usdc.address, owner.address);
+      expect(result.quoteSize.toNumber()).to.be.equal(0);
+    });
+
+    it("not revert all when batchExecuteClose with false", async function () {
+      data = abiCoder.encode([closeOrderStruct], [closeOrder]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+      let data1 = abiCoder.encode([closeOrderStruct], [wrongCloseOrder]);
+      let signature1 = await addr1.signMessage(hexStringToByteArray(ethers.utils.keccak256(data1)));
+
+      await orderBook.batchExecuteClose([closeOrder, wrongCloseOrder], [signature, signature1], false);
+      let result = await router.getPosition(weth.address, usdc.address, owner.address);
+      expect(result.quoteSize.toNumber()).to.be.equal(0);
+      result = await router.getPosition(weth.address, usdc.address, addr1.address);
+      expect(result.quoteSize.toNumber()).to.be.equal(0);
+    });
+
+    it("revert all when batchExecuteClose with true", async function () {
+      data = abiCoder.encode([closeOrderStruct], [closeOrder]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+      let data1 = abiCoder.encode([closeOrderStruct], [wrongCloseOrder]);
+      let signature1 = await addr1.signMessage(hexStringToByteArray(ethers.utils.keccak256(data1)));
+
+      await expect(
+        orderBook.batchExecuteClose([closeOrder, wrongCloseOrder], [signature, signature1], true)
+      ).to.be.revertedWith("_executeClose: call failed");
     });
   });
 
@@ -308,6 +358,12 @@ describe("OrderBook Contract", function () {
           "OrderBook.verifyClose: EXPIRED"
         );
       });
+    });
+  });
+
+  describe("setRouterForKeeper", function () {
+    it("routerForKeeper", async function () {
+      expect(await orderBook.routerForKeeper()).to.be.equal(routerForKeeper.address);
     });
   });
 });
