@@ -64,6 +64,9 @@ describe("OrderBook Contract", function () {
 
     await usdc.mint(owner.address, 10000000);
     await weth.approve(routerForKeeper.address, 10000000);
+
+    await routerForKeeper.deposit(weth.address, owner.address, 10000000);
+    expect(await routerForKeeper.balanceOf(weth.address, owner.address)).to.be.equal(10000000);
     await config.registerRouter(routerForKeeper.address);
     order = {
       routerToExecute: routerForKeeper.address,

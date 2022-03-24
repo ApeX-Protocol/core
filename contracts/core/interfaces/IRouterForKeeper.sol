@@ -11,14 +11,6 @@ interface IRouterForKeeper {
         view
         returns (uint256 spotPriceWithMultiplier);
 
-    function deposit(
-        address baseToken,
-        address quoteToken,
-        address from,
-        address holder,
-        uint256 amount
-    ) external;
-
     function openPositionWithWallet(
         address baseToken,
         address quoteToken,
