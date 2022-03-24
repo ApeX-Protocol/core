@@ -75,6 +75,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
+
         // only router can add liquidity 
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
 
@@ -136,6 +137,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
+
         // only router can burn liquidity 
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
@@ -143,26 +145,30 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         // get real baseReserve
         uint256 realBaseReserve = getRealBaseReserve();
-     
+
         // calculate the fee
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
-        baseAmount = (liquidity * realBaseReserve) / _totalSupply; 
+        baseAmount = (liquidity * realBaseReserve) / _totalSupply;
+
         // quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
 
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
 
-         // gurantee the netpostion close in a tolerant sliappage after remove liquidity
+        // gurantee the netpostion close in a tolerant sliappage after remove liquidity
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
-    
+
         uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
+
         require(
-            quoteTokenOfNetPosition.abs() * 100 < (_quoteReserve - quoteAmount) * lpWithdrawThreshold,
+            quoteTokenOfNetPosition.abs() * 100 <= (_quoteReserve - quoteAmount) * lpWithdrawThreshold,
             "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW"
         );
+
+
         require(
             (_baseReserve - baseAmount) * _quoteReserve * 999 <= (_quoteReserve - quoteAmount) * _baseReserve * 1000,
             "Amm.burn: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME"
@@ -198,11 +204,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             // long  （+， -）
             result = estimateSwap(baseToken, quoteToken, 0, quoteTokenOfNetPosition.abs());
             baseTokenOfNetPosition = result[0];
+
             realBaseReserve = uint256(_baseReserve) + baseTokenOfNetPosition;
         } else {
-            // short （-， +）
+            //short  （-， +）
             result = estimateSwap(quoteToken, baseToken, quoteTokenOfNetPosition.abs(), 0);
             baseTokenOfNetPosition = result[1];
+            
             realBaseReserve = uint256(_baseReserve) - baseTokenOfNetPosition;
         }
     }
@@ -287,6 +295,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
                 quoteReserveFromExternal * 100 <= quoteReserveFromInternal * (100 - gap),
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
+
        
         quoteReserveAfter = (_quoteReserve * quoteReserveFromExternal) / quoteReserveFromInternal;
         
@@ -305,6 +314,44 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 outputAmount
     ) public view override returns (uint256[2] memory amounts) {
         (, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
+    }
+
+    //query max withdraw liquidity
+    function getTheMaxBurnLiquidity() public view  override returns (uint256 maxLiquidity) {
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
+        // get real baseReserve
+        uint256 realBaseReserve = getRealBaseReserve();
+        int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
+        uint256 _totalSupply = totalSupply + getFeeLiquidity();
+
+        uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
+
+        uint256 maxWithdrawQuoteAmount = _quoteReserve - (quoteTokenOfNetPosition.abs() * 100) / lpWithdrawThreshold;
+
+        uint256 maxWithdrawBaseAmount = (maxWithdrawQuoteAmount * _baseReserve) / _quoteReserve;
+
+        maxLiquidity = (maxWithdrawBaseAmount * _totalSupply) / realBaseReserve;
+    }
+
+    function getFeeLiquidity() public view override returns (uint256) {
+        address feeTo = IAmmFactory(factory).feeTo();
+        bool feeOn = feeTo != address(0);
+        uint256 _kLast = kLast; // gas savings
+        uint256 liquidity;
+        if (feeOn) {
+            if (_kLast != 0) {
+                uint256 rootK = Math.sqrt(uint256(baseReserve) * quoteReserve);
+                uint256 rootKLast = Math.sqrt(_kLast);
+                if (rootK > rootKLast) {
+                    uint256 numerator = totalSupply * (rootK - rootKLast);
+
+                    uint256 feeParameter = IConfig(config).feeParameter();
+                    uint256 denominator = (rootK * feeParameter) / 100 + rootKLast;
+                    liquidity = numerator / denominator;
+                }
+            }
+        }
+        return liquidity;
     }
 
     function getReserves()
