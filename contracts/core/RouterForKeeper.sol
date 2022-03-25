@@ -36,34 +36,40 @@ contract RouterForKeeper is IRouterForKeeper {
         address baseToken,
         address to,
         uint256 amount
-    ) external {
+    ) external override {
         TransferHelper.safeTransferFrom(baseToken, msg.sender, address(this), amount);
         balanceOf[baseToken][to] += amount;
+        emit Deposit(baseToken, msg.sender, to, amount);
     }
 
-    function depositETH(address to) external payable {
+    function depositETH(address to) external payable override {
         uint256 amount = msg.value;
         IWETH(WETH).deposit{value: amount}();
         balanceOf[WETH][to] += amount;
+        emit DepositETH(msg.sender, to, amount);
     }
 
     function withdraw(
         address baseToken,
         address to,
         uint256 amount
-    ) external {
+    ) external override {
         uint256 balance = balanceOf[baseToken][msg.sender];
         require(amount <= balance, "INSUFFICIENT_BASE_TOKEN");
         TransferHelper.safeTransfer(baseToken, to, amount);
         balanceOf[baseToken][msg.sender] -= amount;
+
+        emit Withdraw(baseToken, msg.sender, to, amount);
     }
 
-    function withdrawETH(address to, uint256 amount) external {
+    function withdrawETH(address to, uint256 amount) external override {
         uint256 balance = balanceOf[WETH][msg.sender];
         require(amount <= balance, "INSUFFICIENT_WETH");
         IWETH(WETH).withdraw(amount);
         TransferHelper.safeTransferETH(to, amount);
         balanceOf[WETH][msg.sender] = balance - amount;
+
+        emit WithdrawETH(msg.sender, to, amount);
     }
 
     function openPositionWithWallet(

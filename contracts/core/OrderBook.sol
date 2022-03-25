@@ -3,20 +3,15 @@ pragma solidity ^0.8.0;
 
 import "../utils/Ownable.sol";
 import "../utils/Reentrant.sol";
+import "../libraries/TransferHelper.sol";
 import "./interfaces/IOrderBook.sol";
 import "./interfaces/IRouterForKeeper.sol";
-import "../libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "hardhat/console.sol";
 
 contract OrderBook is IOrderBook, Ownable, Reentrant {
     using ECDSA for bytes32;
-
-    struct RespData {
-        bool success;
-        bytes result;
-    }
 
     address public routerForKeeper;
     mapping(bytes => bool) public usedNonce;
@@ -31,32 +26,62 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         OpenPositionOrder[] memory orders,
         bytes[] memory signatures,
         bool requireSuccess
-    ) external nonReentrant returns (RespData[] memory respData) {
+    ) external override nonReentrant returns (RespData[] memory respData) {
         require(orders.length == signatures.length, "OrderBook.batchExecuteOpen: LENGTH_NOT_MATCH");
         respData = new RespData[](orders.length);
         for (uint256 i = 0; i < orders.length; i++) {
             respData[i] = _executeOpen(orders[i], signatures[i], requireSuccess);
         }
+        emit BatchExecuteOpen(orders, signatures, requireSuccess);
     }
 
     function batchExecuteClose(
         ClosePositionOrder[] memory orders,
         bytes[] memory signatures,
         bool requireSuccess
-    ) external nonReentrant returns (RespData[] memory respData) {
+    ) external override nonReentrant returns (RespData[] memory respData) {
         require(orders.length == signatures.length, "OrderBook.batchExecuteClose: LENGTH_NOT_MATCH");
         respData = new RespData[](orders.length);
         for (uint256 i = 0; i < orders.length; i++) {
             respData[i] = _executeClose(orders[i], signatures[i], requireSuccess);
         }
+
+        emit BatchExecuteClose(orders, signatures, requireSuccess);
     }
 
-    function executeOpen(OpenPositionOrder memory order, bytes memory signature) external nonReentrant {
+    function executeOpen(OpenPositionOrder memory order, bytes memory signature) external override nonReentrant {
         _executeOpen(order, signature, true);
+
+        emit ExecuteOpen(order, signature);
     }
 
-    function executeClose(ClosePositionOrder memory order, bytes memory signature) external nonReentrant {
+    function executeClose(ClosePositionOrder memory order, bytes memory signature) external override nonReentrant {
         _executeClose(order, signature, true);
+
+        emit ExecuteClose(order, signature);
+    }
+
+    function verifyOpen(OpenPositionOrder memory order, bytes memory signature) public view override returns (bool) {
+        address recover = keccak256(abi.encode(order)).toEthSignedMessageHash().recover(signature);
+        require(order.trader == recover, "OrderBook.verifyOpen: NOT_SIGNER");
+        require(!usedNonce[order.nonce], "OrderBook.verifyOpen: NONCE_USED");
+        require(block.timestamp < order.deadline, "OrderBook.verifyOpen: EXPIRED");
+        return true;
+    }
+
+    function verifyClose(ClosePositionOrder memory order, bytes memory signature) public view override returns (bool) {
+        address recover = keccak256(abi.encode(order)).toEthSignedMessageHash().recover(signature);
+        require(order.trader == recover, "OrderBook.verifyClose: NOT_SIGNER");
+        require(!usedNonce[order.nonce], "OrderBook.verifyClose: NONCE_USED");
+        require(block.timestamp < order.deadline, "OrderBook.verifyClose: EXPIRED");
+        return true;
+    }
+
+    function setRouterForKeeper(address _routerForKeeper) external override onlyOwner {
+        require(_routerForKeeper != address(0), "OrderBook.setRouterKeeper: ZERO_ADDRESS");
+
+        routerForKeeper = _routerForKeeper;
+        emit SetRouterForKeeper(_routerForKeeper);
     }
 
     function _executeOpen(
@@ -160,28 +185,5 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
 
         usedNonce[order.nonce] = true;
         return RespData({success: success, result: ret});
-    }
-
-    function verifyOpen(OpenPositionOrder memory order, bytes memory signature) public view returns (bool) {
-        address recover = keccak256(abi.encode(order)).toEthSignedMessageHash().recover(signature);
-        require(order.trader == recover, "OrderBook.verifyOpen: NOT_SIGNER");
-        require(!usedNonce[order.nonce], "OrderBook.verifyOpen: NONCE_USED");
-        require(block.timestamp < order.deadline, "OrderBook.verifyOpen: EXPIRED");
-        return true;
-    }
-
-    function verifyClose(ClosePositionOrder memory order, bytes memory signature) public view returns (bool) {
-        address recover = keccak256(abi.encode(order)).toEthSignedMessageHash().recover(signature);
-        require(order.trader == recover, "OrderBook.verifyClose: NOT_SIGNER");
-        require(!usedNonce[order.nonce], "OrderBook.verifyClose: NONCE_USED");
-        require(block.timestamp < order.deadline, "OrderBook.verifyClose: EXPIRED");
-        return true;
-    }
-
-    function setRouterForKeeper(address _routerForKeeper) external override onlyOwner {
-        require(_routerForKeeper != address(0), "OrderBook.setRouterKeeper: ZERO_ADDRESS");
-
-        routerForKeeper = _routerForKeeper;
-        emit SetRouterForKeeper(_routerForKeeper);
     }
 }
