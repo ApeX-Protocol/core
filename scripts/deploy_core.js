@@ -58,6 +58,9 @@ async function createPriceOracle() {
   await priceOracle.initialize(v3FactoryAddress);
   console.log("PriceOracle:", priceOracle.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, priceOracle.address);
+
+  priceOracle = await upgrades.deployProxy(PriceOracle, [v3FactoryAddress]);
+  console.log("PriceOracle:", priceOracle.address);
 }
 
 async function createConfig() {

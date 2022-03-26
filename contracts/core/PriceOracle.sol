@@ -19,9 +19,11 @@ contract PriceOracle is IPriceOracle, Initializable {
     using FullMath for uint256;
     using V3Oracle for V3Oracle.Observation[65535];
 
-    uint16 public constant cardinality = 120;
-    uint32 public constant twapInterval = 1800; // 30 min
+    uint8 public constant priceGap = 5;
+    uint16 public constant cardinality = 60;
+    uint32 public constant twapInterval = 900; // 15 min
 
+    address public WETH;
     address public v3Factory;
     uint24[3] public v3Fees;
 
@@ -30,7 +32,8 @@ contract PriceOracle is IPriceOracle, Initializable {
     mapping(address => V3Oracle.Observation[65535]) public ammObservations;
     mapping(address => uint16) public ammObservationIndex;
 
-    function initialize(address v3Factory_) public initializer {
+    function initialize(address WETH_, address v3Factory_) public initializer {
+        WETH = WETH_;
         v3Factory = v3Factory_;
         v3Fees[0] = 500;
         v3Fees[1] = 3000;
