@@ -62,6 +62,10 @@ contract PriceOracleForTest is IPriceOracle {
         price = FullMath.mulDiv(exponent, quoteReserve, baseReserve);
     }
 
+    function getMarkRatio(address amm) public view override returns (uint256 ratio) {
+        return 0;
+    }
+
     function getMarkPriceAcc(
         address amm,
         uint8 beta,
