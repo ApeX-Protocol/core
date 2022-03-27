@@ -148,6 +148,11 @@ contract PriceOracle is IPriceOracle, Initializable {
         price = exponent.mulDiv(quoteReserve, baseReserve);
     }
 
+    //ratio multiplied with 1e18
+    function getMarkRatio(address amm) public view override returns (uint256 ratio) {
+        return 0;
+    }
+
     // get user's mark price, return base amount, it's for checking if user's position can be liquidated.
     // price = ( sqrt(y/x) +/- beta * quoteAmount / sqrt(x*y) )**2 = (y +/- beta * quoteAmount)**2 / x*y
     // baseAmount = quoteAmount / price = quoteAmount * x * y / (y +/- beta * quoteAmount)**2

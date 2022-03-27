@@ -147,10 +147,12 @@ contract Margin is IMargin, IVault, Reentrant {
                 marginAcc = traderPosition.baseSize.subU(result[0]) + fundingFee;
             }
             require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
-            (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+            (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+            uint256 markRatio = IPriceOracle(IConfig(config).priceOracle()).getMarkRatio(amm);
             quoteAmountMax =
                 (quoteReserve * 10000 * marginAcc.abs()) /
-                ((IConfig(config).initMarginRatio() * baseReserve) + (200 * marginAcc.abs() * IConfig(config).beta()));
+                (((IConfig(config).initMarginRatio() * quoteReserve * 1e18) / markRatio) +
+                    (200 * marginAcc.abs() * IConfig(config).beta()));
         }
 
         bool isLong = side == 0;
@@ -476,16 +478,14 @@ contract Margin is IMargin, IVault, Reentrant {
 
     function calUnrealizedPnl(address trader) external view override returns (int256 unrealizedPnl) {
         Position memory position = traderPositionMap[trader];
+        uint256 markRatio = IPriceOracle(IConfig(config).priceOracle()).getMarkRatio(amm);
+        uint256 repayBaseAmount = (position.quoteSize.abs() * 1e18) / markRatio;
         if (position.quoteSize < 0) {
             //borrowed - repay, earn when borrow more and repay less
-            unrealizedPnl = int256(1).mulU(position.tradeSize).subU(
-                _querySwapBaseWithAmm(true, position.quoteSize.abs())
-            );
+            unrealizedPnl = int256(1).mulU(position.tradeSize).subU(repayBaseAmount);
         } else if (position.quoteSize > 0) {
             //repay - lent, earn when lent less and repay more
-            unrealizedPnl = int256(1).mulU(_querySwapBaseWithAmm(false, position.quoteSize.abs())).subU(
-                position.tradeSize
-            );
+            unrealizedPnl = int256(1).mulU(repayBaseAmount).subU(position.tradeSize);
         }
     }
 
@@ -594,7 +594,7 @@ contract Margin is IMargin, IVault, Reentrant {
         } else if (quoteSize > 0) {
             uint256 quoteAmount = quoteSize.abs();
             //simulate to close short, markPriceAcc bigger, asset undervalue
-            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).estimateWithMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
                 quoteAmount,
@@ -605,7 +605,7 @@ contract Margin is IMargin, IVault, Reentrant {
         } else {
             uint256 quoteAmount = quoteSize.abs();
             //simulate to close long, markPriceAcc smaller, debt overvalue
-            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).estimateWithMarkPriceAcc(
                 amm,
                 IConfig(config).beta(),
                 quoteAmount,
