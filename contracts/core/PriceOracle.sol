@@ -170,6 +170,11 @@ contract PriceOracle is IPriceOracle, Initializable {
         }
     }
 
+    //ratio multiplied with 1e18
+    function getMarkRatio(address amm) public view override returns (uint256 ratio) {
+        return 0;
+    }
+
     // get user's mark price, return base amount, it's for checking if user's position can be liquidated.
     // price = ( sqrt(markPrice) +/- beta * quoteAmount / sqrt(x*y) )**2
     function getMarkPriceAcc(
