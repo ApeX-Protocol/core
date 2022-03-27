@@ -35,7 +35,7 @@ describe("PriceOracle contract", function () {
 
     const PriceOracle = await ethers.getContractFactory("PriceOracle");
     oracle = await PriceOracle.deploy();
-    await oracle.initialize(v3factory.address);
+    await oracle.initialize(baseToken.address, v3factory.address);
     // console.log("oracle:", oracle.address);
   });
 
@@ -132,25 +132,78 @@ describe("PriceOracle contract", function () {
   });
 
   describe("getMarkPrice", function () {
+    beforeEach(async function () {
+      pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+      await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+      await oracle.setupTwap(amm.address);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+    });
+
     it("getMarkPrice: price > 1", async function () {
       await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
-      let markPrice = await oracle.getMarkPrice(amm.address);
-      console.log("markPrice:", BigNumber.from(markPrice).toString());
-      expect(markPrice == BigNumber.from("2000000000000000000000"));
+      let result = await oracle.getMarkPrice(amm.address);
+      console.log("markPrice:", BigNumber.from(result.price).toString());
+      console.log("isIndexPrice:", result.isIndexPrice.toString());
+      let indexPrice = await oracle.getIndexPrice(amm.address);
+      console.log("indexPrice:", BigNumber.from(indexPrice).toString());
     });
 
     it("getMarkPrice: price < 1", async function () {
       await amm.setReserves(BigNumber.from("1000000000000000000000"), BigNumber.from("2000000"));
-      let markPrice = await oracle.getMarkPrice(amm.address);
-      console.log("markPrice:", BigNumber.from(markPrice).toString());
-      expect(markPrice == BigNumber.from("2000000000000000"));
+      let result = await oracle.getMarkPrice(amm.address);
+      console.log("markPrice:", BigNumber.from(result.price).toString());
+      console.log("isIndexPrice:", result.isIndexPrice.toString());
+      let indexPrice = await oracle.getIndexPrice(amm.address);
+      console.log("indexPrice:", BigNumber.from(indexPrice).toString());
+    });
+  });
+
+  describe("getMarkPriceInRatio", function () {
+    beforeEach(async function () {
+      pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+      await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+      await oracle.setupTwap(amm.address);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+    });
+
+    it("getMarkPriceInRatio: price > 1", async function () {
+      await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+      let result = await oracle.getMarkPrice(amm.address);
+      console.log("markPrice:", BigNumber.from(result.price).toString());
+      let markPriceInRatio = await oracle.getMarkPriceInRatio(amm.address);
+      console.log("markPriceInRatio:", BigNumber.from(markPriceInRatio).toString());
+    });
+
+    it("getMarkPriceInRatio: price < 1", async function () {
+      await amm.setReserves(BigNumber.from("1000000000000000000000"), BigNumber.from("2000000"));
+      let result = await oracle.getMarkPrice(amm.address);
+      console.log("markPrice:", BigNumber.from(result.price).toString());
+      let markPriceInRatio = await oracle.getMarkPriceInRatio(amm.address);
+      console.log("markPriceInRatio:", BigNumber.from(markPriceInRatio).toString());
     });
   });
 
   describe("getMarkPriceAcc", function () {
-    beforeEach(async function () {
-      pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
-      await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+    it("getMarkPriceAcc: base < quote, negative = false", async function () {
+      // price: 1BT = 2000QT
+      pool1.initialize(BigNumber.from("1000000000000000000000000"), BigNumber.from("2000000000000000"));
+      // await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       await oracle.setupTwap(amm.address);
       await pool1.writeObservation();
       await mineBlocks(500);
@@ -161,25 +214,14 @@ describe("PriceOracle contract", function () {
       await pool1.writeObservation();
       await mineBlocks(500);
       await pool1.writeObservation();
-    });
-
-    it("getMarkPriceAcc: base < quote", async function () {
-      await amm.setReserves(1000, 2000);
-      let markPriceAcc = await oracle.getMarkPriceAcc(amm.address, 5, 1000, false);
+      await amm.setReserves(BigNumber.from("1000000000000000000000000"), BigNumber.from("2000000000000000"));
+      let markPriceAcc = await oracle.getMarkPriceAcc(amm.address, 5, BigNumber.from("2000000000"), false);
       console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString());
     });
 
-    it("getMarkPriceAcc: base > quote", async function () {
-      await amm.setReserves(2000000000, 2000);
-      let markPriceAcc = await oracle.getMarkPriceAcc(amm.address, 5, 1000, false);
-      console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString());
-    });
-  });
-
-  describe("getPremiumFraction", function () {
-    beforeEach(async function () {
-      pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
-      await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+    it("getMarkPriceAcc: base < quote, negative = true", async function () {
+      pool1.initialize(BigNumber.from("1000000000000000000000000"), BigNumber.from("2000000000000000"));
+      // await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       await oracle.setupTwap(amm.address);
       await pool1.writeObservation();
       await mineBlocks(500);
@@ -190,20 +232,77 @@ describe("PriceOracle contract", function () {
       await pool1.writeObservation();
       await mineBlocks(500);
       await pool1.writeObservation();
+      await amm.setReserves(BigNumber.from("1000000000000000000000000"), BigNumber.from("2000000000000000"));
+      let markPriceAcc = await oracle.getMarkPriceAcc(amm.address, 5, BigNumber.from("2000000000"), true);
+      console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString());
     });
 
-    it("getPremiumFraction: base < quote", async function () {
-      await amm.setReserves(1000, 2000);
-      let premiumFraction = await oracle.getPremiumFraction(amm.address);
-      console.log("premiumFraction:", BigNumber.from(premiumFraction).toString());
+    it("getMarkPriceAcc: base > quote, negative = false", async function () {
+      // price: 1BT = 0.02QT
+      pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("20000"));
+      // await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+      await oracle.setupTwap(amm.address);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("20000"));
+      let markPriceAcc = await oracle.getMarkPriceAcc(amm.address, 5, 200, false);
+      console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString());
     });
 
-    it("getPremiumFraction: base > quote", async function () {
-      await amm.setReserves(2000000000, 2000);
-      let premiumFraction = await oracle.getPremiumFraction(amm.address);
-      console.log("premiumFraction:", BigNumber.from(premiumFraction).toString());
+    it("getMarkPriceAcc: base > quote, negative = true", async function () {
+      pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("20000"));
+      // await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+      await oracle.setupTwap(amm.address);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await mineBlocks(500);
+      await pool1.writeObservation();
+      await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("20000"));
+      let markPriceAcc = await oracle.getMarkPriceAcc(amm.address, 5, 200, true);
+      console.log("markPriceAcc:", BigNumber.from(markPriceAcc).toString());
     });
   });
+
+  // describe("getPremiumFraction", function () {
+  //   beforeEach(async function () {
+  //     pool1.initialize(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+  //     await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
+  //     await oracle.setupTwap(amm.address);
+  //     await pool1.writeObservation();
+  //     await mineBlocks(500);
+  //     await pool1.writeObservation();
+  //     await mineBlocks(500);
+  //     await pool1.writeObservation();
+  //     await mineBlocks(500);
+  //     await pool1.writeObservation();
+  //     await mineBlocks(500);
+  //     await pool1.writeObservation();
+  //   });
+
+  //   it("getPremiumFraction: base < quote", async function () {
+  //     await amm.setReserves(1000, 2000);
+  //     let premiumFraction = await oracle.getPremiumFraction(amm.address);
+  //     console.log("premiumFraction:", BigNumber.from(premiumFraction).toString());
+  //   });
+
+  //   it("getPremiumFraction: base > quote", async function () {
+  //     await amm.setReserves(2000000000, 2000);
+  //     let premiumFraction = await oracle.getPremiumFraction(amm.address);
+  //     console.log("premiumFraction:", BigNumber.from(premiumFraction).toString());
+  //   });
+  // });
 });
 
 async function mineBlocks(blockNumber) {

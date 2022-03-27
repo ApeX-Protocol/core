@@ -22,8 +22,6 @@ interface IPriceOracle {
 
     function getMarkPriceInRatio(address amm) external view returns (uint256);
 
-    function getMarkRatio(address amm) external view returns (uint256 ratio);
-
     function getMarkPriceAcc(
         address amm,
         uint8 beta,
