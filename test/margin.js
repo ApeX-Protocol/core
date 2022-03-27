@@ -54,40 +54,14 @@ describe("Margin contract", function () {
     await mockBaseToken.connect(addr1).approve(mockRouter.address, addr1InitBaseAmount);
 
     await config.registerRouter(mockRouter.address);
+    await config.registerRouter(owner.address);
+    await config.registerRouter(addr1.address);
     await config.setBeta(100);
     await config.setInitMarginRatio(909);
     await config.setLiquidateThreshold(10000);
     await config.setLiquidateFeeRatio(2000);
     await config.setPriceOracle(mockPriceOracle.address);
     await config.setMaxCPFBoost(10);
-  });
-
-  describe("flash loan attack", function () {
-    let attacker;
-    beforeEach(async function () {
-      const MockFlashAttacker = await ethers.getContractFactory("MockFlashAttacker");
-      attacker = await MockFlashAttacker.deploy(mockBaseToken.address, margin.address, mockQuoteToken.address);
-    });
-
-    it("can when open and removeMargin in one block", async function () {
-      let borrow = 100;
-      let baseAmount = 100;
-      await attacker.attack2(borrow, baseAmount);
-      let result = await getPosition(margin, attacker.address);
-      let balance = await mockBaseToken.balanceOf(attacker.address);
-      expect(result[0]).to.be.equal(-200);
-      expect(result[1]).to.be.equal(299);
-      expect(result[2]).to.be.equal(200);
-      expect(balance).to.be.equal(1000 - 100 - 10 + 1);
-    });
-
-    it("revert when open and close in one block", async function () {
-      let borrow = 100;
-      let baseAmount = 100;
-      await expect(attacker.attack1(borrow, baseAmount)).to.be.revertedWith(
-        "Margin.closePosition: ONE_BLOCK_TWICE_OPERATION"
-      );
-    });
   });
 
   describe("addMargin", function () {
@@ -518,6 +492,7 @@ describe("Margin contract", function () {
       await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
       let quoteAmount = 800;
       await margin.connect(addr1).openPosition(addr1.address, shortSide, quoteAmount);
+      await config.registerRouter(liquidator.address);
     });
 
     it("liquidate 0 position, reverted", async function () {
