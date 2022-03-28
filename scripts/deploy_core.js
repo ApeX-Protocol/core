@@ -34,16 +34,16 @@ let marginAddress;
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  await attachApeXToken();
+  // await attachApeXToken();
   await createPriceOracle();
-  await createConfig();
-  await createPairFactory();
+  // await createConfig();
+  // await createPairFactory();
   // await createPCVTreasury();
-  await createRouter();
+  // await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
-  await createPair();
+  // await createPair();
 };
 
 async function attachApeXToken() {
@@ -59,8 +59,12 @@ async function createPriceOracle() {
   console.log("PriceOracle:", priceOracle.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, priceOracle.address);
 
-  priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
-  console.log("PriceOracle:", priceOracle.address);
+  const Config = await ethers.getContractFactory("Config");
+  config = await Config.attach("0xF6Fd1703cF0C71221e71Fc08163Da1a38bB777a7");
+  await config.setPriceOracle(priceOracle.address);
+
+  // priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
+  // console.log("PriceOracle:", priceOracle.address);
 }
 
 async function createConfig() {
@@ -92,10 +96,10 @@ async function createPairFactory() {
   marginFactory = await MarginFactory.deploy(pairFactory.address, config.address);
   await pairFactory.init(ammFactory.address, marginFactory.address);
   console.log("PairFactory:", pairFactory.address);
-  console.log("AmmFactory:", ammFactory.address);
-  console.log("MarginFactory:", marginFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, pairFactory.address);
+  console.log("AmmFactory:", ammFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, ammFactory.address, pairFactory.address, config.address, signer);
+  console.log("MarginFactory:", marginFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, marginFactory.address, pairFactory.address, config.address);
 }
 
