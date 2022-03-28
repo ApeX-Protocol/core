@@ -22,6 +22,8 @@ let marginFactory;
 let pcvTreasury;
 let router;
 let multicall2;
+let routerForKeeper;
+let orderBook;
 
 /// below variables only for testnet
 let mockWETH;
@@ -44,6 +46,7 @@ const main = async () => {
   //// below only deploy for testnet
   // await createMockTokens();
   await createPair();
+  // await createOrderBook();
 };
 
 async function attachApeXToken() {
@@ -180,6 +183,19 @@ async function createPair() {
   console.log("Margin:", marginAddress);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, ammAddress);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, marginAddress);
+}
+
+async function createOrderBook() {
+  const RouterForKeeper = await ethers.getContractFactory("RouterForKeeper");
+  routerForKeeper = await RouterForKeeper.deploy(pairFactory.address, wethAddress);
+
+  const OrderBook = await ethers.getContractFactory("OrderBook");
+  orderBook = await OrderBook.deploy(routerForKeeper.address);
+
+  console.log("RouterForKeeper:", routerForKeeper.address);
+  console.log("OrderBook:", orderBook.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, routerForKeeper.address, pairFactory.address, wethAddress);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, routerForKeeper.address);
 }
 
 main()
