@@ -35,11 +35,11 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   // await attachApeXToken();
-  await createPriceOracle();
+  // await createPriceOracle();
   // await createConfig();
   // await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -59,12 +59,8 @@ async function createPriceOracle() {
   console.log("PriceOracle:", priceOracle.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, priceOracle.address);
 
-  const Config = await ethers.getContractFactory("Config");
-  config = await Config.attach("0xF6Fd1703cF0C71221e71Fc08163Da1a38bB777a7");
-  await config.setPriceOracle(priceOracle.address);
-
-  // priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
-  // console.log("PriceOracle:", priceOracle.address);
+  priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
+  console.log("PriceOracle:", priceOracle.address);
 }
 
 async function createConfig() {
@@ -114,11 +110,16 @@ async function createPCVTreasury() {
 }
 
 async function createRouter() {
-  // if (pairFactory == null) {
-  //   let pairFactoryAddress = "0x7c65916580A1d715466310A8216D4BE493d38126";
-  //   const PairFactory = await ethers.getContractFactory("PairFactory");
-  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
-  // }
+  if (config == null) {
+    let configAddress = "";
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach(configAddress);
+  }
+  if (pairFactory == null) {
+    let pairFactoryAddress = "0x7c65916580A1d715466310A8216D4BE493d38126";
+    const PairFactory = await ethers.getContractFactory("PairFactory");
+    pairFactory = await PairFactory.attach(pairFactoryAddress);
+  }
   if (pcvTreasury == null) {
     let pcvTreasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
