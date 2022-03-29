@@ -31,7 +31,7 @@ describe("Margin contract", function () {
     mockQuoteToken = await MockQuoteToken.deploy("usdt", "usdt");
     mockWeth = await MockWETH.deploy();
 
-    const MockAmm = await ethers.getContractFactory("MockAmm");
+    const MockAmm = await ethers.getContractFactory("MockAmmOfMargin");
     mockAmm = await MockAmm.deploy("amm shares", "as");
 
     const MockRouter = await ethers.getContractFactory("MockRouter");
@@ -44,7 +44,7 @@ describe("Margin contract", function () {
     mockFactory = await MockFactory.deploy(mockConfig.address);
     await mockFactory.createPair();
 
-    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
+    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleOfMargin");
     mockPriceOracle = await MockPriceOracle.deploy();
 
     let marginAddress = await mockFactory.margin();
@@ -208,16 +208,21 @@ describe("Margin contract", function () {
       });
 
       it("withdraw maximum margin from an old long position", async function () {
-        let expectedWithdrawable = BigNumber.from(addr1InitBaseAmount).sub(1);
+        let expectedWithdrawable = await margin.getWithdrawable(owner.address);
         await expect(mockRouter.removeMargin(expectedWithdrawable.add(1))).to.be.revertedWith(
           "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE"
         );
 
         await mockRouter.removeMargin(expectedWithdrawable);
         let position = await margin.traderPositionMap(owner.address);
+        let needed = BigNumber.from((quoteAmount * 1e18) / price)
+          .mul(10000)
+          .div(9091)
+          .add(1)
+          .toString();
         expect(position[0]).to.equal(-1 * quoteAmount);
-        expect(position[1]).to.equal(quoteAmount + 1);
-        expect(position[2]).to.equal(quoteAmount);
+        expect(position[1]).to.equal(needed);
+        expect(position[2]).to.equal((quoteAmount * 1e18) / price);
       });
 
       it("withdraw from an old position's fundingFee", async function () {
@@ -420,6 +425,7 @@ describe("Margin contract", function () {
 
     it("close position partly", async function () {
       let position = await margin.traderPositionMap(owner.address);
+      await mockPriceOracle.setMarkPrice(40000000000);
       await margin.closePosition(owner.address, position.quoteSize.abs() - 1);
       position = await margin.traderPositionMap(owner.address);
       expect(position[0]).to.equal(-1);
@@ -583,7 +589,7 @@ describe("Margin contract", function () {
     });
   });
 
-  describe.only("calFundingFee", async function () {
+  describe("calFundingFee", async function () {
     let quoteAmount = 1_000000;
     let pf = BigNumber.from("1000000000000000000"); //1e18 equal to 100%
     let price;
