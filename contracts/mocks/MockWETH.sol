@@ -2,17 +2,17 @@
 pragma solidity ^0.8.0;
 
 contract MockWETH {
-    string public name     = "Mock Wrapped Ether";
-    string public symbol   = "mWETH";
-    uint8  public decimals = 18;
+    string public name = "Mock Wrapped Ether";
+    string public symbol = "mWETH";
+    uint8 public decimals = 18;
 
-    event Approval(address indexed src, address indexed guy, uint wad);
-    event Transfer(address indexed src, address indexed dst, uint wad);
-    event Deposit(address indexed dst, uint wad);
-    event Withdrawal(address indexed src, uint wad);
+    event Approval(address indexed src, address indexed guy, uint256 wad);
+    event Transfer(address indexed src, address indexed dst, uint256 wad);
+    event Deposit(address indexed dst, uint256 wad);
+    event Withdrawal(address indexed src, uint256 wad);
 
-    mapping (address => uint)                       public  balanceOf;
-    mapping (address => mapping (address => uint))  public  allowance;
+    mapping(address => uint256) public balanceOf;
+    mapping(address => mapping(address => uint256)) public allowance;
 
     constructor() {
         balanceOf[msg.sender] = 1_000_000_000e18;
@@ -30,34 +30,36 @@ contract MockWETH {
         balanceOf[msg.sender] += msg.value;
         emit Deposit(msg.sender, msg.value);
     }
-    function withdraw(uint wad) public {
-        require(balanceOf[msg.sender] >= wad);
+
+    function withdraw(uint256 wad) public {
+        require(balanceOf[msg.sender] >= wad, "invalid balance");
         balanceOf[msg.sender] -= wad;
         payable(msg.sender).transfer(wad);
         emit Withdrawal(msg.sender, wad);
     }
 
-    function totalSupply() public view returns (uint) {
+    function totalSupply() public view returns (uint256) {
         return address(this).balance;
     }
 
-    function approve(address guy, uint wad) public returns (bool) {
+    function approve(address guy, uint256 wad) public returns (bool) {
         allowance[msg.sender][guy] = wad;
         emit Approval(msg.sender, guy, wad);
         return true;
     }
 
-    function transfer(address dst, uint wad) public returns (bool) {
+    function transfer(address dst, uint256 wad) public returns (bool) {
         return transferFrom(msg.sender, dst, wad);
     }
 
-    function transferFrom(address src, address dst, uint wad)
-        public
-        returns (bool)
-    {
+    function transferFrom(
+        address src,
+        address dst,
+        uint256 wad
+    ) public returns (bool) {
         require(balanceOf[src] >= wad);
 
-        if (src != msg.sender && allowance[src][msg.sender] != type(uint).max) {
+        if (src != msg.sender && allowance[src][msg.sender] != type(uint256).max) {
             require(allowance[src][msg.sender] >= wad);
             allowance[src][msg.sender] -= wad;
         }
