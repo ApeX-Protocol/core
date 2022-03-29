@@ -55,7 +55,7 @@ contract RouterForKeeper is IRouterForKeeper {
         uint256 amount
     ) external override {
         uint256 balance = balanceOf[baseToken][msg.sender];
-        require(amount <= balance, "INSUFFICIENT_BASE_TOKEN");
+        require(amount <= balance, "RouterForKeeper.withdraw: INSUFFICIENT_BASE_TOKEN");
         TransferHelper.safeTransfer(baseToken, to, amount);
         balanceOf[baseToken][msg.sender] -= amount;
 
@@ -64,7 +64,7 @@ contract RouterForKeeper is IRouterForKeeper {
 
     function withdrawETH(address to, uint256 amount) external override {
         uint256 balance = balanceOf[WETH][msg.sender];
-        require(amount <= balance, "INSUFFICIENT_WETH");
+        require(amount <= balance, "RouterForKeeper.withdrawETH: INSUFFICIENT_WETH");
         IWETH(WETH).withdraw(amount);
         TransferHelper.safeTransferETH(to, amount);
         balanceOf[WETH][msg.sender] = balance - amount;
@@ -164,6 +164,7 @@ contract RouterForKeeper is IRouterForKeeper {
         }
     }
 
+    //todo use mark price?
     function getSpotPriceWithMultiplier(address baseToken, address quoteToken)
         external
         view
