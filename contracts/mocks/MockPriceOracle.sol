@@ -5,6 +5,7 @@ pragma solidity ^0.8.0;
 contract MockPriceOracle {
     int256 public pf = 0;
     uint256 public p;
+    uint256 public markPriceInRatio;
 
     constructor() {
         p = 1;
@@ -19,13 +20,18 @@ contract MockPriceOracle {
         pf = _pf;
     }
 
+    //2000usdc = 2000*(1e-12)*1e18
+    function setMarkPriceInRatio(uint256 _markPriceInRatio) external {
+        markPriceInRatio = _markPriceInRatio;
+    }
+
     function getMarkPriceAcc(
         address amm,
         uint8 beta,
         uint256 quoteAmount,
         bool negative
     ) public view returns (uint256 price) {
-        return quoteAmount / p;
+        return (quoteAmount * 1e18) / p;
     }
 
     function setMarkPrice(uint256 _p) external {
@@ -38,19 +44,14 @@ contract MockPriceOracle {
         uint256 baseAmount
     ) external view returns (uint256 quoteAmount, uint8 source) {
         quoteAmount = 100000 * 10**6;
-        source =0;
+        source = 0;
     }
 
-  
-    function updateAmmTwap(address pair)  external {
-        
+    function updateAmmTwap(address pair) external {}
+
+    function setupTwap(address amm) external {}
+
+    function getMarkPriceInRatio(address amm) external view returns (uint256) {
+        return markPriceInRatio;
     }
-
-     function setupTwap(address amm) external  {
-     }
-
-     
-
-
-
 }
