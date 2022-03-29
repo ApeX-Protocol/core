@@ -34,16 +34,16 @@ let marginAddress;
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  await attachApeXToken();
-  await createPriceOracle();
-  await createConfig();
-  await createPairFactory();
+  // await attachApeXToken();
+  // await createPriceOracle();
+  // await createConfig();
+  // await createPairFactory();
   // await createPCVTreasury();
   await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
-  await createPair();
+  // await createPair();
 };
 
 async function attachApeXToken() {
@@ -92,10 +92,10 @@ async function createPairFactory() {
   marginFactory = await MarginFactory.deploy(pairFactory.address, config.address);
   await pairFactory.init(ammFactory.address, marginFactory.address);
   console.log("PairFactory:", pairFactory.address);
-  console.log("AmmFactory:", ammFactory.address);
-  console.log("MarginFactory:", marginFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, pairFactory.address);
+  console.log("AmmFactory:", ammFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, ammFactory.address, pairFactory.address, config.address, signer);
+  console.log("MarginFactory:", marginFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, marginFactory.address, pairFactory.address, config.address);
 }
 
@@ -110,11 +110,16 @@ async function createPCVTreasury() {
 }
 
 async function createRouter() {
-  // if (pairFactory == null) {
-  //   let pairFactoryAddress = "0x7c65916580A1d715466310A8216D4BE493d38126";
-  //   const PairFactory = await ethers.getContractFactory("PairFactory");
-  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
-  // }
+  if (config == null) {
+    let configAddress = "";
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach(configAddress);
+  }
+  if (pairFactory == null) {
+    let pairFactoryAddress = "0x7c65916580A1d715466310A8216D4BE493d38126";
+    const PairFactory = await ethers.getContractFactory("PairFactory");
+    pairFactory = await PairFactory.attach(pairFactoryAddress);
+  }
   if (pcvTreasury == null) {
     let pcvTreasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
