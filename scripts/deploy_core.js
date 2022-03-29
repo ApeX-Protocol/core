@@ -127,7 +127,7 @@ async function createRouter() {
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }
   if (pcvTreasury == null) {
-    let pcvTreasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
+    let pcvTreasuryAddress = "0xddcB6395db62b4Ec3c15816d2F940D67F8906E3C";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
     pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
   }
