@@ -10,3 +10,4 @@ bin
 .DS_Store
 .history
 .VSCodeCounter
+contracts/NFT/MultiMint2.sol
