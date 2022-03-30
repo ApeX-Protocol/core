@@ -3,10 +3,12 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "../core/interfaces/IVault.sol";
 
 contract MockAmmOfMargin is ERC20 {
     address public baseToken;
     address public quoteToken;
+    address public margin;
     uint112 private baseReserve;
     uint112 private quoteReserve;
     uint32 private blockTimestampLast;
@@ -17,6 +19,10 @@ contract MockAmmOfMargin is ERC20 {
     function initialize(address baseToken_, address quoteToken_) external {
         baseToken = baseToken_;
         quoteToken = quoteToken_;
+    }
+
+    function setMargin(address margin_) external {
+        margin = margin_;
     }
 
     //2000usdc/eth -> 2000*(1e6/1e18)*1e18
@@ -55,6 +61,18 @@ contract MockAmmOfMargin is ERC20 {
         quoteAmount = 1000;
         liquidity = 1000;
         _mint(to, liquidity);
+    }
+
+    function deposit(address to, uint256 amount) external {
+        IVault(margin).deposit(to, amount);
+    }
+
+    function withdraw(
+        address user,
+        address receiver,
+        uint256 amount
+    ) external {
+        IVault(margin).withdraw(user, receiver, amount);
     }
 
     function estimateSwap(
