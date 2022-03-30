@@ -189,6 +189,10 @@ contract Margin is IMargin, IVault, Reentrant {
             totalQuoteShort = totalQuoteShort + quoteAmount;
         }
         require(traderPosition.quoteSize.abs() <= quoteAmountMax, "Margin.openPosition: INIT_MARGIN_RATIO");
+        require(
+            _calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize) < IConfig(config).liquidateThreshold(),
+            "Margin.openPosition: WILL_BE_LIQUIDATED"
+        );
 
         traderCPF[trader] = _latestCPF;
         traderPositionMap[trader] = traderPosition;

@@ -281,6 +281,19 @@ describe("Margin contract", function () {
       );
     });
 
+    it("revert when open position with big gap of mark price and market price", async function () {
+      let quoteAmount = 200000_000000;
+      //margin is 1000eth
+      let oldResult = await getPosition(margin, owner.address);
+      expect(oldResult[1]).to.be.equal(ownerInitBaseAmount);
+      //mark price is 100usdc/eth
+      await mockPriceOracle.setMarkPrice(100 * 1e6);
+      //market price is 2000usdc/eth
+      await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+        "Margin.openPosition: WILL_BE_LIQUIDATED"
+      );
+    });
+
     it("revert when open position with bad liquidity or price in amm", async function () {
       await mockAmm.setPrice("1000000000000000000000");
       await expect(margin.openPosition(owner.address, longSide, 1)).to.be.revertedWith(
@@ -615,7 +628,7 @@ describe("Margin contract", function () {
       expect(await margin.calFundingFee(owner.address)).to.be.equal(BigNumber.from(fundingFee).mul(2));
 
       await margin.updateCPF();
-      expect(await margin.calFundingFee(owner.address)).to.be.equal(BigNumber.from(fundingFee).mul(7));
+      expect(await margin.calFundingFee(owner.address)).to.be.at.least(BigNumber.from(fundingFee).mul(7));
       let latestUpdateCPF2 = await margin.lastUpdateCPF();
 
       expect(BigNumber.from(latestUpdateCPF2).sub(latestUpdateCPF1).gt(0)).to.be.equal(true);
