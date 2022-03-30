@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "./IBondPoolFactory.sol";
+
 /// @title The interface for a bond pool
 /// @notice A bond pool always be created by bond pool factory
 interface IBondPool {
@@ -18,7 +20,6 @@ interface IBondPool {
     event BondRedeemed(address depositor, uint256 payout, uint256 remaining);
 
     event BondPaused(bool state);
-    event PriceOracleChanged(address indexed oldOracle, address indexed newOracle);
     event MaxPayoutChanged(uint256 oldMaxPayout, uint256 newMaxPayout);
     event DiscountChanged(uint256 oldDiscount, uint256 newDiscount);
     event VestingTermChanged(uint256 oldVestingTerm, uint256 newVestingTerm);
@@ -35,8 +36,6 @@ interface IBondPool {
         address owner_,
         address WETH_,
         address apeXToken_,
-        address treasury_,
-        address priceOracle_,
         address amm_,
         uint256 maxPayout_,
         uint256 discount_,
@@ -45,9 +44,6 @@ interface IBondPool {
 
     /// @notice Set bond open or pause
     function setBondPaused(bool state) external;
-
-    /// @notice Set a new price oracle
-    function setPriceOracle(address newOracle) external;
 
     /// @notice Only owner can set this
     function setMaxPayout(uint256 maxPayout_) external;
@@ -71,20 +67,17 @@ interface IBondPool {
     /// @notice For user to redeem the apeX
     function redeem(address depositor) external returns (uint256 payout);
 
+    /// @notice BondPoolFactory address
+    function factory() external view returns (IBondPoolFactory);
+
     /// @notice WETH address
     function WETH() external view returns (address);
 
     /// @notice ApeXToken address
     function apeXToken() external view returns (address);
 
-    /// @notice PCV treasury contract address
-    function treasury() external view returns (address);
-
     /// @notice Amm pool address
     function amm() external view returns (address);
-
-    /// @notice Price oracle address
-    function priceOracle() external view returns (address);
 
     /// @notice Left total amount of apeX token for bonding in this bond pool
     function maxPayout() external view returns (uint256);

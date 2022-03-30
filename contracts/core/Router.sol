@@ -321,7 +321,7 @@ contract Router is IRouter {
         uint256 blockNumber = ChainAdapter.blockNumber();
         require(userLastOperation[msg.sender][amm] != blockNumber, "Router.liquidate: FORBIDDEN");
 
-        address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         (quoteAmount, baseAmount, bonus) = IMargin(margin).liquidate(trader, to);
     }

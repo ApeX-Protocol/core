@@ -296,8 +296,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-       
-        quoteReserveAfter = (_quoteReserve * quoteReserveFromExternal) / quoteReserveFromInternal;
+        quoteReserveAfter =  quoteReserveFromExternal;
         
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);

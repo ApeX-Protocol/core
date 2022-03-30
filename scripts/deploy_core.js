@@ -3,14 +3,14 @@ const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
 //// prod
-// const apeXTokenAddress = "0x61A1ff55C5216b636a294A07D77C6F4Df10d3B56"; // Layer2 ApeX Token
-// const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
-// const wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH address in ArbitrumOne
+const apeXTokenAddress = "0x61A1ff55C5216b636a294A07D77C6F4Df10d3B56"; // Layer2 ApeX Token
+const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // UniswapV3Factory address
+const wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH address in ArbitrumOne
 
 // test
-const apeXTokenAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD"; // testnet apex token
-const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // testnet uniV3factory
-const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mockWETH
+// const apeXTokenAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD"; // testnet apex token
+// const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // testnet uniV3factory
+// const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mockWETH
 
 let signer;
 let apeXToken;
@@ -38,7 +38,7 @@ const main = async () => {
   await createPriceOracle();
   await createConfig();
   await createPairFactory();
-  await createPCVTreasury();
+  // await createPCVTreasury();
   await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
@@ -55,9 +55,18 @@ async function attachApeXToken() {
 async function createPriceOracle() {
   const PriceOracle = await ethers.getContractFactory("PriceOracle");
   priceOracle = await PriceOracle.deploy();
-  await priceOracle.initialize(v3FactoryAddress);
+  await priceOracle.initialize(wethAddress, v3FactoryAddress);
   console.log("PriceOracle:", priceOracle.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, priceOracle.address);
+
+  priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
+  console.log("PriceOracle:", priceOracle.address);
+
+  // if (config == null) {
+  //   const Config = await ethers.getContractFactory("Config");
+  //   config = await Config.attach("0xF6Fd1703cF0C71221e71Fc08163Da1a38bB777a7");
+  //   config.setPriceOracle(priceOracle.address);
+  // }
 }
 
 async function createConfig() {
@@ -66,11 +75,11 @@ async function createConfig() {
   console.log("Config:", config.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, config.address);
 
-  // if (priceOracle == null) {
-  //   let priceOracleAddress = "0x713D7e019eC5e48F4D6BE8b640D5ed88b95023Bc";
-  //   const PriceOracle = await ethers.getContractFactory("PriceOracle");
-  //   priceOracle = await PriceOracle.attach(priceOracleAddress);
-  // }
+  if (priceOracle == null) {
+    let priceOracleAddress = "0x901F48Cf42406D4b4201435217E27C40d364D44B";
+    const PriceOracle = await ethers.getContractFactory("PriceOracle");
+    priceOracle = await PriceOracle.attach(priceOracleAddress);
+  }
   await config.setPriceOracle(priceOracle.address);
 }
 
@@ -89,10 +98,10 @@ async function createPairFactory() {
   marginFactory = await MarginFactory.deploy(pairFactory.address, config.address);
   await pairFactory.init(ammFactory.address, marginFactory.address);
   console.log("PairFactory:", pairFactory.address);
-  console.log("AmmFactory:", ammFactory.address);
-  console.log("MarginFactory:", marginFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, pairFactory.address);
+  console.log("AmmFactory:", ammFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, ammFactory.address, pairFactory.address, config.address, signer);
+  console.log("MarginFactory:", marginFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, marginFactory.address, pairFactory.address, config.address);
 }
 
@@ -107,16 +116,21 @@ async function createPCVTreasury() {
 }
 
 async function createRouter() {
-  // if (pairFactory == null) {
-  //   let pairFactoryAddress = "0x7c65916580A1d715466310A8216D4BE493d38126";
-  //   const PairFactory = await ethers.getContractFactory("PairFactory");
-  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
-  // }
-  // if (pcvTreasury == null) {
-  //   let pcvTreasuryAddress = "0x9a1Ecf2D2C523A69028BDBAb6Fce8A0549addfE7";
-  //   const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
-  //   pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
-  // }
+  if (config == null) {
+    let configAddress = "0xF6Fd1703cF0C71221e71Fc08163Da1a38bB777a7";
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach(configAddress);
+  }
+  if (pairFactory == null) {
+    let pairFactoryAddress = "0xA3F39157Afe323Bb9d510aCb5b43756561FBcb09";
+    const PairFactory = await ethers.getContractFactory("PairFactory");
+    pairFactory = await PairFactory.attach(pairFactoryAddress);
+  }
+  if (pcvTreasury == null) {
+    let pcvTreasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
+    const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
+    pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
+  }
 
   const Router = await ethers.getContractFactory("Router");
   router = await Router.deploy(config.address, pairFactory.address, pcvTreasury.address, wethAddress);

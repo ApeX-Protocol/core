@@ -83,8 +83,8 @@ interface IConfig {
     function setLiquidateThreshold(uint256 threshold) external;
   
      /// @notice Set a new lp withdraw threshold of amm
-    /// @param lpWithdrawThreshold new lp withdraw threshold of amm.
-    function setLpWithdrawThreshold(uint256 lpWithdrawThreshold) external;
+    /// @param newLpWithdrawThreshold new lp withdraw threshold of amm.
+    function setLpWithdrawThreshold(uint256 newLpWithdrawThreshold) external;
 
     /// @notice Set a new liquidate fee of margin
     /// @param feeRatio new liquidate fee of margin.

@@ -10,9 +10,9 @@ contract MockRouter {
     IERC20 public baseToken;
     IWETH public WETH;
 
-    constructor(address _baseToken) {
+    constructor(address _baseToken, address _weth) {
         baseToken = IERC20(_baseToken);
-        WETH = IWETH(_baseToken);
+        WETH = IWETH(_weth);
     }
 
     receive() external payable {

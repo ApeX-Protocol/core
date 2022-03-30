@@ -19,9 +19,11 @@ contract PriceOracle is IPriceOracle, Initializable {
     using FullMath for uint256;
     using V3Oracle for V3Oracle.Observation[65535];
 
-    uint16 public constant cardinality = 120;
-    uint32 public constant twapInterval = 1800; // 30 min
+    uint8 public constant priceGap = 10;
+    uint16 public constant cardinality = 60;
+    uint32 public constant twapInterval = 900; // 15 min
 
+    address public WETH;
     address public v3Factory;
     uint24[3] public v3Fees;
 
@@ -30,7 +32,8 @@ contract PriceOracle is IPriceOracle, Initializable {
     mapping(address => V3Oracle.Observation[65535]) public ammObservations;
     mapping(address => uint16) public ammObservationIndex;
 
-    function initialize(address v3Factory_) public initializer {
+    function initialize(address WETH_, address v3Factory_) public initializer {
+        WETH = WETH_;
         v3Factory = v3Factory_;
         v3Fees[0] = 500;
         v3Fees[1] = 3000;
@@ -42,28 +45,17 @@ contract PriceOracle is IPriceOracle, Initializable {
         address baseToken = IAmm(amm).baseToken();
         address quoteToken = IAmm(amm).quoteToken();
 
-        // find out the pool with best liquidity as target pool
-        address pool;
-        address tempPool;
-        uint256 poolLiquidity;
-        uint256 tempLiquidity;
-        for (uint256 i = 0; i < v3Fees.length; i++) {
-            tempPool = IUniswapV3Factory(v3Factory).getPool(baseToken, quoteToken, v3Fees[i]);
-            if (tempPool == address(0)) continue;
-            tempLiquidity = uint256(IUniswapV3Pool(tempPool).liquidity());
-            // use the max liquidity pool as index price source
-            if (tempLiquidity > poolLiquidity) {
-                poolLiquidity = tempLiquidity;
-                pool = tempPool;
-            }
-        }
-        require(pool != address(0), "PriceOracle.setupTwap: POOL_NOT_FOUND");
-        v3Pools[baseToken][quoteToken] = pool;
+        address pool = getTargetPool(baseToken, quoteToken);
+        if (pool != address(0)) {
+            _setupV3Pool(baseToken, quoteToken, pool);
+        } else {
+            pool = getTargetPool(baseToken, WETH);
+            require(pool != address(0), "PriceOracle.setupTwap: POOL_NOT_FOUND");
+            _setupV3Pool(baseToken, WETH, pool);
 
-        IUniswapV3Pool v3Pool = IUniswapV3Pool(pool);
-        (, , , , uint16 cardinalityNext, , ) = v3Pool.slot0();
-        if (cardinalityNext < cardinality) {
-            IUniswapV3Pool(pool).increaseObservationCardinalityNext(cardinality);
+            pool = getTargetPool(WETH, quoteToken);
+            require(pool != address(0), "PriceOracle.setupTwap: POOL_NOT_FOUND");
+            _setupV3Pool(WETH, quoteToken, pool);
         }
 
         ammObservationIndex[amm] = 0;
@@ -110,6 +102,7 @@ contract PriceOracle is IPriceOracle, Initializable {
         // priceX96 = token1/token0, this price is scaled by 2^96
         uint256 priceX96 = UniswapV3TwapGetter.getPriceX96FromSqrtPriceX96(sqrtPriceX96);
         quoteAmount = baseAmount.mulDiv(priceX96, FixedPoint96.Q96);
+        require(quoteAmount > 0, "PriceOracle.quoteFromAmmTwap: ZERO_AMOUNT");
     }
 
     function quote(
@@ -117,8 +110,106 @@ contract PriceOracle is IPriceOracle, Initializable {
         address quoteToken,
         uint256 baseAmount
     ) public view override returns (uint256 quoteAmount, uint8 source) {
+        quoteAmount = quoteSingle(baseToken, quoteToken, baseAmount);
+        if (quoteAmount == 0) {
+            uint256 wethAmount = quoteSingle(baseToken, WETH, baseAmount);
+            quoteAmount = quoteSingle(WETH, quoteToken, wethAmount);
+        }
+        require(quoteAmount > 0, "PriceOracle.quote: ZERO_AMOUNT");
+    }
+
+    // the price is scaled by 1e18. example: 1eth = 2000usdt, price = 2000*1e18
+    function getIndexPrice(address amm) public view override returns (uint256) {
+        address baseToken = IAmm(amm).baseToken();
+        address quoteToken = IAmm(amm).quoteToken();
+        uint256 baseDecimals = IERC20(baseToken).decimals();
+        uint256 quoteDecimals = IERC20(quoteToken).decimals();
+        (uint256 quoteAmount, ) = quote(baseToken, quoteToken, 10**baseDecimals);
+        return quoteAmount * (10**(18 - quoteDecimals));
+    }
+
+    // the price is scaled by 1e18. example: 1eth = 2000usdt, price = 2000*1e18
+    function getMarkPrice(address amm) public view override returns (uint256 price, bool isIndexPrice) {
+        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+        uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
+        uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
+        uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
+        price = exponent.mulDiv(quoteReserve, baseReserve);
+
+        uint256 indexPrice = getIndexPrice(amm);
+        if (price * 100 >= indexPrice * (100 + priceGap) || price * 100 <= indexPrice * (100 - priceGap)) {
+            price = indexPrice;
+            isIndexPrice = true;
+        }
+    }
+
+    // example: 1eth = 2000usdt, 1eth = 1e18, 1usdt = 1e6, price = (1e6/1e18)*1e18
+    function getMarkPriceInRatio(address amm) public view override returns (uint256) {
+        (uint256 markPrice, ) = getMarkPrice(amm);
+        uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
+        uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
+        if (quoteDecimals > baseDecimals) {
+            return markPrice * 10**(quoteDecimals - baseDecimals);
+        } else {
+            return markPrice / 10**(baseDecimals - quoteDecimals);
+        }
+    }
+
+    // get user's mark price, return base amount, it's for checking if user's position can be liquidated.
+    // price = ( sqrt(markPrice) +/- beta * quoteAmount / sqrt(x*y) )**2
+    function getMarkPriceAcc(
+        address amm,
+        uint8 beta,
+        uint256 quoteAmount,
+        bool negative
+    ) external view override returns (uint256 baseAmount) {
+        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+        (, bool isIndexPrice) = getMarkPrice(amm);
+        if (!isIndexPrice) {
+            // markPrice = y/x
+            // price = ( sqrt(y/x) +/- beta * quoteAmount / sqrt(x*y) )**2 = (y +/- beta * quoteAmount)**2 / x*y
+            // baseAmount = quoteAmount / price = quoteAmount * x * y / (y +/- beta * quoteAmount)**2
+            uint256 rvalue = (quoteAmount * beta) / 100;
+            uint256 denominator;
+            if (negative) {
+                denominator = quoteReserve - rvalue;
+            } else {
+                denominator = quoteReserve + rvalue;
+            }
+            denominator = denominator * denominator;
+            baseAmount = quoteAmount.mulDiv(uint256(baseReserve) * quoteReserve, denominator);
+        } else {
+            // price = markPrice(1 +/- 2 * beta * quoteAmount / quoteReserve)
+            uint256 markPrice = getMarkPriceInRatio(amm);
+            uint256 rvalue = markPrice.mulDiv(2 * beta * quoteAmount/100, quoteReserve);
+            uint256 price;
+            if (negative) {
+                price = markPrice - rvalue;
+            } else {
+                price = markPrice + rvalue;
+            }
+            baseAmount = quoteAmount.mulDiv(1e18, price);
+        }
+    }
+
+    //premiumFraction is (markPrice - indexPrice) / 24h / indexPrice, scale by 1e18
+    function getPremiumFraction(address amm) external view override returns (int256) {
+        (uint256 markPrice,) = getMarkPrice(amm);
+        uint256 indexPrice = getIndexPrice(amm);
+        require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
+        return ((int256(markPrice) - int256(indexPrice)) * 1e18) / (24 * 3600) / int256(indexPrice);
+    }
+
+    function quoteSingle(
+        address baseToken,
+        address quoteToken,
+        uint256 baseAmount
+    ) public view returns (uint256 quoteAmount) {
         address pool = v3Pools[baseToken][quoteToken];
-        if (pool == address(0)) return (0, 0);
+        if (pool == address(0)) {
+            pool = getTargetPool(baseToken, quoteToken);
+        }
+        if (pool == address(0)) return 0;
         uint160 sqrtPriceX96 = UniswapV3TwapGetter.getSqrtTwapX96(pool, twapInterval);
         // priceX96 = token1/token0, this price is scaled by 2^96
         uint256 priceX96 = UniswapV3TwapGetter.getPriceX96FromSqrtPriceX96(sqrtPriceX96);
@@ -129,52 +220,23 @@ contract PriceOracle is IPriceOracle, Initializable {
         }
     }
 
-    // the result price is scaled by 1e18
-    function getIndexPrice(address amm) public view override returns (uint256) {
-        address baseToken = IAmm(amm).baseToken();
-        address quoteToken = IAmm(amm).quoteToken();
-        uint256 baseDecimals = IERC20(baseToken).decimals();
-        uint256 quoteDecimals = IERC20(quoteToken).decimals();
-        (uint256 quoteAmount, ) = quote(baseToken, quoteToken, 10**baseDecimals);
-        return quoteAmount * (10**(18 - quoteDecimals));
-    }
-
-    //@notice the price is transformed. example: 1eth = 2000usdt, price = 2000*1e18
-    function getMarkPrice(address amm) public view override returns (uint256 price) {
-        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
-        uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
-        uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
-        price = exponent.mulDiv(quoteReserve, baseReserve);
-    }
-
-    // get user's mark price, return base amount, it's for checking if user's position can be liquidated.
-    // price = ( sqrt(y/x) +/- beta * quoteAmount / sqrt(x*y) )**2 = (y +/- beta * quoteAmount)**2 / x*y
-    // baseAmount = quoteAmount / price = quoteAmount * x * y / (y +/- beta * quoteAmount)**2
-    function getMarkPriceAcc(
-        address amm,
-        uint8 beta,
-        uint256 quoteAmount,
-        bool negative
-    ) external view override returns (uint256 baseAmount) {
-        (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        uint256 rvalue = (quoteAmount * beta) / 100;
-        uint256 denominator;
-        if (negative) {
-            denominator = quoteReserve - rvalue;
-        } else {
-            denominator = quoteReserve + rvalue;
+    function getTargetPool(address baseToken, address quoteToken) public view returns (address) {
+        // find out the pool with best liquidity as target pool
+        address pool;
+        address tempPool;
+        uint256 poolLiquidity;
+        uint256 tempLiquidity;
+        for (uint256 i = 0; i < v3Fees.length; i++) {
+            tempPool = IUniswapV3Factory(v3Factory).getPool(baseToken, quoteToken, v3Fees[i]);
+            if (tempPool == address(0)) continue;
+            tempLiquidity = uint256(IUniswapV3Pool(tempPool).liquidity());
+            // use the max liquidity pool as index price source
+            if (tempLiquidity > poolLiquidity) {
+                poolLiquidity = tempLiquidity;
+                pool = tempPool;
+            }
         }
-        denominator = denominator * denominator;
-        baseAmount = quoteAmount.mulDiv(uint256(baseReserve) * quoteReserve, denominator);
-    }
-
-    //premiumFraction is (markPrice - indexPrice) / 24h / indexPrice, scale by 1e18
-    function getPremiumFraction(address amm) external view override returns (int256) {
-        int256 markPrice = int256(getMarkPrice(amm));
-        int256 indexPrice = int256(getIndexPrice(amm));
-        require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
-        return ((markPrice - indexPrice) * 1e18) / (24 * 3600) / indexPrice;
+        return pool;
     }
 
     function _blockTimestamp() internal view virtual returns (uint32) {
@@ -185,5 +247,14 @@ contract PriceOracle is IPriceOracle, Initializable {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
         uint256 priceX192 = uint256(quoteReserve).mulDiv(2**192, baseReserve);
         return uint160(priceX192.sqrt());
+    }
+
+    function _setupV3Pool(address baseToken, address quoteToken, address pool) internal {
+        v3Pools[baseToken][quoteToken] = pool;
+        IUniswapV3Pool v3Pool = IUniswapV3Pool(pool);
+        (, , , , uint16 cardinalityNext, , ) = v3Pool.slot0();
+        if (cardinalityNext < cardinality) {
+            IUniswapV3Pool(pool).increaseObservationCardinalityNext(cardinality);
+        }
     }
 }
