@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "./interfaces/IBondPoolFactory.sol";
 import "./interfaces/IBondPool.sol";
 import "./interfaces/IPCVTreasury.sol";
 import "./interfaces/IBondPriceOracle.sol";
+import "../core/interfaces/IRouter.sol";
 import "../core/interfaces/IAmm.sol";
 import "../core/interfaces/IERC20.sol";
 import "../core/interfaces/IWETH.sol";
@@ -12,11 +14,10 @@ import "../libraries/FullMath.sol";
 import "../utils/Ownable.sol";
 
 contract BondPool is IBondPool, Ownable {
+    IBondPoolFactory public override factory;
     address public override WETH;
     address public override apeXToken;
-    address public override treasury;
     address public override amm;
-    address public override priceOracle;
     uint256 public override maxPayout;
     uint256 public override discount; // [0, 10000]
     uint256 public override vestingTerm; // in seconds
@@ -28,19 +29,16 @@ contract BondPool is IBondPool, Ownable {
         address owner_,
         address WETH_,
         address apeXToken_,
-        address treasury_,
-        address priceOracle_,
         address amm_,
         uint256 maxPayout_,
         uint256 discount_,
         uint256 vestingTerm_
     ) external override {
         require(WETH == address(0), "BondPool.initialize: ALREADY_INIT");
+        factory = IBondPoolFactory(msg.sender);
         owner = owner_;
         WETH = WETH_;
         apeXToken = apeXToken_;
-        treasury = treasury_;
-        priceOracle = priceOracle_;
         amm = amm_;
         maxPayout = maxPayout_;
         discount = discount_;
@@ -50,12 +48,6 @@ contract BondPool is IBondPool, Ownable {
     function setBondPaused(bool state) external override onlyOwner {
         bondPaused = state;
         emit BondPaused(state);
-    }
-
-    function setPriceOracle(address newOracle) external override onlyOwner {
-        require(newOracle != address(0), "BondPool.setPriceOracle: ZERO_ADDRESS");
-        emit PriceOracleChanged(priceOracle, newOracle);
-        priceOracle = newOracle;
     }
 
     function setMaxPayout(uint256 maxPayout_) external override onlyOwner {
@@ -128,7 +120,7 @@ contract BondPool is IBondPool, Ownable {
     // payout = amount / bondPrice = marketApeXAmount / (1 - discount))
     function payoutFor(uint256 amount) public view override returns (uint256 payout) {
         address baseToken = IAmm(amm).baseToken();
-        uint256 marketApeXAmount = IBondPriceOracle(priceOracle).quote(baseToken, amount);
+        uint256 marketApeXAmount = IBondPriceOracle(factory.priceOracle()).quote(baseToken, amount);
         payout = marketApeXAmount * 10000 / (10000 - discount);
     }
 
@@ -153,14 +145,24 @@ contract BondPool is IBondPool, Ownable {
         require(depositor != address(0), "BondPool._depositInternal: ZERO_ADDRESS");
         require(depositAmount > 0, "BondPool._depositInternal: ZERO_AMOUNT");
 
-        TransferHelper.safeTransferFrom(IAmm(amm).baseToken(), from, amm, depositAmount);
-        (uint256 actualDepositAmount, , uint256 liquidity) = IAmm(amm).mint(address(this));
-        require(actualDepositAmount == depositAmount, "BondPool._depositInternal: AMOUNT_NOT_MATCH");
+        address baseToken = IAmm(amm).baseToken();
+        address quoteToken = IAmm(amm).quoteToken();
+        TransferHelper.safeTransferFrom(baseToken, from, address(this), depositAmount);
+
+        address router = factory.router();
+        uint256 allowance = IERC20(baseToken).allowance(address(this), router);
+        if (allowance < depositAmount) {
+            IERC20(baseToken).approve(router, type(uint256).max);
+        }
+        (, uint256 liquidity) = IRouter(router).addLiquidity(baseToken, quoteToken, depositAmount, 1, block.timestamp, false);
+        require(liquidity > 0, "BondPool._depositInternal: AMOUNT_TOO_SMALL");
 
         payout = payoutFor(depositAmount);
         require(payout >= minPayout, "BondPool._depositInternal: UNDER_MIN_LAYOUT");
         require(payout <= maxPayout, "BondPool._depositInternal: OVER_MAX_PAYOUT");
         maxPayout -= payout;
+
+        address treasury = factory.treasury();
         TransferHelper.safeApprove(amm, treasury, liquidity);
         IPCVTreasury(treasury).deposit(amm, liquidity, payout);
 

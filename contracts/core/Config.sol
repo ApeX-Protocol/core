@@ -8,17 +8,19 @@ import "../utils/Ownable.sol";
 contract Config is IConfig, Ownable {
     address public override priceOracle;
 
-    uint8 public override beta = 70; // 50-200，50 means 0.5
+    uint8 public override beta = 120; // 50-200，50 means 0.5
     uint256 public override maxCPFBoost = 10; // default 10
-    uint256 public override rebasePriceGap = 5; //0-100 , if 5 means 5%
-    uint256 public override rebaseInterval = 3600; // in seconds
+    uint256 public override rebasePriceGap = 3; //0-100 , if 5 means 5%
+    uint256 public override rebaseInterval = 900; // in seconds
     uint256 public override tradingSlippage = 5; //0-100, if 5 means 5%
     uint256 public override initMarginRatio = 800; //if 1000, means margin ratio >= 10%
     uint256 public override liquidateThreshold = 10000; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio = 100; //if 100, means liquidator bot get 1% as fee
     uint256 public override feeParameter = 11; // 100 * (1/fee-1)
+    uint256 public override lpWithdrawThreshold = 10; // 1-100
 
     mapping(address => bool) public override routerMap;
+    mapping(address => bool) public override inEmergency;
 
     constructor() {
         owner = msg.sender;
@@ -62,7 +64,7 @@ contract Config is IConfig, Ownable {
         require(threshold > 9000 && threshold <= 10000, "Config: INVALID_LIQUIDATE_THRESHOLD");
         emit SetLiquidateThreshold(liquidateThreshold, threshold);
         liquidateThreshold = threshold;
-    }
+    } 
 
     function setLiquidateFeeRatio(uint256 feeRatio) external override onlyOwner {
         require(feeRatio > 0 && feeRatio <= 2000, "Config: INVALID_LIQUIDATE_FEE_RATIO");
@@ -74,14 +76,19 @@ contract Config is IConfig, Ownable {
         emit SetFeeParameter(feeParameter, newFeeParameter);
         feeParameter = newFeeParameter;
     }
-
+   
+    function setLpWithdrawThreshold(uint256 newLpWithdrawThreshold) external override onlyOwner {
+        require(lpWithdrawThreshold > 1 && lpWithdrawThreshold <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD");
+        emit SetLpWithdrawThreshold(lpWithdrawThreshold, newLpWithdrawThreshold);
+        lpWithdrawThreshold = newLpWithdrawThreshold;
+    }
+    
     function setBeta(uint8 newBeta) external override onlyOwner {
         require(newBeta >= 50 && newBeta <= 200, "Config: INVALID_BETA");
         emit SetBeta(beta, newBeta);
         beta = newBeta;
     }
 
-    //must be careful, expose all traders's position
     function registerRouter(address router) external override onlyOwner {
         require(router != address(0), "Config: ZERO_ADDRESS");
         require(!routerMap[router], "Config: REGISTERED");
@@ -96,5 +103,11 @@ contract Config is IConfig, Ownable {
         delete routerMap[router];
 
         emit RouterUnregistered(router);
+    }
+
+    function setEmergency(address router) external override onlyOwner {
+        require(routerMap[router], "Config: UNREGISTERED");
+        inEmergency[router] = true;
+        emit SetEmergency(router);
     }
 }

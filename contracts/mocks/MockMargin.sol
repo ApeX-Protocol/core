@@ -11,7 +11,7 @@ contract MockMargin  {
     address public baseToken;
     address public quoteToken;
     uint256 public reserve;
-
+    int256 public netpostion ;
     constructor() {
     }
 
@@ -27,8 +27,13 @@ contract MockMargin  {
         config = config_ ;
     }
 
-    function netPosition() external view returns (int256 netBasePosition){
-        return 2 * 10**18;
+    function netPosition() external view returns (int256 ){
+        return netpostion;
+    }
+    function setNetPosition(int256 newNetpositon ) external  returns (int256 ){
+        // return 200 * 10 **6;
+       netpostion = newNetpositon;
+       return netpostion; 
     }
 
     function deposit(address user, uint256 amount) external  {
@@ -49,5 +54,13 @@ contract MockMargin  {
         uint256 outputAmount
     ) external returns (uint256[2] memory amounts) {
       IAmm(amm).swap(trader, inputToken, outputToken, inputAmount, outputAmount);
+    }
+
+       function withdraw(
+        address user,
+        address receiver,
+        uint256 amount
+    ) external   {
+        require(msg.sender == amm, "Margin.withdraw: REQUIRE_AMM");
     }
 }

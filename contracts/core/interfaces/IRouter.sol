@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 interface IRouter {
+    function config() external view returns (address);
+    
     function pairFactory() external view returns (address);
 
     function pcvTreasury() external view returns (address);
@@ -103,6 +105,13 @@ interface IRouter {
         uint256 quoteAmount,
         uint256 deadline
     ) external returns (uint256 baseAmount, uint256 withdrawAmount);
+
+    function liquidate(
+        address baseToken,
+        address quoteToken,
+        address trader,
+        address to
+    ) external returns (uint256 quoteAmount, uint256 baseAmount, uint256 bonus);
 
     function getReserves(address baseToken, address quoteToken)
         external

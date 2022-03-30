@@ -150,6 +150,12 @@ contract StakingPoolFactory is IStakingPoolFactory, Ownable, Initializable {
         IERC20(apeX).transfer(_treasury, _amount);
     }
 
+    function withdrawApeX(address to, uint256 amount) external override onlyOwner {
+        require(amount <= IERC20(apeX).balanceOf(address(this)), "spf.withdrawApeX: NO_ENOUGH_APEX");
+        IERC20(apeX).transfer(to, amount);
+        emit WithdrawApeX(to, amount);
+    }
+
     function transferEsApeXTo(address _to, uint256 _amount) external override {
         require(PoolWeightMap[msg.sender].weight > 0, "spf.transferEsApeXTo: ACCESS_DENIED");
 

@@ -7,22 +7,28 @@ import "../utils/Ownable.sol";
 import "../libraries/TransferHelper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract RewardForCashback is Reentrant, Ownable {
+contract NFTRebate is Reentrant, Ownable {
     using ECDSA for bytes32;
 
     event SetEmergency(bool emergency);
     event SetSigner(address signer, bool state);
-    event Claim(address indexed user, address[] tokens, uint256[] amounts, bytes nonce, uint8 useFor);
+    event Claim(address indexed user, bytes nonce, uint256 amount);
 
-    address public WETH;
-    bool public emergency;
+    uint256 public eachNFT;
+    uint16 public maxCount;
+    uint16 public claimedCount;
+    
     mapping(address => bool) public signers;
     mapping(bytes => bool) public usedNonce;
 
-    constructor(address WETH_) {
+    bool public emergency;
+
+    constructor(uint256 eachNFT_, uint16 maxCount_) {
         owner = msg.sender;
-        WETH = WETH_;
+        eachNFT = eachNFT_;
+        maxCount = maxCount_;
     }
+    
     receive() external payable { }
 
     function setSigner(address signer, bool state) external onlyOwner {
@@ -37,51 +43,40 @@ contract RewardForCashback is Reentrant, Ownable {
     }
 
     function emergencyWithdraw(
-        address token,
         address to,
         uint256 amount
     ) external onlyOwner {
         require(emergency, "NOT_EMERGENCY");
-        TransferHelper.safeTransfer(token, to, amount);
+        TransferHelper.safeTransferETH(to, amount);
     }
 
     function claim(
         address user,
-        address[] calldata tokens,
-        uint256[] calldata amounts,
+        uint16 count,
         bytes calldata nonce,
-        uint256 expireAt,
-        uint8 useFor,
         bytes memory signature
     ) external nonReentrant {
         require(!emergency, "EMERGENCY");
-        verify(user, tokens, amounts, nonce, expireAt, useFor, signature);
+        verify(user, count, nonce, signature);
         usedNonce[nonce] = true;
-        for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] == WETH) {
-                TransferHelper.safeTransferETH(user, amounts[i]);
-            } else {
-                TransferHelper.safeTransfer(tokens[i], user, amounts[i]);
-            }
-        }
-        emit Claim(user, tokens, amounts, nonce, useFor);
+        uint256 amount = eachNFT * count;
+        claimedCount += count;
+        TransferHelper.safeTransferETH(user, amount);
+        emit Claim(user, nonce, amount);
     }
 
     function verify(
         address user,
-        address[] calldata tokens,
-        uint256[] calldata amounts,
+        uint16 count,
         bytes calldata nonce,
-        uint256 expireAt,
-        uint8 useFor,
         bytes memory signature
     ) public view returns (bool) {
-        address recover = keccak256(abi.encode(user, tokens, amounts, nonce, expireAt, useFor, address(this)))
+        address recover = keccak256(abi.encode(user, count, nonce, address(this)))
             .toEthSignedMessageHash()
             .recover(signature);
         require(signers[recover], "NOT_SIGNER");
         require(!usedNonce[nonce], "NONCE_USED");
-        require(expireAt > block.timestamp, "EXPIRED");
+        require(count <= maxCount - claimedCount, "OVER_COUNT");
         return true;
     }
 }

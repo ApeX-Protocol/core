@@ -1,106 +1,114 @@
 const { expect } = require("chai");
+const { BigNumber } = require("ethers");
+const { ethers } = require("hardhat");
 
 describe("Margin contract", function () {
-  let margin;
   let owner;
   let addr1;
+  let addr2;
+  let addr3;
   let liquidator;
   let addrs;
+
+  let mockWeth;
+  let margin;
   let mockAmm;
   let mockBaseToken;
-  let ownerInitBaseAmount = 20000;
-  let addr1InitBaseAmount = 100;
-  let routerAllowance = 10000;
-  let longSide = 0;
-  let shortSide = 1;
-  let config;
+  let mockConfig;
   let mockPriceOracle;
 
+  let ownerInitBaseAmount = "1000000000000000000000"; //1000eth
+  let addr1InitBaseAmount = "1000000000000000000000"; //1000eth
+  let addr2InitBaseAmount = "1000000000000000000000"; //1000eth
+  let routerAllowance = "1000000000000000000000"; //1000eth
+  let longSide = 0;
+  let shortSide = 1;
+
   beforeEach(async function () {
-    [owner, addr1, liquidator, ...addrs] = await ethers.getSigners();
+    [owner, addr1, addr2, addr3, liquidator, ...addrs] = await ethers.getSigners();
 
-    const MockToken = await ethers.getContractFactory("MockToken");
-    mockBaseToken = await MockToken.deploy("bit dao", "bit");
-    mockQuoteToken = await MockToken.deploy("usdt dao", "usdt");
+    const MockWETH = await ethers.getContractFactory("MockWETH");
+    const MockBaseToken = await ethers.getContractFactory("MockBaseToken");
+    const MockQuoteToken = await ethers.getContractFactory("MockQuoteToken");
+    mockBaseToken = await MockBaseToken.deploy("eth token", "weth");
+    mockQuoteToken = await MockQuoteToken.deploy("usdt", "usdt");
+    mockWeth = await MockWETH.deploy();
 
-    const MockAmm = await ethers.getContractFactory("MockAmm");
+    const MockAmm = await ethers.getContractFactory("MockAmmOfMargin");
     mockAmm = await MockAmm.deploy("amm shares", "as");
 
     const MockRouter = await ethers.getContractFactory("MockRouter");
-    mockRouter = await MockRouter.deploy(mockBaseToken.address);
+    mockRouter = await MockRouter.deploy(mockBaseToken.address, mockWeth.address);
 
-    const Config = await ethers.getContractFactory("Config");
-    config = await Config.deploy();
+    const MockConfig = await ethers.getContractFactory("MockConfig");
+    mockConfig = await MockConfig.deploy();
 
-    const Factory = await ethers.getContractFactory("MockFactory");
-    factory = await Factory.deploy(config.address);
-    await factory.createPair();
+    const MockFactory = await ethers.getContractFactory("MockFactory");
+    mockFactory = await MockFactory.deploy(mockConfig.address);
+    await mockFactory.createPair();
 
-    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracle");
+    const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleOfMargin");
     mockPriceOracle = await MockPriceOracle.deploy();
 
-    let marginAddress = await factory.margin();
+    let marginAddress = await mockFactory.margin();
     const Margin = await ethers.getContractFactory("Margin");
-    margin = await Margin.attach(marginAddress);
+    margin = Margin.attach(marginAddress);
 
-    await factory.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address);
+    await mockPriceOracle.setMarkPriceInRatio(2000 * 1e6); //2000*(1e-12)*1e18
+    await mockFactory.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address);
     await mockRouter.setMarginContract(margin.address);
     await mockAmm.initialize(mockBaseToken.address, mockQuoteToken.address);
-    await mockAmm.setReserves(1000000000, 1000000000);
+    await mockAmm.setReserves("1000000000000000000000", "2000000000000"); //1_000eth and 2_000_000usdt
 
     await mockBaseToken.mint(owner.address, ownerInitBaseAmount);
     await mockBaseToken.mint(addr1.address, addr1InitBaseAmount);
+    await mockBaseToken.mint(addr2.address, addr2InitBaseAmount);
     await mockBaseToken.approve(mockRouter.address, routerAllowance);
     await mockBaseToken.connect(addr1).approve(mockRouter.address, addr1InitBaseAmount);
+    await mockBaseToken.connect(addr2).approve(mockRouter.address, addr2InitBaseAmount);
 
-    await config.registerRouter(mockRouter.address);
-    await config.setBeta(100);
-    await config.setInitMarginRatio(909);
-    await config.setLiquidateThreshold(10000);
-    await config.setLiquidateFeeRatio(2000);
-    await config.setPriceOracle(mockPriceOracle.address);
-    await config.setMaxCPFBoost(10);
+    await mockConfig.registerRouter(mockRouter.address);
+    await mockConfig.registerRouter(owner.address);
+    await mockConfig.registerRouter(addr1.address);
+    await mockConfig.registerRouter(addr2.address);
+    await mockConfig.setBeta(120);
+    await mockConfig.setInitMarginRatio(909);
+    await mockConfig.setLiquidateThreshold(10000);
+    await mockConfig.setLiquidateFeeRatio(2000);
+    await mockConfig.setPriceOracle(mockPriceOracle.address);
+    await mockConfig.setMaxCPFBoost(10);
   });
 
-  describe("flash loan attack", function () {
-    let attacker;
-    beforeEach(async function () {
-      const MockFlashAttacker = await ethers.getContractFactory("MockFlashAttacker");
-      attacker = await MockFlashAttacker.deploy(mockBaseToken.address, margin.address, mockQuoteToken.address);
-    });
-
-    it("can when open and removeMargin in one block", async function () {
-      let borrow = 100;
-      let baseAmount = 100;
-      await attacker.attack2(borrow, baseAmount);
-      let result = await getPosition(margin, attacker.address);
-      let balance = await mockBaseToken.balanceOf(attacker.address);
-      expect(result[0]).to.be.equal(-200);
-      expect(result[1]).to.be.equal(299);
-      expect(result[2]).to.be.equal(200);
-      expect(balance).to.be.equal(1000 - 100 - 10 + 1);
-    });
-
-    it("revert when open and close in one block", async function () {
-      let borrow = 100;
-      let baseAmount = 100;
-      await expect(attacker.attack1(borrow, baseAmount)).to.be.revertedWith(
-        "Margin.closePosition: ONE_BLOCK_TWICE_OPERATION"
-      );
+  describe("initialize", function () {
+    it("revert when other address to initialize", async function () {
+      await expect(
+        margin.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address)
+      ).to.be.revertedWith("Margin.initialize: FORBIDDEN");
     });
   });
 
   describe("addMargin", function () {
-    it("revert when no enough allowance by router", async function () {
-      await expect(mockRouter.addMargin(addr1.address, routerAllowance + 1)).to.be.revertedWith(
-        "ERC20: transfer amount exceeds allowance"
-      );
+    it("add correct margin from margin", async function () {
+      await mockBaseToken.transfer(margin.address, routerAllowance);
+      expect((await mockBaseToken.balanceOf(margin.address)).toString()).to.be.equal(routerAllowance);
+      await margin.addMargin(addr1.address, routerAllowance);
+      let position = await margin.traderPositionMap(addr1.address);
+      expect(position[1].toString()).to.equal(routerAllowance);
+      expect((await margin.reserve()).toString()).to.be.equal(routerAllowance);
     });
 
-    it("add correct margin from router", async function () {
-      await mockRouter.addMargin(addr1.address, routerAllowance);
-      let position = await margin.traderPositionMap(addr1.address);
-      expect(position[1]).to.equal(routerAllowance);
+    it("revert when add wrong margin", async function () {
+      await expect(margin.addMargin(addr1.address, -10)).to.be.reverted;
+    });
+
+    it("revert when add before transfer", async function () {
+      await expect(margin.addMargin(addr1.address, 10)).to.be.revertedWith("Margin.addMargin: WRONG_DEPOSIT_AMOUNT");
+    });
+
+    it("revert when no enough balance by router", async function () {
+      await expect(mockRouter.addMargin(addr1.address, routerAllowance + 1)).to.be.revertedWith(
+        "ERC20: transfer amount exceeds balance"
+      );
     });
 
     it("margin remain baseToken, trader profit it through margin.sol", async function () {
@@ -110,51 +118,39 @@ describe("Margin contract", function () {
       expect(position[1]).to.equal(addr1InitBaseAmount);
     });
 
-    it("add wrong margin", async function () {
-      await expect(margin.addMargin(addr1.address, -10)).to.be.reverted;
-      await expect(margin.addMargin(addr1.address, 10)).to.be.revertedWith("Margin.addMargin: WRONG_DEPOSIT_AMOUNT");
-    });
-
     describe("operate margin with old position", function () {
       beforeEach(async function () {
-        let quoteAmount = 10;
-
-        await mockRouter.addMargin(owner.address, 1);
+        //open long with 1eth, contract value is 2000u
+        let quoteAmount = "2000000000";
+        await mockRouter.addMargin(owner.address, "1000000000000000000");
         await margin.openPosition(owner.address, longSide, quoteAmount);
         let position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-10);
-        expect(position[1]).to.equal(11);
-        expect(position[2]).to.equal(10);
+        expect(position[0]).to.equal(-2000000000);
+        expect(position[1]).to.equal("2000000000000000000");
+        expect(position[2]).to.equal("1000000000000000000");
       });
 
       it("add an old position", async function () {
         await mockRouter.addMargin(owner.address, 2);
         let position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-10);
-        expect(position[1]).to.equal(13);
-        expect(position[2]).to.equal(10);
+        expect(position[0]).to.equal(-2000000000);
+        expect(position[1]).to.equal("2000000000000000002");
+        expect(position[2]).to.equal("1000000000000000000");
       });
     });
   });
 
-  describe("remove margin", async function () {
+  describe("removeMargin", async function () {
     beforeEach(async function () {
       await mockRouter.addMargin(owner.address, routerAllowance);
     });
 
-    it("remove correct margin", async function () {
+    it("remove correct margin when no position", async function () {
       await margin.removeMargin(owner.address, owner.address, routerAllowance);
       expect(await mockBaseToken.balanceOf(owner.address)).to.equal(ownerInitBaseAmount);
     });
 
-    it("remove correct margin eth", async function () {
-      await mockBaseToken.deposit({ value: 20000 });
-      let oldEthBalance = await mockBaseToken.ethBalance();
-      await mockRouter.withdrawETH(mockQuoteToken.address, routerAllowance);
-      expect(await mockBaseToken.ethBalance()).to.be.equal(oldEthBalance - routerAllowance);
-    });
-
-    it("no position, have baseToken, remove wrong margin", async function () {
+    it("revert when no position, have baseToken, remove wrong margin", async function () {
       await expect(margin.removeMargin(owner.address, owner.address, 0)).to.be.revertedWith(
         "Margin.removeMargin: ZERO_WITHDRAW_AMOUNT"
       );
@@ -163,8 +159,8 @@ describe("Margin contract", function () {
       );
     });
 
-    it("no position and no baseToken, remove margin", async function () {
-      let withdrawable = (await margin.getWithdrawable(owner.address)).toNumber();
+    it("revert when no position, no baseToken, remove wrong margin", async function () {
+      let withdrawable = (await margin.getWithdrawable(owner.address)).toString();
       expect(withdrawable).to.be.equal(routerAllowance);
       await margin.removeMargin(owner.address, owner.address, routerAllowance);
       await expect(margin.removeMargin(owner.address, owner.address, 1)).to.be.revertedWith(
@@ -173,119 +169,116 @@ describe("Margin contract", function () {
     });
 
     describe("remove margin with old position", function () {
+      let quoteAmount = 1_000000;
+      let price;
       beforeEach(async function () {
-        let quoteAmount = 10;
         await margin.openPosition(owner.address, longSide, quoteAmount);
         let position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-10);
-        expect(position[1]).to.equal(routerAllowance + 10);
-        expect(position[2]).to.equal(10);
+        price = await mockAmm.price();
+        let baseAmount = (quoteAmount * 1e18) / price;
+        expect(position[0]).to.equal(-1 * quoteAmount);
+        expect(position[1]).to.equal(BigNumber.from(routerAllowance).add(baseAmount));
+        expect(position[2]).to.equal(baseAmount);
 
         await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
         await margin.connect(addr1).openPosition(addr1.address, shortSide, quoteAmount);
         position = await margin.traderPositionMap(addr1.address);
-        expect(position[0]).to.equal(10);
-        expect(position[1]).to.equal(addr1InitBaseAmount - 10);
-        expect(position[2]).to.equal(10);
+        expect(position[0]).to.equal(quoteAmount);
+        expect(position[1]).to.equal(BigNumber.from(addr1InitBaseAmount).sub(baseAmount));
+        expect(position[2]).to.equal(baseAmount);
       });
 
       it("withdraw maximum margin from an old short position", async function () {
-        await margin.connect(addr1).openPosition(addr1.address, shortSide, 5);
-        position = await margin.traderPositionMap(addr1.address);
-        expect(position[0]).to.equal(15);
-        expect(position[1]).to.equal(85);
-        expect(position[2]).to.equal(15);
+        let baseAmount = (quoteAmount * 1e18) / price;
+        let expectedWithdrawable = BigNumber.from(addr1InitBaseAmount)
+          .sub(baseAmount)
+          .add(baseAmount * 0.9091);
 
-        await expect(mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 1)).to.be.revertedWith(
-          "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE"
-        );
-        expect(await margin.getWithdrawable(addr1.address)).to.be.equal(addr1InitBaseAmount - 2);
-        await mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 2);
+        await mockRouter.connect(addr1).removeMargin(expectedWithdrawable);
         position = await margin.traderPositionMap(addr1.address);
-        expect(position[0]).to.equal(15);
-        expect(position[1]).to.equal(-13);
-        expect(position[2]).to.equal(15);
+        expect(position[0]).to.equal(quoteAmount);
+        expect(position[1]).to.equal(-1 * baseAmount * 0.9091);
+        expect(position[2]).to.equal(baseAmount);
       });
 
-      it("withdraw maximum margin from an old short position", async function () {
-        await expect(mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount)).to.be.revertedWith(
+      it("revert when withdraw more margin from an old short position", async function () {
+        let baseAmount = (quoteAmount * 1e18) / price;
+        let expectedWithdrawable = BigNumber.from(addr1InitBaseAmount)
+          .sub(baseAmount)
+          .add(baseAmount * 0.9091);
+
+        expect(await margin.getWithdrawable(addr1.address)).to.be.equal(expectedWithdrawable);
+        await expect(mockRouter.connect(addr1).removeMargin(expectedWithdrawable.add(1))).to.be.revertedWith(
           "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE"
         );
-        expect(await margin.getWithdrawable(addr1.address)).to.be.equal(addr1InitBaseAmount - 1);
-        await mockRouter.connect(addr1).removeMargin(addr1InitBaseAmount - 1);
-        position = await margin.traderPositionMap(addr1.address);
-        expect(position[0]).to.equal(10);
-        expect(position[1]).to.equal(-9);
-        expect(position[2]).to.equal(10);
-      });
-
-      it("withdraw margin from an old position", async function () {
-        await mockRouter.removeMargin(1);
-        let position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-10);
-        expect(position[1]).to.equal(routerAllowance + 10 - 1);
-        expect(position[2]).to.equal(10);
       });
 
       it("withdraw maximum margin from an old long position", async function () {
-        await mockRouter.removeMargin(routerAllowance - 1);
+        let expectedWithdrawable = await margin.getWithdrawable(owner.address);
+        await expect(mockRouter.removeMargin(expectedWithdrawable.add(1))).to.be.revertedWith(
+          "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE"
+        );
+
+        await mockRouter.removeMargin(expectedWithdrawable);
         let position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-10);
-        expect(position[1]).to.equal(11);
-        expect(position[2]).to.equal(10);
+        let needed = BigNumber.from((quoteAmount * 1e18) / price)
+          .mul(10000)
+          .div(9091)
+          .add(1)
+          .toString();
+        expect(position[0]).to.equal(-1 * quoteAmount);
+        expect(position[1]).to.equal(needed);
+        expect(position[2]).to.equal((quoteAmount * 1e18) / price);
       });
 
       it("withdraw from an old position's fundingFee", async function () {
         let withdrawable = await margin.getWithdrawable(owner.address);
         await mockPriceOracle.setPf("-1000000000000000000");
-
         let fundingFee = (await margin.calFundingFee(owner.address)).toNumber();
         expect(fundingFee).to.be.greaterThanOrEqual(routerAllowance - withdrawable);
-
         await mockRouter.removeMargin(routerAllowance);
       });
 
       it("withdraw from an old position's unrealizedPnl", async function () {
-        let withdrawable = await margin.getWithdrawable(owner.address);
-
-        await mockAmm.setPrice(2);
-
-        let fundingFee = (await margin.calFundingFee(owner.address)).toNumber();
+        let fundingFee = await margin.calFundingFee(owner.address);
         expect(fundingFee).to.be.equal(0);
+        let newPrice = 4000000000;
+        await mockPriceOracle.setMarkPriceInRatio(newPrice);
+        await mockAmm.setPrice(newPrice);
 
         let unrealizedPnl = (await margin.calUnrealizedPnl(owner.address)).toNumber();
-        expect(unrealizedPnl).to.be.greaterThanOrEqual(routerAllowance - withdrawable);
+        expect(unrealizedPnl).to.be.equal((quoteAmount * 1e18) / newPrice);
 
         let oldResult = await getPosition(margin, owner.address);
-        await mockRouter.removeMargin(routerAllowance);
+        await margin.removeMargin(owner.address, owner.address, unrealizedPnl);
         let newResult = await getPosition(margin, owner.address);
-
-        expect(oldResult[2] - newResult[2]).to.be.equal(unrealizedPnl);
+        expect(BigNumber.from(oldResult[1]).sub(newResult[1])).to.be.equal(unrealizedPnl);
       });
     });
   });
 
   describe("openPosition", async function () {
+    let price;
+    let oneEth = BigNumber.from("1000000000000000000");
     beforeEach(async function () {
       await mockRouter.addMargin(owner.address, routerAllowance);
+      price = await mockAmm.price();
     });
 
     it("open correct long position", async function () {
-      let quoteAmount = 10;
-      let price = 1;
+      let quoteAmount = 1_000000;
       await margin.openPosition(owner.address, longSide, quoteAmount);
       position = await margin.traderPositionMap(owner.address);
-      expect(position[0]).to.equal(0 - quoteAmount * price);
-      expect(position[1]).to.equal(routerAllowance + quoteAmount);
+      expect(position[0]).to.equal(-1 * quoteAmount);
+      expect(position[1]).to.equal(BigNumber.from(routerAllowance).add((quoteAmount * 1e18) / price));
     });
 
     it("open correct short position", async function () {
-      let quoteAmount = 10;
-      let price = 1;
+      let quoteAmount = 1_000000;
       await margin.openPosition(owner.address, shortSide, quoteAmount);
       position = await margin.traderPositionMap(owner.address);
-      expect(position[0]).to.equal(quoteAmount * price);
-      expect(position[1]).to.equal(routerAllowance - quoteAmount);
+      expect(position[0]).to.equal(quoteAmount);
+      expect(position[1]).to.equal(BigNumber.from(routerAllowance).sub((quoteAmount * 1e18) / price));
     });
 
     it("open wrong position", async function () {
@@ -294,162 +287,194 @@ describe("Margin contract", function () {
       );
     });
 
-    it("open position with bad liquidity in amm", async function () {
-      await mockAmm.setPrice(10000);
+    it("revert when open position with big gap of mark price and market price", async function () {
+      let quoteAmount = 200000_000000;
+      //margin is 1000eth
+      let oldResult = await getPosition(margin, owner.address);
+      expect(oldResult[1]).to.be.equal(ownerInitBaseAmount);
+      //mark price is 100usdc/eth
+      await mockPriceOracle.setMarkPrice(100 * 1e6);
+      //market price is 2000usdc/eth
+      await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+        "Margin.openPosition: WILL_BE_LIQUIDATED"
+      );
+    });
+
+    it("revert when open position with big big position", async function () {
+      let quoteAmount = 1000000_000000;
+      //margin is 1000eth, reserve is also 1000eth, open position of 500eth
+      let oldResult = await getPosition(margin, owner.address);
+      expect(oldResult[1]).to.be.equal(ownerInitBaseAmount);
+      //mark price is 100usdc/eth
+      await mockPriceOracle.setMarkPrice(2000 * 1e6);
+      //market price is 2000usdc/eth
+      await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+        "Margin.openPosition: INIT_MARGIN_RATIO"
+      );
+    });
+
+    it("revert when open long position with 10% gap of mark price and market price", async function () {
+      let quoteAmount = 20000_000000;
+      //margin is 1eth
+      await margin.removeMargin(owner.address, owner.address, BigNumber.from(ownerInitBaseAmount).mul(999).div(1000));
+      let oldResult = await getPosition(margin, owner.address);
+      expect(oldResult[1]).to.be.equal(BigNumber.from(ownerInitBaseAmount).div(1000));
+
+      //mark price is 1800usdc/eth
+      await mockPriceOracle.setMarkPrice(1800 * 1e6);
+      //market price is 2000usdc/eth
+      await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+        "Margin.openPosition: WILL_BE_LIQUIDATED"
+      );
+    });
+
+    it("revert when open short position with 10% gap of mark price and market price", async function () {
+      let quoteAmount = 20000_000000;
+      //margin is 1eth
+      await margin.removeMargin(owner.address, owner.address, BigNumber.from(ownerInitBaseAmount).mul(999).div(1000));
+      let oldResult = await getPosition(margin, owner.address);
+      expect(oldResult[1]).to.be.equal(BigNumber.from(ownerInitBaseAmount).div(1000));
+
+      //mark price is 2250usdc/eth
+      await mockPriceOracle.setMarkPrice(2250 * 1e6);
+      //market price is 2000usdc/eth
+      await expect(margin.openPosition(owner.address, shortSide, quoteAmount)).to.be.revertedWith(
+        "Margin.openPosition: WILL_BE_LIQUIDATED"
+      );
+    });
+
+    it("revert when open position with bad liquidity or price in amm", async function () {
+      await mockAmm.setPrice("1000000000000000000000");
       await expect(margin.openPosition(owner.address, longSide, 1)).to.be.revertedWith(
+        "Margin.openPosition: TINY_QUOTE_AMOUNT"
+      );
+      await expect(margin.openPosition(owner.address, shortSide, 1)).to.be.revertedWith(
         "Margin.openPosition: TINY_QUOTE_AMOUNT"
       );
     });
 
-    describe("open long first, then open long", async function () {
+    describe("open long first, then open long again", async function () {
+      let price;
       beforeEach(async function () {
-        let quoteAmount = 10;
-        await margin.removeMargin(owner.address, owner.address, routerAllowance - 1);
+        let quoteAmount = 1_000000;
+        price = await mockAmm.price();
+        await margin.removeMargin(owner.address, owner.address, BigNumber.from(routerAllowance).sub(oneEth));
         await margin.openPosition(owner.address, longSide, quoteAmount);
         let position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-10);
-        expect(position[1]).to.equal(11);
-        expect(position[2]).to.equal(10);
+        expect(position[0]).to.equal(-1 * quoteAmount);
+        expect(position[1]).to.equal(oneEth.add((quoteAmount * 1e18) / price));
+        expect(position[2]).to.equal((quoteAmount * 1e18) / price);
       });
 
-      it("old: quote -10, base 11; add long 5X position 1: quote -5, base +5; new: quote -15, base 17; add margin 1 first", async function () {
+      it("open 5 long", async function () {
+        let oldPosition = await margin.traderPositionMap(owner.address);
         await mockBaseToken.transfer(margin.address, 1);
         await margin.addMargin(owner.address, 1);
 
         let quoteAmount = 5;
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-15);
-        expect(position[1]).to.equal(17);
-        expect(position[2]).to.equal(15);
+        expect(position[0]).to.equal(BigNumber.from(oldPosition[0]).sub(quoteAmount));
+        expect(position[1]).to.equal(BigNumber.from(oldPosition[1]).add(1 + (quoteAmount * 1e18) / price));
+        expect(position[2]).to.equal(BigNumber.from(oldPosition[2]).add((quoteAmount * 1e18) / price));
       });
 
-      it("old: quote -10, base 11; add long 5X position 1: quote -5, base +5; new: quote -15, base 16; reverted", async function () {
-        let quoteAmount = 5;
-        await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.reverted;
+      it("reverted when open position more than margin", async function () {
+        let quoteAmount = "500000000000";
+        await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+          "Margin.openPosition: INIT_MARGIN_RATIO"
+        );
       });
     });
 
     describe("open short first, then open long", async function () {
+      let price;
+      let oldPosition;
       beforeEach(async function () {
-        let quoteAmount = 10;
-        await margin.removeMargin(owner.address, owner.address, routerAllowance - 1);
+        let quoteAmount = 1_000000;
+        price = await mockAmm.price();
+        await margin.removeMargin(owner.address, owner.address, BigNumber.from(routerAllowance).sub(oneEth));
         await margin.openPosition(owner.address, shortSide, quoteAmount);
-        let position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(10);
-        expect(position[1]).to.equal(-9);
-        //entry price not changed
-        expect(position[2]).to.equal(10);
+        oldPosition = await margin.traderPositionMap(owner.address);
+        expect(oldPosition[0]).to.equal(quoteAmount);
+        expect(oldPosition[1]).to.equal(oneEth.sub((quoteAmount * 1e18) / price));
+        expect(oldPosition[2]).to.equal((quoteAmount * 1e18) / price);
       });
 
-      it("old: quote 10, base -9; add long 5X, delta position: quote -5, base +5; new: quote 5, base -4", async function () {
+      it("open small reverse position", async function () {
         let quoteAmount = 5;
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(5);
-        expect(position[1]).to.equal(-4);
-        //entry price not changed
-        expect(position[2]).to.equal(5);
+        expect(position[0]).to.equal(oldPosition[0].sub(quoteAmount));
+        expect(position[1]).to.equal(oldPosition[1].add((quoteAmount * 1e18) / price));
+        expect(position[2]).to.equal(oldPosition[2].sub((quoteAmount * 1e18) / price));
       });
 
-      it("old: quote 10, base -9; add long 21X, delta position: quote -21, base +21; new: quote -11, base 12", async function () {
-        let quoteAmount = 21;
+      it("open big reverse position, not more than former position", async function () {
+        let quoteAmount = 1500000;
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-11);
-        expect(position[1]).to.equal(12);
-        //entry price not changed
-        expect(position[2]).to.equal(11);
+        expect(position[0]).to.equal(oldPosition[0].sub(quoteAmount));
+        expect(position[1]).to.equal(oldPosition[1].add((quoteAmount * 1e18) / price));
+        expect(position[2]).to.equal((quoteAmount * 1e18) / price - oldPosition[2]);
       });
 
-      it("old: quote 10, base -9; new price=2 and add margin 10; add long 20X, delta position: quote -20, base +10; new: quote -10, base 11", async function () {
-        let quoteAmount = 20;
-        await mockAmm.setPrice(2);
-        await mockRouter.connect(addr1).addMargin(owner.address, 10);
+      it("open big reverse position, more than former position", async function () {
+        let quoteAmount = 2500000;
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-10);
-        expect(position[1]).to.equal(11);
-        //entry price changed
-        expect(position[2]).to.equal(5);
-        expect((await margin.calUnrealizedPnl(owner.address)).toNumber()).to.be.equal(0);
-      });
-
-      it("old: quote 10, base -9; new price=2 and add margin 10; add long 20X, delta position: quote -20, base +30; new: quote -10, base 21", async function () {
-        await getPosition(margin, owner.address);
-        let quoteAmount = 20;
-        await mockPriceOracle.setMarkPrice(2);
-        await mockRouter.connect(addr1).addMargin(owner.address, 10);
-        await margin.openPosition(owner.address, longSide, quoteAmount);
-        position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-10);
-        expect(position[1]).to.equal(21);
-        //entry price changed
-        expect(position[2]).to.equal(10);
-        expect((await margin.calUnrealizedPnl(owner.address)).toNumber()).to.be.equal(0);
-      });
-
-      it("old: quote 10, base -9; add long 22X, delta position 1: quote -22, base +22; new: quote -12, base 13; reverted", async function () {
-        let quoteAmount = 22;
-        await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
-          "Margin.openPosition: INIT_MARGIN_RATIO"
-        );
+        expect(position[0]).to.equal(oldPosition[0].sub(quoteAmount));
+        expect(position[1]).to.equal(oldPosition[1].add((quoteAmount * 1e18) / price));
+        expect(position[2]).to.equal((quoteAmount * 1e18) / price - oldPosition[2]);
       });
     });
 
     describe("set new initMarginRatio when open position", async function () {
+      let oldPosition;
       beforeEach(async function () {
-        let quoteAmount = 10;
-        await margin.removeMargin(owner.address, owner.address, routerAllowance - 1);
-        await margin.openPosition(owner.address, shortSide, quoteAmount);
-        let position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(10);
-        expect(position[1]).to.equal(-9);
-        //entry price not changed
-        expect(position[2]).to.equal(10);
+        await margin.removeMargin(owner.address, owner.address, BigNumber.from(routerAllowance).sub(oneEth));
+        oldPosition = await margin.traderPositionMap(owner.address);
       });
 
-      it("old: quote 10, base -9, set new initMarginRatio; add long 19X, delta position: quote -19, base +19; new: quote -9, base 10", async function () {
-        let quoteAmount = 19;
-        await config.setInitMarginRatio(1000);
+      it("can open position when 0.1 margin ratio", async function () {
+        let quoteAmount = 1_000000;
+        await mockConfig.setInitMarginRatio(1000);
         await margin.openPosition(owner.address, longSide, quoteAmount);
         position = await margin.traderPositionMap(owner.address);
-        expect(position[0]).to.equal(-9);
-        expect(position[1]).to.equal(10);
-        expect(position[2]).to.equal(9);
+        expect(position[0]).to.equal(-1 * quoteAmount);
+        expect(position[1]).to.equal(oldPosition[1].add((quoteAmount * 1e18) / price));
+        expect(position[2]).to.equal((quoteAmount * 1e18) / price);
       });
 
-      it("old: quote 10, base -9, set new initMarginRatio; add long 20X, reverted", async function () {
-        let quoteAmount = 20;
-        await config.setInitMarginRatio(1000);
+      it("revert when open position with 0.9 margin ratio while lack margin", async function () {
+        let quoteAmount = 10000_000000;
+        await mockConfig.setInitMarginRatio(9000);
         await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
           "Margin.openPosition: INIT_MARGIN_RATIO"
         );
       });
-
-      it("old: quote 10, base -9, set new initMarginRatio; add long 109X, delta position: quote -109, base +109; new: quote 99, base 100", async function () {
-        let quoteAmount = 109;
-        await config.setInitMarginRatio(100);
-        await margin.openPosition(owner.address, longSide, quoteAmount);
-      });
     });
   });
 
-  describe("close position", async function () {
+  describe("closePosition", async function () {
+    let price;
     beforeEach(async function () {
       await mockRouter.addMargin(owner.address, routerAllowance);
-      let quoteAmount = 10;
-      let price = 1;
+      price = await mockAmm.price();
+      let quoteAmount = 1_000000;
+
       await margin.openPosition(owner.address, longSide, quoteAmount);
       position = await margin.traderPositionMap(owner.address);
-      expect(position[0]).to.equal(-10);
-      expect(position[1]).to.equal(routerAllowance + quoteAmount);
+      expect(position[0]).to.equal(-1 * quoteAmount);
+      expect(position[1]).to.equal(BigNumber.from(routerAllowance).add((quoteAmount * 1e18) / price));
+      expect(position[2]).to.equal((quoteAmount * 1e18) / price);
 
       await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
       await margin.connect(addr1).openPosition(addr1.address, shortSide, quoteAmount);
       position = await margin.traderPositionMap(addr1.address);
-      expect(position[0]).to.equal(10);
-      expect(position[1]).to.equal(addr1InitBaseAmount - quoteAmount);
+      expect(position[0]).to.equal(quoteAmount);
+      expect(position[1]).to.equal(BigNumber.from(addr1InitBaseAmount).sub((quoteAmount * 1e18) / price));
+      expect(position[2]).to.equal((quoteAmount * 1e18) / price);
     });
 
     it("close all position", async function () {
@@ -462,19 +487,13 @@ describe("Margin contract", function () {
 
     it("close position partly", async function () {
       let position = await margin.traderPositionMap(owner.address);
+      await mockPriceOracle.setMarkPrice(40000000000);
       await margin.closePosition(owner.address, position.quoteSize.abs() - 1);
       position = await margin.traderPositionMap(owner.address);
       expect(position[0]).to.equal(-1);
     });
 
-    it("close Null position, reverted", async function () {
-      let position = await margin.traderPositionMap(owner.address);
-      await margin.closePosition(owner.address, position.quoteSize.abs());
-
-      await expect(margin.closePosition(owner.address, 10)).to.be.revertedWith("Margin.closePosition: ABOVE_POSITION");
-    });
-
-    it("close wrong position, reverted", async function () {
+    it("reverted when close wrong position", async function () {
       let position = await margin.traderPositionMap(owner.address);
       await expect(margin.closePosition(owner.address, 0)).to.be.revertedWith("Margin.closePosition: ZERO_POSITION");
       await expect(margin.closePosition(owner.address, position.quoteSize.abs() + 1)).to.be.revertedWith(
@@ -482,42 +501,64 @@ describe("Margin contract", function () {
       );
     });
 
+    it("have bad debt when close a bad-debt position while debtRatio < 100%", async function () {
+      let quoteAmount = 20000_000000;
+      await mockRouter.connect(addr2).addMargin(addr2.address, "1000000000000000000");
+      await margin.connect(addr2).openPosition(addr2.address, longSide, quoteAmount);
+      position = await margin.traderPositionMap(addr2.address);
+      expect(position[0]).to.equal(-1 * quoteAmount);
+      expect(position[1].toString()).to.equal("11000000000000000000");
+      expect(position[2].toString()).to.equal("10000000000000000000");
+
+      await mockPriceOracle.setMarkPrice(1900000000);
+      await mockAmm.setPrice(1400000000);
+      await margin.closePosition(addr2.address, quoteAmount);
+
+      position = await margin.traderPositionMap(addr2.address);
+      expect(position[0]).to.be.eq(0);
+      expect(position[1]).to.be.at.most(-1);
+      expect(position[2]).to.be.eq(0);
+    });
+
     it("close liquidatable position, no remain left", async function () {
-      let withdrawable = (await margin.getWithdrawable(addr1.address)).toNumber();
+      let withdrawable = await margin.getWithdrawable(addr1.address);
       await margin.connect(addr1).removeMargin(addr1.address, addr1.address, withdrawable);
-      await mockPriceOracle.setMarkPrice(100);
-      await mockAmm.setPrice(100);
+      await mockPriceOracle.setMarkPrice(40000000000);
+      await mockAmm.setPrice(40000000000);
 
       let position = await margin.traderPositionMap(addr1.address);
       await margin.connect(addr1).closePosition(addr1.address, position.quoteSize.abs());
 
       let result = await getPosition(margin, addr1.address);
-      expect(result[0]).to.be.equal(0);
-      expect(result[1]).to.be.equal(0);
-      expect(result[2]).to.be.equal(0);
+      expect(result[0]).to.be.equal("0");
+      expect(result[1]).to.be.equal("0");
+      expect(result[2]).to.be.equal("0");
     });
 
     it("close liquidatable position, but have remain", async function () {
-      let withdrawable = (await margin.getWithdrawable(addr1.address)).toNumber();
+      let withdrawable = await margin.getWithdrawable(addr1.address);
       await margin.connect(addr1).removeMargin(addr1.address, addr1.address, withdrawable);
-      await mockPriceOracle.setMarkPrice(2);
-      await mockAmm.setPrice(1);
+      await mockPriceOracle.setMarkPrice(3000000000);
+      await mockAmm.setPrice(2199976500);
 
       let position = await margin.traderPositionMap(addr1.address);
       await margin.connect(addr1).closePosition(addr1.address, position.quoteSize.abs());
 
       let result = await getPosition(margin, addr1.address);
-      expect(result[0]).to.be.equal(0);
-      expect(result[1]).to.be.equal(1);
-      expect(result[2]).to.be.equal(0);
+      expect(result[0]).to.be.equal("0");
+      expect(result[1]).to.be.equal("309969220");
+      expect(result[2]).to.be.equal("0");
     });
   });
 
   describe("liquidate", async function () {
     beforeEach(async function () {
       await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
-      let quoteAmount = 800;
+      let quoteAmount = 1_000000;
       await margin.connect(addr1).openPosition(addr1.address, shortSide, quoteAmount);
+      await mockConfig.registerRouter(liquidator.address);
+      let withdrawable = await margin.getWithdrawable(addr1.address);
+      await margin.connect(addr1).removeMargin(addr1.address, addr1.address, withdrawable);
     });
 
     it("liquidate 0 position, reverted", async function () {
@@ -541,22 +582,23 @@ describe("Margin contract", function () {
     });
 
     it("liquidate liquidatable position, have bonus", async function () {
-      await mockPriceOracle.setMarkPrice(100);
+      await mockPriceOracle.setMarkPrice(400000000000);
+      await mockAmm.setPrice(2100_000000);
 
       let oldBalance = (await mockBaseToken.balanceOf(liquidator.address)).toNumber();
       await margin.connect(liquidator).liquidate(addr1.address, liquidator.address);
       let newBalance = (await mockBaseToken.balanceOf(liquidator.address)).toNumber();
-      expect(oldBalance + 20).to.be.equal(newBalance);
+      expect(oldBalance + 4328095238095).to.be.equal(newBalance);
 
       let result = await getPosition(margin, addr1.address);
-      expect(result[0]).to.be.equal(0);
-      expect(result[1]).to.be.equal(0);
-      expect(result[2]).to.be.equal(0);
+      expect(result[0]).to.be.equal("0");
+      expect(result[1]).to.be.equal("0");
+      expect(result[2]).to.be.equal("0");
     });
 
     it("liquidate liquidatable position, no bonus", async function () {
-      await mockPriceOracle.setMarkPrice(100);
-      await mockAmm.setPrice(100);
+      await mockPriceOracle.setMarkPrice(400000000000);
+      await mockAmm.setPrice(3000_000000);
 
       let oldBalance = (await mockBaseToken.balanceOf(liquidator.address)).toNumber();
       await margin.connect(liquidator).liquidate(addr1.address, liquidator.address);
@@ -564,59 +606,131 @@ describe("Margin contract", function () {
       expect(oldBalance).to.be.equal(newBalance);
 
       let result = await getPosition(margin, addr1.address);
-      expect(result[0]).to.be.equal(0);
-      expect(result[1]).to.be.equal(0);
-      expect(result[2]).to.be.equal(0);
+      expect(result[0]).to.be.equal("0");
+      expect(result[1]).to.be.equal("0");
+      expect(result[2]).to.be.equal("0");
     });
   });
 
-  describe("get withdrawable margin", async function () {
-    let quoteAmount = 10;
+  describe("deposit", async function () {
     beforeEach(async function () {
-      await mockRouter.addMargin(owner.address, 1);
-      await margin.openPosition(owner.address, longSide, quoteAmount);
-
-      await mockRouter.addMargin(addr1.address, 1);
-      await margin.connect(addr1).openPosition(addr1.address, shortSide, quoteAmount);
+      await mockAmm.setMargin(margin.address);
     });
 
-    it("quote 0, base 0; withdrawable is 0", async function () {
-      await margin.openPosition(owner.address, shortSide, quoteAmount);
-      await margin.removeMargin(owner.address, owner.address, 1);
-      expect(await margin.getWithdrawable(owner.address)).to.equal(0);
+    it("revert when non amm deposit", async function () {
+      await expect(margin.deposit(owner.address, 1)).to.be.revertedWith("Margin.deposit: REQUIRE_AMM");
     });
 
-    it("quote 0, base 1; withdrawable is 1", async function () {
-      await margin.openPosition(owner.address, shortSide, quoteAmount);
-      expect(await margin.getWithdrawable(owner.address)).to.equal(1);
+    it("revert when deposit 0", async function () {
+      await expect(mockAmm.deposit(owner.address, 0)).to.be.revertedWith("Margin.deposit: AMOUNT_IS_ZERO");
     });
 
-    it("quote -10, base 11; withdrawable is 0", async function () {
-      expect(await margin.getWithdrawable(owner.address)).to.equal(0);
+    it("revert when deposit 1 while delta balance is 0", async function () {
+      await expect(mockAmm.deposit(owner.address, 1)).to.be.revertedWith("Margin.deposit: INSUFFICIENT_AMOUNT");
     });
 
-    it("quote -10, base 12; withdrawable is 1", async function () {
-      await mockRouter.addMargin(owner.address, 1);
-      expect(await margin.getWithdrawable(owner.address)).to.equal(1);
+    it("can deposit 1 ", async function () {
+      await mockBaseToken.transfer(margin.address, 1);
+      await mockAmm.deposit(owner.address, 1);
+      expect(await margin.reserve()).to.be.equal(1);
+    });
+  });
+
+  describe("withdraw", async function () {
+    beforeEach(async function () {
+      await mockAmm.setMargin(margin.address);
+      await mockBaseToken.transfer(margin.address, 1);
+      await mockAmm.deposit(owner.address, 1);
+      expect(await margin.reserve()).to.be.equal(1);
     });
 
-    it("quote 10, base -9; withdrawable is 0", async function () {
-      expect(await margin.getWithdrawable(addr1.address)).to.equal(0);
+    it("can withdraw", async function () {
+      await mockAmm.withdraw(owner.address, addr3.address, 1);
+      expect(await mockBaseToken.balanceOf(addr3.address)).to.be.equal(1);
     });
 
-    it("quote 10, base -8; withdrawable is 1", async function () {
-      await mockRouter.addMargin(addr1.address, 1);
-      expect(await margin.getWithdrawable(addr1.address)).to.equal(1);
+    it("revert when non amm", async function () {
+      await expect(margin.withdraw(owner.address, addr3.address, 1)).to.be.revertedWith("Margin.withdraw: REQUIRE_AMM");
     });
 
-    it("remove withdrawable margin, no more", async function () {
-      await mockRouter.addMargin(addr1.address, 10);
-      let withdrawable = (await margin.getWithdrawable(addr1.address)).toNumber();
-      expect(withdrawable).to.be.equal(10);
-      await margin.connect(addr1).removeMargin(addr1.address, addr1.address, 10);
-      await expect(margin.connect(addr1).removeMargin(addr1.address, addr1.address, 1)).to.be.revertedWith(
-        "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE"
+    it("revert when withdraw 0", async function () {
+      await expect(mockAmm.withdraw(owner.address, addr3.address, 0)).to.be.revertedWith(
+        "Margin._withdraw: AMOUNT_IS_ZERO"
       );
+    });
+
+    it("revert when withdraw more than reserve", async function () {
+      await expect(mockAmm.withdraw(owner.address, addr3.address, 10000)).to.be.revertedWith(
+        "Margin._withdraw: NOT_ENOUGH_RESERVE"
+      );
+    });
+  });
+
+  describe("getNewLatestCPF", async function () {
+    let pf = BigNumber.from("10"); //1e18 equal to 100%
+    beforeEach(async function () {
+      await mockPriceOracle.setPf(pf);
+    });
+
+    it("get new latest cpf", async function () {
+      let oldCPF = await margin.getNewLatestCPF();
+      await margin.updateCPF();
+      await sleep(1000);
+      let newCPF = await margin.getNewLatestCPF();
+      expect(newCPF.toNumber()).to.be.greaterThan(oldCPF.toNumber());
+    });
+  });
+
+  describe("canLiquidate", async function () {
+    beforeEach(async function () {
+      await mockRouter.connect(addr1).addMargin(addr1.address, addr1InitBaseAmount);
+      let quoteAmount = 1_000000;
+      await margin.connect(addr1).openPosition(addr1.address, shortSide, quoteAmount);
+      await mockConfig.registerRouter(liquidator.address);
+      let withdrawable = await margin.getWithdrawable(addr1.address);
+      await margin.connect(addr1).removeMargin(addr1.address, addr1.address, withdrawable);
+    });
+
+    it("can liquidate", async function () {
+      await mockPriceOracle.setMarkPrice(400000000000);
+      await mockAmm.setPrice(2100_000000);
+      expect(await margin.canLiquidate(addr1.address)).to.be.eq(true);
+    });
+
+    it("can not liquidate", async function () {
+      expect(await margin.canLiquidate(addr1.address)).to.be.eq(false);
+    });
+  });
+
+  describe("calUnrealizedPnl", async function () {
+    let quoteAmount = 2000_000000;
+    beforeEach(async function () {
+      await mockRouter.addMargin(owner.address, "1000000000000000000");
+      await margin.openPosition(owner.address, longSide, quoteAmount);
+    });
+
+    it("calculate unrealized pnl ", async function () {
+      await mockPriceOracle.setMarkPriceInRatio(4000_000000);
+      expect(await margin.calUnrealizedPnl(owner.address)).to.be.eq(BigNumber.from("500000000000000000"));
+    });
+  });
+
+  describe("netPosition", async function () {
+    let quoteAmount = 2000_000000;
+    beforeEach(async function () {
+      await mockRouter.addMargin(owner.address, "1000000000000000000");
+      await margin.openPosition(owner.address, longSide, quoteAmount);
+    });
+
+    it("query short net position", async function () {
+      let netPosition = await margin.netPosition();
+      expect(netPosition.toString()).to.be.eq("-2000000000");
+    });
+
+    it("query long net position", async function () {
+      await margin.openPosition(owner.address, shortSide, quoteAmount + 1);
+      let netPosition = await margin.netPosition();
+      expect(netPosition.toString()).to.be.eq("1");
     });
   });
 
@@ -639,31 +753,119 @@ describe("Margin contract", function () {
     });
   });
 
-  describe("calFundingFee", async function () {
-    let quoteAmount = 10;
+  describe("getWithdrawable", async function () {
+    let quoteAmount = 1_000000;
+    let price;
     beforeEach(async function () {
-      await mockRouter.addMargin(owner.address, 1);
+      price = await mockAmm.price();
+      await mockRouter.addMargin(owner.address, routerAllowance);
+      await margin.openPosition(owner.address, longSide, quoteAmount);
+
+      await mockRouter.connect(addr1).addMargin(addr1.address, routerAllowance);
+      await margin.connect(addr1).openPosition(addr1.address, shortSide, quoteAmount);
+    });
+
+    it("can get withdrawable when having long", async function () {
+      let baseAmount = (quoteAmount * 1e18) / price;
+      let needed = BigNumber.from(baseAmount).mul(10000).div(9091).add(1).toString(); //999999950005499945000
+
+      expect(await margin.getWithdrawable(owner.address)).to.equal(
+        BigNumber.from(routerAllowance).add(baseAmount).sub(needed)
+      );
+    });
+
+    it("can get withdrawable when having short", async function () {
+      let baseAmount = (quoteAmount * 1e18) / price;
+      expect(await margin.getWithdrawable(addr1.address)).to.equal(
+        BigNumber.from(routerAllowance)
+          .sub(baseAmount)
+          .add(baseAmount * 0.9091)
+      );
+    });
+
+    it("revert after removing withdrawable margin", async function () {
+      let withdrawable = await margin.getWithdrawable(addr1.address);
+      await margin.connect(addr1).removeMargin(addr1.address, addr1.address, withdrawable);
+      await expect(margin.connect(addr1).removeMargin(addr1.address, addr1.address, 1)).to.be.revertedWith(
+        "Margin.removeMargin: NOT_ENOUGH_WITHDRAWABLE"
+      );
+    });
+  });
+
+  describe("calFundingFee", async function () {
+    let quoteAmount = 1_000000;
+    let pf = BigNumber.from("1000000000000000000"); //1e18 equal to 100%
+    let price;
+    beforeEach(async function () {
+      price = await mockAmm.price();
+      await mockRouter.addMargin(owner.address, BigNumber.from(routerAllowance));
       await margin.openPosition(owner.address, longSide, quoteAmount); //start to pay funding fee
-      await mockPriceOracle.setPf("1000000000000000000"); //1e18
+      await mockPriceOracle.setPf(pf);
     });
 
     it("check funding fee at different timestamp", async function () {
       //maxBoost*baseAmount*pf*time
-      expect((await margin.calFundingFee(owner.address)).toNumber()).to.be.equal(-100);
+      let baseAmount = quoteAmount / price;
+      let fundingFee = BigNumber.from(pf).mul(-10) * baseAmount;
+      expect(await margin.calFundingFee(owner.address)).to.be.equal(fundingFee);
 
       await margin.updateCPF();
-      expect((await margin.calFundingFee(owner.address)).toNumber()).to.be.equal(-200);
+      expect(await margin.calFundingFee(owner.address)).to.be.equal(BigNumber.from(fundingFee).mul(2));
       let latestUpdateCPF1 = await margin.lastUpdateCPF();
 
       await sleep(5000);
       //@notice: in hardhat, block.timestamp is former block timestamp, so time == 0
-      expect((await margin.calFundingFee(owner.address)).toNumber()).to.be.equal(-200);
+      expect(await margin.calFundingFee(owner.address)).to.be.equal(BigNumber.from(fundingFee).mul(2));
 
       await margin.updateCPF();
-      expect((await margin.calFundingFee(owner.address)).toNumber()).to.be.greaterThanOrEqual(-800);
+      expect(await margin.calFundingFee(owner.address)).to.be.at.least(BigNumber.from(fundingFee).mul(7));
       let latestUpdateCPF2 = await margin.lastUpdateCPF();
 
-      expect(latestUpdateCPF2.toNumber()).to.be.greaterThan(latestUpdateCPF1.toNumber());
+      expect(BigNumber.from(latestUpdateCPF2).sub(latestUpdateCPF1).gt(0)).to.be.equal(true);
+    });
+  });
+
+  describe("calDebtRatio", async function () {
+    let quoteAmount = 1063_250000; //1063.23
+    let marginAmount = "267900000000000000000"; //267.9
+    beforeEach(async function () {
+      await mockRouter.addMargin(owner.address, marginAmount);
+    });
+
+    it("open short position when mark price lower than market price", async function () {
+      await mockPriceOracle.setMarkPrice(529099);
+      await mockAmm.setPrice(720000);
+
+      await margin.openPosition(owner.address, shortSide, quoteAmount);
+      debtRatio = await margin.calDebtRatio(owner.address);
+      expect(debtRatio).to.be.equal(6015);
+    });
+
+    it("open short position when mark price equal to market price", async function () {
+      await mockPriceOracle.setMarkPrice(720000);
+      await mockAmm.setPrice(720000);
+
+      await margin.openPosition(owner.address, shortSide, quoteAmount);
+      debtRatio = await margin.calDebtRatio(owner.address);
+      expect(debtRatio).to.be.equal(8185);
+    });
+
+    it("open long position when mark price equal to market price", async function () {
+      await mockPriceOracle.setMarkPrice(800000);
+      await mockAmm.setPrice(800000);
+
+      await margin.openPosition(owner.address, longSide, quoteAmount);
+      debtRatio = await margin.calDebtRatio(owner.address);
+      expect(debtRatio).to.be.equal(8322);
+    });
+
+    it("open long position when mark price higher than market price", async function () {
+      await mockPriceOracle.setMarkPrice(880000);
+      await mockAmm.setPrice(800000);
+
+      await margin.openPosition(owner.address, longSide, quoteAmount);
+      debtRatio = await margin.calDebtRatio(owner.address);
+      expect(debtRatio).to.be.equal(7565);
     });
   });
 });
@@ -672,9 +874,9 @@ async function getPosition(margin, address) {
   let position = await margin.traderPositionMap(address);
   var result = [];
   // console.log("quote, base, trade: ", position[0].toNumber(), position[1].toNumber(), position[2].toNumber());
-  result.push(position[0].toNumber());
-  result.push(position[1].toNumber());
-  result.push(position[2].toNumber());
+  result.push(position[0].toString());
+  result.push(position[1].toString());
+  result.push(position[2].toString());
   return result;
 }
 

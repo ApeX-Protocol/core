@@ -6,10 +6,6 @@ contract MockBondPriceOracle is IBondPriceOracle {
 
     }
 
-    function updateV2() external override {
-
-    }
-
     function quote(address baseToken, uint256 baseAmount) external view override returns (uint256 apeXAmount) {
         return baseAmount * 100;
     }

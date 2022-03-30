@@ -10,10 +10,12 @@ interface IConfig {
     event RouterUnregistered(address indexed router);
     event SetLiquidateFeeRatio(uint256 oldLiquidateFeeRatio, uint256 liquidateFeeRatio);
     event SetLiquidateThreshold(uint256 oldLiquidateThreshold, uint256 liquidateThreshold);
+    event SetLpWithdrawThreshold(uint256 oldLpWithdrawThreshold, uint256 lpWithdrawThreshold);
     event SetInitMarginRatio(uint256 oldInitMarginRatio, uint256 initMarginRatio);
     event SetBeta(uint256 oldBeta, uint256 beta);
     event SetFeeParameter(uint256 oldFeeParameter, uint256 feeParameter);
     event SetMaxCPFBoost(uint256 oldMaxCPFBoost, uint256 maxCPFBoost);
+    event SetEmergency(address indexed router);
 
     /// @notice get price oracle address.
     function priceOracle() external view returns (address);
@@ -39,11 +41,16 @@ interface IConfig {
     /// @notice get rebase gap of amm.
     function rebasePriceGap() external view returns (uint256);
 
+    /// @notice get lp withdraw threshold of amm.
+    function lpWithdrawThreshold() external view returns (uint256);
+
     function rebaseInterval() external view returns (uint256);
 
     function routerMap(address) external view returns (bool);
 
     function maxCPFBoost() external view returns (uint256);
+
+    function inEmergency(address router) external view returns (bool);
 
     function registerRouter(address router) external;
 
@@ -74,6 +81,10 @@ interface IConfig {
     /// @notice Set a new liquidate threshold of margin
     /// @param threshold new liquidate threshold of margin.
     function setLiquidateThreshold(uint256 threshold) external;
+  
+     /// @notice Set a new lp withdraw threshold of amm
+    /// @param newLpWithdrawThreshold new lp withdraw threshold of amm.
+    function setLpWithdrawThreshold(uint256 newLpWithdrawThreshold) external;
 
     /// @notice Set a new liquidate fee of margin
     /// @param feeRatio new liquidate fee of margin.
@@ -85,4 +96,6 @@ interface IConfig {
     function setFeeParameter(uint256 newFeeParameter) external;
 
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
+
+    function setEmergency(address router) external;
 }
