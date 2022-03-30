@@ -35,15 +35,15 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   await attachApeXToken();
-  await createPriceOracle();
-  await createConfig();
-  await createPairFactory();
+  // await createPriceOracle();
+  // await createConfig();
+  // await createPairFactory();
   // await createPCVTreasury();
   await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
-  await createPair();
+  // await createPair();
 };
 
 async function attachApeXToken() {
@@ -117,12 +117,12 @@ async function createPCVTreasury() {
 
 async function createRouter() {
   if (config == null) {
-    let configAddress = "0xF6Fd1703cF0C71221e71Fc08163Da1a38bB777a7";
+    let configAddress = "0x34a1365C55242559F4f7Ae0A075967FE5659933c";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
   }
   if (pairFactory == null) {
-    let pairFactoryAddress = "0xA3F39157Afe323Bb9d510aCb5b43756561FBcb09";
+    let pairFactoryAddress = "0x6e1673020B9be340A322432411eAf3eE3cabc99d";
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }
