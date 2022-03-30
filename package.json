@@ -1,6 +1,6 @@
 {
   "name": "@apex-protocol/core",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Smart contracts of ApeX Protocol",
   "publishConfig": {
     "access": "public"
