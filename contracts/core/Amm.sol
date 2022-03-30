@@ -75,6 +75,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
+
         // only router can add liquidity 
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
 
@@ -136,6 +137,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
+
         // only router can burn liquidity 
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
@@ -165,6 +167,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             quoteTokenOfNetPosition.abs() * 100 <= (_quoteReserve - quoteAmount) * lpWithdrawThreshold,
             "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW"
         );
+
+
         require(
             (_baseReserve - baseAmount) * _quoteReserve * 999 <= (_quoteReserve - quoteAmount) * _baseReserve * 1000,
             "Amm.burn: PRICE_BEFORE_AND_AFTER_MUST_BE_THE_SAME"
@@ -292,7 +296,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-        quoteReserveAfter = (_quoteReserve * quoteReserveFromExternal) / quoteReserveFromInternal;
+        quoteReserveAfter =  quoteReserveFromExternal;
         
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
@@ -320,7 +324,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 _totalSupply = totalSupply + getFeeLiquidity();
 
         uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
+
         uint256 maxWithdrawQuoteAmount = _quoteReserve - (quoteTokenOfNetPosition.abs() * 100) / lpWithdrawThreshold;
+
         uint256 maxWithdrawBaseAmount = (maxWithdrawQuoteAmount * _baseReserve) / _quoteReserve;
 
         maxLiquidity = (maxWithdrawBaseAmount * _totalSupply) / realBaseReserve;
