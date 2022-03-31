@@ -368,6 +368,19 @@ describe("Margin contract", function () {
       );
     });
 
+    it("revert when open position with big big position", async function () {
+      let quoteAmount = 1000000_000000;
+      //margin is 1000eth, reserve is also 1000eth, open position of 500eth
+      let oldResult = await getPosition(margin, owner.address);
+      expect(oldResult[1]).to.be.equal(ownerInitBaseAmount);
+      //mark price is 100usdc/eth
+      await mockPriceOracle.setMarkPrice(2000 * 1e6);
+      //market price is 2000usdc/eth
+      await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+        "Margin.openPosition: INIT_MARGIN_RATIO"
+      );
+    });
+
     it("revert when open long position with 10% gap of mark price and market price", async function () {
       let quoteAmount = 20000_000000;
       //margin is 1eth
