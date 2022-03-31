@@ -276,6 +276,10 @@ contract Margin is IMargin, IVault, Reentrant {
                 traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount) + fundingFee;
             }
+            if (traderPosition.quoteSize == 0 && traderPosition.baseSize < 0) {
+                IAmm(amm).forceSwap(trader, quoteToken, baseToken, 0, traderPosition.baseSize.abs());
+                traderPosition.baseSize = 0;
+            }
         }
 
         traderCPF[trader] = _latestCPF;

@@ -23,6 +23,8 @@ describe("Margin contract", function () {
   let routerAllowance = "1000000000000000000000"; //1000eth
   let longSide = 0;
   let shortSide = 1;
+  let initBaseLiquidity = "1000000000000000000000";
+  let initQuoteLiquidity = "2000000000000";
 
   beforeEach(async function () {
     [owner, addr1, addr2, addr3, liquidator, ...addrs] = await ethers.getSigners();
@@ -58,7 +60,7 @@ describe("Margin contract", function () {
     await mockFactory.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address);
     await mockRouter.setMarginContract(margin.address);
     await mockAmm.initialize(mockBaseToken.address, mockQuoteToken.address);
-    await mockAmm.setReserves("1000000000000000000000", "2000000000000"); //1_000eth and 2_000_000usdt
+    await mockAmm.setReserves(initBaseLiquidity, initQuoteLiquidity); //1_000eth and 2_000_000usdt
 
     await mockBaseToken.mint(owner.address, ownerInitBaseAmount);
     await mockBaseToken.mint(addr1.address, addr1InitBaseAmount);
@@ -625,8 +627,12 @@ describe("Margin contract", function () {
 
       position = await margin.traderPositionMap(addr2.address);
       expect(position[0]).to.be.equal(0);
-      expect(position[1]).to.be.at.most(-1);
+      expect(position[1]).to.be.equal(0);
       expect(position[2]).to.be.equal(0);
+
+      let result = await mockAmm.getReserves();
+      expect(result[0] - initBaseLiquidity).to.be.lessThan(0);
+      expect(result[1]).to.be.equal(initQuoteLiquidity);
     });
 
     it("close liquidatable position, no remain left", async function () {
