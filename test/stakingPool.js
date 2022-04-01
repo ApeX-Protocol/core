@@ -65,7 +65,6 @@ describe("stakingPool contract", function () {
 
     await esApeXToken.setFactory(owner.address);
     await esApeXToken.mint(owner.address, 100_0000);
-    await esApeXToken.setFactory(stakingPoolFactory.address);
     await esApeXToken.approve(stakingPoolFactory.address, 100_0000);
   });
 
@@ -256,9 +255,7 @@ describe("stakingPool contract", function () {
     });
 
     it("stake, process reward to apeXPool, unstake from slpPool, unstake from apeXPool", async function () {
-      await esApeXToken.setFactory(owner.address);
       await esApeXToken.mint(owner.address, 10000);
-      await esApeXToken.setFactory(stakingPoolFactory.address);
       await esApeXToken.approve(stakingPoolFactory.address, 10000000);
 
       let oldAmount = (await esApeXToken.balanceOf(owner.address)).toNumber();

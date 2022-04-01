@@ -35,11 +35,11 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   await attachApeXToken();
-  // await createPriceOracle();
+  await createPriceOracle();
   // await createConfig();
   // await createPairFactory();
   // await createPCVTreasury();
-  await createRouter();
+  // await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -59,14 +59,14 @@ async function createPriceOracle() {
   console.log("PriceOracle:", priceOracle.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, priceOracle.address);
 
-  priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
-  console.log("PriceOracle:", priceOracle.address);
+  // priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
+  // console.log("PriceOracle:", priceOracle.address);
 
-  // if (config == null) {
-  //   const Config = await ethers.getContractFactory("Config");
-  //   config = await Config.attach("0xF6Fd1703cF0C71221e71Fc08163Da1a38bB777a7");
-  //   config.setPriceOracle(priceOracle.address);
-  // }
+  if (config == null) {
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach("0x34a1365C55242559F4f7Ae0A075967FE5659933c");
+    config.setPriceOracle(priceOracle.address);
+  }
 }
 
 async function createConfig() {
