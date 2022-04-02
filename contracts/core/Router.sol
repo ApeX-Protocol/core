@@ -11,14 +11,15 @@ import "./interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/SignedMath.sol";
 import "../libraries/ChainAdapter.sol";
+import "../utils/Initializable.sol";
 
-contract Router is IRouter {
+contract Router is IRouter, Initializable {
     using SignedMath for int256;
 
-    address public immutable override config;
-    address public immutable override pairFactory;
-    address public immutable override pcvTreasury;
-    address public immutable override WETH;
+    address public override config;
+    address public override pairFactory;
+    address public override pcvTreasury;
+    address public override WETH;
 
     // user => amm => block
     mapping(address => mapping(address => uint256)) public userLastOperation;
@@ -34,12 +35,12 @@ contract Router is IRouter {
         _;
     }
 
-    constructor(
+    function initialize(
         address config_,
         address pairFactory_,
         address pcvTreasury_,
         address _WETH
-    ) {
+    ) external initializer {
         config = config_;
         pairFactory = pairFactory_;
         pcvTreasury = pcvTreasury_;
@@ -406,8 +407,9 @@ contract Router is IRouter {
     }
 
     function _recordLastOperation(address user, address amm) internal {
+        require(tx.origin == msg.sender, "Router._recordLastOperation: ONLY_EOA");
         uint256 blockNumber = ChainAdapter.blockNumber();
-        require(userLastOperation[user][amm] != blockNumber, "Router.checkLastOperation: FORBIDDEN");
+        require(userLastOperation[user][amm] != blockNumber, "Router._recordLastOperation: FORBIDDEN");
         userLastOperation[user][amm] = blockNumber;
     }
 }

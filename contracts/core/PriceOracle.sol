@@ -164,6 +164,8 @@ contract PriceOracle is IPriceOracle, Initializable {
         bool negative
     ) external view override returns (uint256 baseAmount) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+        require(2 * beta * quoteAmount/100 < quoteReserve, "PriceOracle.getMarkPriceAcc: SLIPPAGE_TOO_LARGE");
+
         (, bool isIndexPrice) = getMarkPrice(amm);
         if (!isIndexPrice) {
             // markPrice = y/x
