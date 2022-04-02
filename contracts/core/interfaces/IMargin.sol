@@ -107,7 +107,10 @@ interface IMargin {
     function amm() external view returns (address);
 
     /// @notice get all users' net position of quote
-    function netPosition() external view returns (int256 netBasePosition);
+    function netPosition() external view returns (int256 netQuotePosition);
+
+  /// @notice get all users' net position of quote
+    function totalPosition() external view returns (uint256 totalQuotePosition);
 
     /// @notice get trader's position
     function getPosition(address trader)
