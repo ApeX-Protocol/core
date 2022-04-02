@@ -6,6 +6,7 @@ contract MockPriceOracleOfMargin {
     int256 public pf = 0;
     uint256 public p;
     uint256 public markPriceInRatio;
+    bool public isIndex;
 
     constructor() {
         p = 2e9;
@@ -23,6 +24,10 @@ contract MockPriceOracleOfMargin {
     //2000usdc = 2000*(1e-12)*1e18
     function setMarkPriceInRatio(uint256 _markPriceInRatio) external {
         markPriceInRatio = _markPriceInRatio;
+    }
+
+    function setIsIndex(bool value) external {
+        isIndex = value;
     }
 
     function getMarkPriceAcc(
@@ -51,7 +56,7 @@ contract MockPriceOracleOfMargin {
 
     function setupTwap(address amm) external {}
 
-    function getMarkPriceInRatio(address amm) external view returns (uint256) {
-        return markPriceInRatio;
+    function getMarkPriceInRatio(address amm) external view returns (uint256, bool) {
+        return (markPriceInRatio, isIndex);
     }
 }

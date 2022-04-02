@@ -62,8 +62,8 @@ contract PriceOracleForTest is IPriceOracle {
         price = FullMath.mulDiv(exponent, quoteReserve, baseReserve);
     }
 
-    function getMarkPriceInRatio(address amm) public view override returns (uint256) {
-        return 0;
+    function getMarkPriceInRatio(address amm) external view override returns (uint256, bool) {
+        return (0, false);
     }
 
     function getMarkPriceAcc(
@@ -73,7 +73,7 @@ contract PriceOracleForTest is IPriceOracle {
         bool negative
     ) public view override returns (uint256 price) {
         (, uint256 quoteReserve, ) = IAmm(amm).getReserves();
-        (uint256 markPrice,) = getMarkPrice(amm);
+        (uint256 markPrice, ) = getMarkPrice(amm);
         uint256 rvalue = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
         if (negative) {
             price = markPrice - rvalue;
@@ -84,7 +84,7 @@ contract PriceOracleForTest is IPriceOracle {
 
     //premiumFraction is (markPrice - indexPrice) / 24h / indexPrice
     function getPremiumFraction(address amm) public view override returns (int256) {
-        (uint256 markPriceUint,) = getMarkPrice(amm);
+        (uint256 markPriceUint, ) = getMarkPrice(amm);
         int256 markPrice = int256(markPriceUint);
         int256 indexPrice = int256(getIndexPrice(amm));
         require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
