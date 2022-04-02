@@ -180,6 +180,7 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
         if (yieldAmount == 0) return;
 
         factory.mintEsApeX(_staker, yieldAmount);
+        emit MintEsApeX(_staker, yieldAmount);
     }
 
     function pendingYieldRewards(address _staker) external view returns (uint256 pending) {

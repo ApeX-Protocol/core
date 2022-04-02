@@ -36,6 +36,10 @@ interface IStakingPoolFactory {
 
     event WithdrawApeX(address to, uint256 amount);
 
+    event SetRemainForOtherVest(uint256);
+
+    event SetMinRemainRatioAfterBurn(uint256);
+
     function apeX() external view returns (address);
 
     function esApeX() external view returns (address);
