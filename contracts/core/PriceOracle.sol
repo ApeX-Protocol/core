@@ -183,7 +183,7 @@ contract PriceOracle is IPriceOracle, Initializable {
             baseAmount = quoteAmount.mulDiv(uint256(baseReserve) * quoteReserve, denominator);
         } else {
             // price = markPrice(1 +/- 2 * beta * quoteAmount / quoteReserve)
-            uint256 markPrice = getMarkPriceInRatio(amm);
+            (uint256 markPrice, ) = getMarkPriceInRatio(amm);
             uint256 rvalue = markPrice.mulDiv(2 * beta * quoteAmount/100, quoteReserve);
             uint256 price;
             if (negative) {
