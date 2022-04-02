@@ -148,6 +148,7 @@ async function createRouter() {
 
   router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
   await config.registerRouter(router.address);
+  console.log("Router:", router.address);
 }
 
 async function createMulticall2() {
