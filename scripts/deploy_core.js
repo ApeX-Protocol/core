@@ -133,7 +133,8 @@ async function createRouter() {
   }
 
   const Router = await ethers.getContractFactory("Router");
-  router = await Router.deploy(config.address, pairFactory.address, pcvTreasury.address, wethAddress);
+  router = await Router.deploy();
+  await router.initialize(config.address, pairFactory.address, pcvTreasury.address, wethAddress);
   console.log("Router:", router.address);
   console.log(
     verifyStr,
@@ -145,12 +146,7 @@ async function createRouter() {
     wethAddress
   );
 
-  // need to regiter router in config
-  // if (config == null) {
-  //   let configAddress = "0xF1D5FC94A3cA88644E0D05195fbb2db1E60B9e75";
-  //   const Config = await ethers.getContractFactory("Config");
-  //   config = await Config.attach(configAddress);
-  // }
+  router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
   await config.registerRouter(router.address);
 }
 
