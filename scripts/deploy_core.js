@@ -75,11 +75,11 @@ async function createConfig() {
   console.log("Config:", config.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, config.address);
 
-  if (priceOracle == null) {
-    let priceOracleAddress = "0x901F48Cf42406D4b4201435217E27C40d364D44B";
-    const PriceOracle = await ethers.getContractFactory("PriceOracle");
-    priceOracle = await PriceOracle.attach(priceOracleAddress);
-  }
+  // if (priceOracle == null) {
+  //   let priceOracleAddress = "0x901F48Cf42406D4b4201435217E27C40d364D44B";
+  //   const PriceOracle = await ethers.getContractFactory("PriceOracle");
+  //   priceOracle = await PriceOracle.attach(priceOracleAddress);
+  // }
   await config.setPriceOracle(priceOracle.address);
 }
 
@@ -117,23 +117,24 @@ async function createPCVTreasury() {
 
 async function createRouter() {
   if (config == null) {
-    let configAddress = "0x34a1365C55242559F4f7Ae0A075967FE5659933c";
+    let configAddress = "0xC69d007331957808B215e7f42d645FF439f16b47";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
   }
   if (pairFactory == null) {
-    let pairFactoryAddress = "0x6e1673020B9be340A322432411eAf3eE3cabc99d";
+    let pairFactoryAddress = "0xA2A21Cb14EF952334e993F79c8017Eb09031dF51";
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }
   if (pcvTreasury == null) {
-    let pcvTreasuryAddress = "0xddcB6395db62b4Ec3c15816d2F940D67F8906E3C";
+    let pcvTreasuryAddress = "0x73f5d8fb154d19a0C496E7411488cD455aB0373A";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
     pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
   }
 
   const Router = await ethers.getContractFactory("Router");
-  router = await Router.deploy(config.address, pairFactory.address, pcvTreasury.address, wethAddress);
+  router = await Router.deploy();
+  await router.initialize(config.address, pairFactory.address, pcvTreasury.address, wethAddress);
   console.log("Router:", router.address);
   console.log(
     verifyStr,
@@ -145,13 +146,9 @@ async function createRouter() {
     wethAddress
   );
 
-  // need to regiter router in config
-  // if (config == null) {
-  //   let configAddress = "0xF1D5FC94A3cA88644E0D05195fbb2db1E60B9e75";
-  //   const Config = await ethers.getContractFactory("Config");
-  //   config = await Config.attach(configAddress);
-  // }
+  router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
   await config.registerRouter(router.address);
+  console.log("Router:", router.address);
 }
 
 async function createMulticall2() {
