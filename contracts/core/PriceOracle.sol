@@ -144,14 +144,15 @@ contract PriceOracle is IPriceOracle, Initializable {
     }
 
     // example: 1eth = 2000usdt, 1eth = 1e18, 1usdt = 1e6, price = (1e6/1e18)*1e18
-    function getMarkPriceInRatio(address amm) public view override returns (uint256) {
-        (uint256 markPrice, ) = getMarkPrice(amm);
+    function getMarkPriceInRatio(address amm) public view override returns (uint256 ratio, bool isIndexPrice) {
+        uint256 markPrice;
+        (markPrice, isIndexPrice) = getMarkPrice(amm);
         uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
         uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
         if (quoteDecimals > baseDecimals) {
-            return markPrice * 10**(quoteDecimals - baseDecimals);
+            ratio = markPrice * 10**(quoteDecimals - baseDecimals);
         } else {
-            return markPrice / 10**(baseDecimals - quoteDecimals);
+            ratio = markPrice / 10**(baseDecimals - quoteDecimals);
         }
     }
 
@@ -164,6 +165,8 @@ contract PriceOracle is IPriceOracle, Initializable {
         bool negative
     ) external view override returns (uint256 baseAmount) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
+        require(2 * beta * quoteAmount/100 < quoteReserve, "PriceOracle.getMarkPriceAcc: SLIPPAGE_TOO_LARGE");
+
         (, bool isIndexPrice) = getMarkPrice(amm);
         if (!isIndexPrice) {
             // markPrice = y/x
@@ -180,7 +183,7 @@ contract PriceOracle is IPriceOracle, Initializable {
             baseAmount = quoteAmount.mulDiv(uint256(baseReserve) * quoteReserve, denominator);
         } else {
             // price = markPrice(1 +/- 2 * beta * quoteAmount / quoteReserve)
-            uint256 markPrice = getMarkPriceInRatio(amm);
+            (uint256 markPrice, ) = getMarkPriceInRatio(amm);
             uint256 rvalue = markPrice.mulDiv(2 * beta * quoteAmount/100, quoteReserve);
             uint256 price;
             if (negative) {

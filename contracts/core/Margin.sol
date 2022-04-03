@@ -124,12 +124,13 @@ contract Margin is IMargin, IVault, Reentrant {
 
         uint256 quoteAmountMax;
         {
+            address _amm = amm;
             int256 marginAcc;
             if (traderPosition.quoteSize == 0) {
                 marginAcc = traderPosition.baseSize + fundingFee;
             } else if (traderPosition.quoteSize > 0) {
                 //simulate to close short
-                uint256[2] memory result = IAmm(amm).estimateSwap(
+                uint256[2] memory result = IAmm(_amm).estimateSwap(
                     address(quoteToken),
                     address(baseToken),
                     traderPosition.quoteSize.abs(),
@@ -138,7 +139,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 marginAcc = traderPosition.baseSize.addU(result[1]) + fundingFee;
             } else {
                 //simulate to close long
-                uint256[2] memory result = IAmm(amm).estimateSwap(
+                uint256[2] memory result = IAmm(_amm).estimateSwap(
                     address(baseToken),
                     address(quoteToken),
                     0,
@@ -147,8 +148,8 @@ contract Margin is IMargin, IVault, Reentrant {
                 marginAcc = traderPosition.baseSize.subU(result[0]) + fundingFee;
             }
             require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
-            (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-            (uint256 markRatio, ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm);
+            (, uint112 quoteReserve, ) = IAmm(_amm).getReserves();
+            (uint256 markRatio, ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(_amm);
             quoteAmountMax =
                 (quoteReserve * 10000 * marginAcc.abs()) /
                 (((IConfig(config).initMarginRatio() * quoteReserve * 1e18) / markRatio) +
