@@ -268,10 +268,14 @@ contract Margin is IMargin, IVault, Reentrant {
                 traderPosition.baseSize = remainBaseAmount;
             }
         } else {
-            //healthy position, close position safely
-            baseAmount = _minusPositionWithAmm(trader, isLong, quoteAmount);
+            address _amm = amm;
+            (uint256 ratio, bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(_amm);
+            if (isIndexPrice) {
+                baseAmount = (quoteAmount * 1e18) / ratio;
+            } else {
+                baseAmount = _minusPositionWithAmm(trader, isLong, quoteAmount);
+            }
 
-            //when close position, keep quoteSize/tradeSize not change, cant sub baseAmount because baseAmount contains pnl
             traderPosition.tradeSize -= (quoteAmount * traderPosition.tradeSize) / quoteSizeAbs;
 
             if (isLong) {
