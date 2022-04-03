@@ -216,14 +216,13 @@ contract Margin is IMargin, IVault, Reentrant {
 
         bool isLong = traderPosition.quoteSize < 0;
         int256 fundingFee = _calFundingFee(trader, _latestCPF);
-
+        address _amm = amm;
+        (uint256 ratio, bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(_amm);
         if (
             _calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize + fundingFee) >=
             IConfig(config).liquidateThreshold()
         ) {
             //unhealthy position, liquidate self
-            address _amm = amm;
-            (uint256 ratio, bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(_amm);
             uint256 forceSwapBaseAmount;
             uint256 forceSwapQuoteAmount;
             if (isIndexPrice) {
@@ -242,9 +241,6 @@ contract Margin is IMargin, IVault, Reentrant {
                         forceSwapBaseAmount = remainBaseAmount.abs();
                     }
                     IAmm(_amm).forceSwap(trader, baseToken, quoteToken, forceSwapBaseAmount, forceSwapQuoteAmount);
-                    traderPosition.quoteSize = 0;
-                    traderPosition.baseSize = 0;
-                    traderPosition.tradeSize = 0;
                 }
             } else {
                 totalQuoteShort = totalQuoteShort - quoteSizeAbs;
@@ -254,27 +250,21 @@ contract Margin is IMargin, IVault, Reentrant {
                         forceSwapBaseAmount = remainBaseAmount.abs();
                     }
                     IAmm(_amm).forceSwap(trader, quoteToken, baseToken, forceSwapQuoteAmount, forceSwapBaseAmount);
-                    traderPosition.quoteSize = 0;
-                    traderPosition.baseSize = 0;
-                    traderPosition.tradeSize = 0;
                 }
             }
+            traderPosition.quoteSize = 0;
+            traderPosition.baseSize = 0;
+            traderPosition.tradeSize = 0;
             if (remainBaseAmount >= 0) {
                 if (!isIndexPrice) {
                     _minusPositionWithAmm(trader, isLong, quoteSizeAbs);
                 }
-                traderPosition.quoteSize = 0;
-                traderPosition.tradeSize = 0;
                 traderPosition.baseSize = remainBaseAmount;
             }
         } else {
-            address _amm = amm;
-            (uint256 ratio, bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(_amm);
-            if (isIndexPrice) {
-                baseAmount = (quoteAmount * 1e18) / ratio;
-            } else {
-                baseAmount = _minusPositionWithAmm(trader, isLong, quoteAmount);
-            }
+            baseAmount = isIndexPrice
+                ? ((quoteAmount * 1e18) / ratio)
+                : _minusPositionWithAmm(trader, isLong, quoteAmount);
 
             traderPosition.tradeSize -= (quoteAmount * traderPosition.tradeSize) / quoteSizeAbs;
 
