@@ -315,6 +315,14 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Rebase(_quoteReserve, quoteReserveAfter, _baseReserve, quoteReserveFromInternal, quoteReserveFromExternal);
     }
 
+    function collectFee() external returns (bool feeOn) {
+         require(IConfig(config).routerMap(msg.sender), "Amm.collect_fee: FORBIDDEN");
+
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+        feeOn = _mintFee(_baseReserve, _quoteReserve);
+        if (feeOn) kLast = uint256(_baseReserve) * _quoteReserve;
+    }
+
     /// notice view method for estimating swap
     function estimateSwap(
         address inputToken,
