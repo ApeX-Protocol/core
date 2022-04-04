@@ -27,7 +27,7 @@ contract MockConfig {
     uint256 public liquidateFeeRatio = 100; //if 100, means liquidator bot get 1% as fee
     uint256 public feeParameter = 11; // 100 * (1/fee-1)
     uint256 public lpWithdrawThresholdForNet = 10; // 1-100
-    uint256 public lpWithdrawThresholdForTotal = 50; // 1-100
+    uint256 public lpWithdrawThresholdForTotal = 50; 
     mapping(address => bool) public routerMap;
 
     // constructor() {
@@ -110,7 +110,7 @@ contract MockConfig {
     }
 
      function setLpWithdrawThresholdForTotal(uint256 newLpWithdrawThresholdForTotal) external {
-        require(newLpWithdrawThresholdForTotal > 1 && newLpWithdrawThresholdForTotal <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD");
+      //  require(newLpWithdrawThresholdForTotal > 1 && newLpWithdrawThresholdForTotal <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD");
         emit SetLpWithdrawThreshold(lpWithdrawThresholdForTotal, newLpWithdrawThresholdForTotal);
         lpWithdrawThresholdForTotal = newLpWithdrawThresholdForTotal;
     }
