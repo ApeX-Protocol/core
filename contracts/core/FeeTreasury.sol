@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IERC20.sol";
 import "./interfaces/IAmm.sol";
+import "./interfaces/IRouter.sol";
 import "../utils/Ownable.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/TickMath.sol";
@@ -30,6 +31,7 @@ contract FeeTreasury is Ownable {
         uint256 timestamp
     );
 
+    IRouter public router;
     ISwapRouter public v3Router;
     address public v3Factory;
     address public WETH;
@@ -53,12 +55,14 @@ contract FeeTreasury is Ownable {
     }
 
     constructor(
+        IRouter router_,
         ISwapRouter v3Router_, 
         address USDC_,  
         address operator_, 
         uint256 nextSettleTime_
     ) {
         owner = msg.sender;
+        router = router_;
         v3Router = v3Router_;
         v3Factory = v3Router.factory();
         WETH = v3Router.WETH9();
@@ -107,17 +111,19 @@ contract FeeTreasury is Ownable {
     function batchRemoveLiquidity(address[] memory amms) external check {
         for (uint256 i = 0; i < amms.length; i++) {
             address amm = amms[i];
-            // first burn to remove liquidity before
+            router.collectFee(amm);
+
             uint256 liquidity = IERC20(amm).balanceOf(address(this));
             if (liquidity == 0) continue;
-            TransferHelper.safeTransfer(amm, amm, liquidity);
-            IAmm(amm).burn(address(this));
-            // after first burn could be minted more liquidity in this address
-            // so make a second burn 
-            liquidity = IERC20(amm).balanceOf(address(this));
-            if (liquidity == 0) continue;
-            TransferHelper.safeTransfer(amm, amm, liquidity);
-            IAmm(amm).burn(address(this));
+            
+            uint256 allowance = IERC20(amm).allowance(address(this), address(router));
+            if (allowance < liquidity) {
+                IERC20(amm).approve(address(router), type(uint256).max);
+            }
+
+            address baseToken = IAmm(amm).baseToken();
+            address quoteToken = IAmm(amm).quoteToken();
+            router.removeLiquidity(baseToken, quoteToken, liquidity, 1, block.timestamp);
         }
     }
 

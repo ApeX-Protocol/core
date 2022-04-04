@@ -148,11 +148,14 @@ contract Margin is IMargin, IVault, Reentrant {
             }
             require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
             (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-            (uint256 markRatio, ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm);
+            (, uint256 _quoteAmount, ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(
+                amm,
+                0,
+                marginAcc.abs()
+            );
             quoteAmountMax =
-                (quoteReserve * 10000 * marginAcc.abs()) /
-                (((IConfig(config).initMarginRatio() * quoteReserve * 1e18) / markRatio) +
-                    (200 * marginAcc.abs() * IConfig(config).beta()));
+                (quoteReserve * 10000 * _quoteAmount) /
+                (IConfig(config).initMarginRatio() * quoteReserve + (200 * _quoteAmount * IConfig(config).beta()));
         }
 
         bool isLong = side == 0;
@@ -216,16 +219,18 @@ contract Margin is IMargin, IVault, Reentrant {
         bool isLong = traderPosition.quoteSize < 0;
         int256 fundingFee = _calFundingFee(trader, _latestCPF);
         address _amm = amm;
-        (uint256 ratio, bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(_amm);
+
         if (
             _calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize + fundingFee) >=
             IConfig(config).liquidateThreshold()
         ) {
+            (uint256 _baseAmount, , bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle())
+                .getMarkPriceInRatio(_amm, quoteSizeAbs, 0);
             //unhealthy position, liquidate self
             uint256 forceSwapBaseAmount;
             uint256 forceSwapQuoteAmount;
             if (isIndexPrice) {
-                baseAmount = (quoteSizeAbs * 1e18) / ratio;
+                baseAmount = _baseAmount;
             } else {
                 baseAmount = _querySwapBaseWithAmm(isLong, quoteSizeAbs);
                 forceSwapBaseAmount = (traderPosition.baseSize + fundingFee).abs();
@@ -259,10 +264,10 @@ contract Margin is IMargin, IVault, Reentrant {
                 totalQuoteShort = totalQuoteShort - quoteSizeAbs;
             }
         } else {
-            baseAmount = isIndexPrice
-                ? ((quoteAmount * 1e18) / ratio)
-                : _minusPositionWithAmm(trader, isLong, quoteAmount);
+            (uint256 _baseAmount, , bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle())
+                .getMarkPriceInRatio(_amm, quoteAmount, 0);
 
+            baseAmount = isIndexPrice ? _baseAmount : _minusPositionWithAmm(trader, isLong, quoteAmount);
             traderPosition.tradeSize -= (quoteAmount * traderPosition.tradeSize) / quoteSizeAbs;
 
             if (isLong) {
@@ -312,8 +317,9 @@ contract Margin is IMargin, IVault, Reentrant {
         );
 
         {
-            (uint256 ratio, bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm);
-            baseAmount = isIndexPrice ? ((quoteAmount * 1e18) / ratio) : _querySwapBaseWithAmm(isLong, quoteAmount);
+            (uint256 _baseAmount1, , bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle())
+                .getMarkPriceInRatio(amm, quoteAmount, 0);
+            baseAmount = isIndexPrice ? _baseAmount1 : _querySwapBaseWithAmm(isLong, quoteAmount);
             (uint256 _baseAmount, uint256 _quoteAmount) = (baseAmount, quoteAmount);
             bonus = _executeForceSwap(
                 trader,
@@ -512,8 +518,12 @@ contract Margin is IMargin, IVault, Reentrant {
 
     function calUnrealizedPnl(address trader) external view override returns (int256 unrealizedPnl) {
         Position memory position = traderPositionMap[trader];
-        (uint256 markRatio, ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm);
-        uint256 repayBaseAmount = (position.quoteSize.abs() * 1e18) / markRatio;
+        (uint256 _baseAmount, , ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(
+            amm,
+            position.quoteSize.abs(),
+            0
+        );
+        uint256 repayBaseAmount = _baseAmount;
         if (position.quoteSize < 0) {
             //borrowed - repay, earn when borrow more and repay less
             unrealizedPnl = int256(1).mulU(position.tradeSize).subU(repayBaseAmount);

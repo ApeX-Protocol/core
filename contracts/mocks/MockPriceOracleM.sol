@@ -56,7 +56,19 @@ contract MockPriceOracleOfMargin {
 
     function setupTwap(address amm) external {}
 
-    function getMarkPriceInRatio(address amm) external view returns (uint256, bool) {
-        return (markPriceInRatio, isIndex);
+    function getMarkPriceInRatio(
+        address amm,
+        uint256 quoteAmount,
+        uint256 baseAmount
+    )
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            bool
+        )
+    {
+        return (quoteAmount / markPriceInRatio, baseAmount * markPriceInRatio, isIndex);
     }
 }

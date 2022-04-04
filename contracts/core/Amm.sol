@@ -75,8 +75,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
-
-        // only router can add liquidity 
+        // only router can add liquidity
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
@@ -137,8 +136,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             uint256 liquidity
         )
     {
-
-        // only router can burn liquidity 
+        // only router can burn liquidity
         require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         liquidity = balanceOf[address(this)];
@@ -158,16 +156,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
 
-        // gurantee the netpostion close in a tolerant sliappage after remove liquidity
-        int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
+        // gurantee the net postion close and total position(quote) in a tolerant sliappage after remove liquidity
 
-        uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
-
-        require(
-            quoteTokenOfNetPosition.abs() * 100 <= (_quoteReserve - quoteAmount) * lpWithdrawThreshold,
-            "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW"
-        );
-
+        maxWithdrawCheck(uint256(_quoteReserve), quoteAmount);
 
         require(
             (_baseReserve - baseAmount) * _quoteReserve * 999 <= (_quoteReserve - quoteAmount) * _baseReserve * 1000,
@@ -180,10 +171,29 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
 
         _burn(address(this), liquidity);
         _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve, false);
-        if (feeOn) kLast = uint256(baseReserve) * quoteReserve;  
+        if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
         IVault(margin).withdraw(msg.sender, to, baseAmount);
         emit Burn(msg.sender, to, baseAmount, quoteAmount, liquidity);
+    }
+
+    function maxWithdrawCheck(uint256 quoteReserve, uint256 quoteAmount) public view {
+        int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
+
+        uint256 quoteTokenOfTotalPosition = IMargin(margin).totalPosition();
+
+        uint256 lpWithdrawThresholdForNet = IConfig(config).lpWithdrawThresholdForNet();
+
+        uint256 lpWithdrawThresholdForTotal = IConfig(config).lpWithdrawThresholdForTotal();
+
+        require(
+            quoteTokenOfNetPosition.abs() * 100 <= (quoteReserve - quoteAmount) * lpWithdrawThresholdForNet,
+            "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW_FOR_NET_POSITION"
+        );
+        require(
+            quoteTokenOfTotalPosition * 100 <= (quoteReserve - quoteAmount) * lpWithdrawThresholdForTotal,
+            "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW_FOR_TOTAL_POSITION"
+        );
     }
 
     function getRealBaseReserve() public view returns (uint256 realBaseReserve) {
@@ -210,7 +220,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             //short  （-， +）
             result = estimateSwap(quoteToken, baseToken, quoteTokenOfNetPosition.abs(), 0);
             baseTokenOfNetPosition = result[1];
-            
+
             realBaseReserve = uint256(_baseReserve) - baseTokenOfNetPosition;
         }
     }
@@ -296,13 +306,21 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-        quoteReserveAfter =  quoteReserveFromExternal;
-        
+        quoteReserveAfter = quoteReserveFromExternal;
+
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
         if (feeOn) kLast = uint256(baseReserve) * quoteReserve;
 
         emit Rebase(_quoteReserve, quoteReserveAfter, _baseReserve, quoteReserveFromInternal, quoteReserveFromExternal);
+    }
+
+    function collectFee() external override returns (bool feeOn) {
+         require(IConfig(config).routerMap(msg.sender), "Amm.collectFee: FORBIDDEN");
+
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+        feeOn = _mintFee(_baseReserve, _quoteReserve);
+        if (feeOn) kLast = uint256(_baseReserve) * _quoteReserve;
     }
 
     /// notice view method for estimating swap
@@ -316,18 +334,32 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     }
 
     //query max withdraw liquidity
-    function getTheMaxBurnLiquidity() public view  override returns (uint256 maxLiquidity) {
+    function getTheMaxBurnLiquidity() public view override returns (uint256 maxLiquidity) {
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         // get real baseReserve
         uint256 realBaseReserve = getRealBaseReserve();
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
+        uint256 quoteTokenOfTotalPosition = IMargin(margin).totalPosition();
         uint256 _totalSupply = totalSupply + getFeeLiquidity();
 
-        uint256 lpWithdrawThreshold = IConfig(config).lpWithdrawThreshold();
+        uint256 lpWithdrawThresholdForNet = IConfig(config).lpWithdrawThresholdForNet();
+        uint256 lpWithdrawThresholdForTotal = IConfig(config).lpWithdrawThresholdForTotal();
 
-        uint256 maxWithdrawQuoteAmount = _quoteReserve - (quoteTokenOfNetPosition.abs() * 100) / lpWithdrawThreshold;
+        uint256 maxWithdrawQuoteAmount1 = _quoteReserve -
+            (quoteTokenOfNetPosition.abs() * 100) /
+            lpWithdrawThresholdForNet;
 
-        uint256 maxWithdrawBaseAmount = (maxWithdrawQuoteAmount * _baseReserve) / _quoteReserve;
+        uint256 maxWithdrawQuoteAmount2 = _quoteReserve -
+            (quoteTokenOfTotalPosition * 100) /
+            lpWithdrawThresholdForTotal;
+
+        uint256 maxWithdrawBaseAmount;
+        // use the min quote amount;
+        if (maxWithdrawQuoteAmount1 > maxWithdrawQuoteAmount2) {
+            maxWithdrawBaseAmount = (maxWithdrawQuoteAmount2 * _baseReserve) / _quoteReserve;
+        } else {
+            maxWithdrawBaseAmount = (maxWithdrawQuoteAmount1 * _baseReserve) / _quoteReserve;
+        }
 
         maxLiquidity = (maxWithdrawBaseAmount * _totalSupply) / realBaseReserve;
     }
