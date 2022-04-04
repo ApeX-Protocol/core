@@ -148,7 +148,7 @@ contract Margin is IMargin, IVault, Reentrant {
             }
             require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
             (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-            (uint256 markRatio,) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm);
+            (uint256 markRatio,) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm, quoteReserve);
             quoteAmountMax =
                 (quoteReserve * 10000 * marginAcc.abs()) /
                 (((IConfig(config).initMarginRatio() * quoteReserve * 1e18) / markRatio) +
@@ -482,7 +482,7 @@ contract Margin is IMargin, IVault, Reentrant {
 
     function calUnrealizedPnl(address trader) external view override returns (int256 unrealizedPnl) {
         Position memory position = traderPositionMap[trader];
-        (uint256 markRatio,) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm);
+        (uint256 markRatio,) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm, position.quoteSize.abs());
         uint256 repayBaseAmount = (position.quoteSize.abs() * 1e18) / markRatio;
         if (position.quoteSize < 0) {
             //borrowed - repay, earn when borrow more and repay less

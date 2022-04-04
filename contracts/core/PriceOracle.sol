@@ -143,10 +143,35 @@ contract PriceOracle is IPriceOracle, Initializable {
         }
     }
 
+    function getMarkPriceAfterSwap(address amm, uint256 quoteAmount) public view returns (uint256 price, bool isIndexPrice) {
+        (uint112 baseReserveBefore, uint112 quoteReserveBefore, ) = IAmm(amm).getReserves();
+        address baseToken = IAmm(amm).baseToken();
+        address quoteToken = IAmm(amm).quoteToken();
+        uint256[2] memory amounts = IAmm(amm).estimateSwap(quoteToken, baseToken, quoteAmount, 0);
+        uint256 baseAmount = amounts[1];
+        uint256 baseReserveAfter = uint256(baseReserveBefore) - baseAmount;
+        uint256 quoteReserveAfter = uint256(quoteReserveBefore) + quoteAmount;
+
+        uint8 baseDecimals = IERC20(baseToken).decimals();
+        uint8 quoteDecimals = IERC20(quoteToken).decimals();
+        uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
+        price = exponent.mulDiv(quoteReserveAfter, baseReserveAfter);
+
+        uint256 indexPrice = getIndexPrice(amm);
+        if (price * 100 >= indexPrice * (100 + priceGap) || price * 100 <= indexPrice * (100 - priceGap)) {
+            price = indexPrice;
+            isIndexPrice = true;
+        }
+    }
+
     // example: 1eth = 2000usdt, 1eth = 1e18, 1usdt = 1e6, price = (1e6/1e18)*1e18
-    function getMarkPriceInRatio(address amm) public view override returns (uint256 ratio, bool isIndexPrice) {
+    function getMarkPriceInRatio(address amm, uint256 quoteAmount) public view override returns (uint256 ratio, bool isIndexPrice) {
         uint256 markPrice;
         (markPrice, isIndexPrice) = getMarkPrice(amm);
+        if (!isIndexPrice) {
+            (markPrice, isIndexPrice) = getMarkPriceAfterSwap(amm, quoteAmount);
+        }
+        
         uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
         uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
         if (quoteDecimals > baseDecimals) {
@@ -183,7 +208,7 @@ contract PriceOracle is IPriceOracle, Initializable {
             baseAmount = quoteAmount.mulDiv(uint256(baseReserve) * quoteReserve, denominator);
         } else {
             // price = markPrice(1 +/- 2 * beta * quoteAmount / quoteReserve)
-            (uint256 markPrice, ) = getMarkPriceInRatio(amm);
+            (uint256 markPrice, ) = getMarkPriceInRatio(amm, quoteAmount);
             uint256 rvalue = markPrice.mulDiv(2 * beta * quoteAmount/100, quoteReserve);
             uint256 price;
             if (negative) {
