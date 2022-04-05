@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "./interfaces/IERC20.sol";
 import "./interfaces/IRouterForKeeper.sol";
 import "./interfaces/IPairFactory.sol";
 import "./interfaces/IMargin.sol";
@@ -8,11 +9,12 @@ import "./interfaces/IAmm.sol";
 import "./interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/SignedMath.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../libraries/FullMath.sol";
 import "hardhat/console.sol";
 
 contract RouterForKeeper is IRouterForKeeper {
     using SignedMath for int256;
+    using FullMath for uint256;
 
     address public immutable override pairFactory;
     address public immutable override WETH;
@@ -164,7 +166,7 @@ contract RouterForKeeper is IRouterForKeeper {
         }
     }
 
-    //todo use mark price?
+    //if eth is 2000usdc, then here return 2000*1e18
     function getSpotPriceWithMultiplier(address baseToken, address quoteToken)
         external
         view
@@ -173,6 +175,11 @@ contract RouterForKeeper is IRouterForKeeper {
     {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         (uint256 reserveBase, uint256 reserveQuote, ) = IAmm(amm).getReserves();
-        return (reserveQuote * 1e18) / reserveBase;
+
+        uint256 baseDecimals = IERC20(baseToken).decimals();
+        uint256 quoteDecimals = IERC20(quoteToken).decimals();
+        uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
+
+        return exponent.mulDiv(reserveQuote, reserveBase);
     }
 }
