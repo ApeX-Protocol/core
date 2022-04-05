@@ -536,6 +536,7 @@ contract Margin is IMargin, IVault, Reentrant {
 
     function calUnrealizedPnl(address trader) external view override returns (int256 unrealizedPnl) {
         Position memory position = traderPositionMap[trader];
+        if (position.quoteSize.abs() == 0) return 0;
         (uint256 _baseAmount, , ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(
             amm,
             position.quoteSize.abs(),
