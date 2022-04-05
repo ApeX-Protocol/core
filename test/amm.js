@@ -378,8 +378,9 @@ describe("Amm", function () {
       await marginAlice.setNetPosition(ethers.BigNumber.from("-5000").mul(exp2));
   
       let maxLiquidity1 = await amm.getTheMaxBurnLiquidity(); // 150026581965016363
-
+  
       console.log("maxLiquidity1: ", maxLiquidity1);
+      expect(maxLiquidity1).to.equal(ethers.BigNumber.from("89883647953223639"));
       await amm.transfer(amm.address, maxLiquidity1);
       await amm.burn(owner.address);
     });

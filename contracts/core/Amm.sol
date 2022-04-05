@@ -316,7 +316,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
     }
 
     function collectFee() external override returns (bool feeOn) {
-         require(IConfig(config).routerMap(msg.sender), "Amm.collectFee: FORBIDDEN");
+        require(IConfig(config).routerMap(msg.sender), "Amm.collectFee: FORBIDDEN");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         feeOn = _mintFee(_baseReserve, _quoteReserve);
@@ -345,20 +345,26 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         uint256 lpWithdrawThresholdForNet = IConfig(config).lpWithdrawThresholdForNet();
         uint256 lpWithdrawThresholdForTotal = IConfig(config).lpWithdrawThresholdForTotal();
 
-        uint256 maxWithdrawQuoteAmount1 = _quoteReserve -
-            (quoteTokenOfNetPosition.abs() * 100) /
-            lpWithdrawThresholdForNet;
+        //  for net position  case
+        uint256 maxQuoteLeftForNet = (quoteTokenOfNetPosition.abs() * 100) / lpWithdrawThresholdForNet;
+        uint256 maxWithdrawQuoteAmountForNet;
+        if (_quoteReserve > maxQuoteLeftForNet) {
+            maxWithdrawQuoteAmountForNet = _quoteReserve - maxQuoteLeftForNet;
+        }
 
-        uint256 maxWithdrawQuoteAmount2 = _quoteReserve -
-            (quoteTokenOfTotalPosition * 100) /
-            lpWithdrawThresholdForTotal;
+        //  for total position  case
+        uint256 maxQuoteLeftForTotal = (quoteTokenOfTotalPosition * 100) / lpWithdrawThresholdForTotal;
+        uint256 maxWithdrawQuoteAmountForTotal;
+        if (_quoteReserve > maxQuoteLeftForTotal) {
+            maxWithdrawQuoteAmountForTotal = _quoteReserve - maxQuoteLeftForTotal;
+        }
 
         uint256 maxWithdrawBaseAmount;
         // use the min quote amount;
-        if (maxWithdrawQuoteAmount1 > maxWithdrawQuoteAmount2) {
-            maxWithdrawBaseAmount = (maxWithdrawQuoteAmount2 * _baseReserve) / _quoteReserve;
+        if (maxWithdrawQuoteAmountForNet > maxWithdrawQuoteAmountForTotal) {
+            maxWithdrawBaseAmount = (maxWithdrawQuoteAmountForTotal * _baseReserve) / _quoteReserve;
         } else {
-            maxWithdrawBaseAmount = (maxWithdrawQuoteAmount1 * _baseReserve) / _quoteReserve;
+            maxWithdrawBaseAmount = (maxWithdrawQuoteAmountForNet * _baseReserve) / _quoteReserve;
         }
 
         maxLiquidity = (maxWithdrawBaseAmount * _totalSupply) / realBaseReserve;
