@@ -153,7 +153,7 @@ contract PriceOracle is IPriceOracle, Initializable {
         address quoteToken = IAmm(amm).quoteToken();
         uint256 baseReserveAfter;
         uint256 quoteReserveAfter;
-        if (quoteAmount != 0) {
+        if (quoteAmount > 0) {
             uint256[2] memory amounts = IAmm(amm).estimateSwap(quoteToken, baseToken, quoteAmount, 0);
             baseReserveAfter = uint256(baseReserveBefore) - amounts[1];
             quoteReserveAfter = uint256(quoteReserveBefore) + quoteAmount;
@@ -186,8 +186,8 @@ contract PriceOracle is IPriceOracle, Initializable {
         view
         override
         returns (
-            uint256 _baseAmount,
-            uint256 _quoteAmount,
+            uint256 resultBaseAmount,
+            uint256 resultQuoteAmount,
             bool isIndexPrice
         )
     {
@@ -206,10 +206,10 @@ contract PriceOracle is IPriceOracle, Initializable {
         } else {
             ratio = markPrice / 10**(baseDecimals - quoteDecimals);
         }
-        if (quoteAmount != 0) {
-            _baseAmount = (quoteAmount * 1e18) / ratio;
+        if (quoteAmount > 0) {
+            resultBaseAmount = (quoteAmount * 1e18) / ratio;
         } else {
-            _quoteAmount = (baseAmount * ratio) / 1e18;
+            resultQuoteAmount = (baseAmount * ratio) / 1e18;
         }
     }
 

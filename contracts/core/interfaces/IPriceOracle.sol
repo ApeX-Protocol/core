@@ -34,8 +34,8 @@ interface IPriceOracle {
         external
         view
         returns (
-            uint256 _baseAmount,
-            uint256 _quoteAmount,
+            uint256 resultBaseAmount,
+            uint256 resultQuoteAmount,
             bool isIndexPrice
         );
 
