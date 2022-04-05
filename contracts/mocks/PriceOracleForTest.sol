@@ -95,8 +95,5 @@ contract PriceOracleForTest is IPriceOracle {
         return ((markPrice - indexPrice) * 1e18) / (24 * 3600) / indexPrice;
     }
 
-function getMarkPriceAfterSwap(address amm, uint256 quoteAmount) external view override returns (uint256 price, bool isIndexPrice) {
-    
-}
 
 }
