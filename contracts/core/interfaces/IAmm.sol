@@ -52,6 +52,8 @@ interface IAmm {
 
     function rebase() external returns (uint256 quoteReserveAfter);
 
+    function collectFee() external returns (bool feeOn);
+
     function factory() external view returns (address);
 
     function config() external view returns (address);

@@ -315,8 +315,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Rebase(_quoteReserve, quoteReserveAfter, _baseReserve, quoteReserveFromInternal, quoteReserveFromExternal);
     }
 
-    function collectFee() external returns (bool feeOn) {
-         require(IConfig(config).routerMap(msg.sender), "Amm.collect_fee: FORBIDDEN");
+    function collectFee() external override returns (bool feeOn) {
+         require(IConfig(config).routerMap(msg.sender), "Amm.collectFee: FORBIDDEN");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
         feeOn = _mintFee(_baseReserve, _quoteReserve);

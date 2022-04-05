@@ -87,6 +87,10 @@ contract MyAmm is IAmm, LiquidityERC20  {
 
     }
 
+    function collectFee() external override returns (bool) {
+        
+    }
+
     function getReserves()
         external
         view override
