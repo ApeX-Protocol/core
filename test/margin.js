@@ -875,7 +875,7 @@ describe("Margin contract", function () {
       expect(await margin.calFundingFee(owner.address)).to.be.equal(BigNumber.from(fundingFee).mul(2));
 
       await margin.updateCPF();
-      expect(await margin.calFundingFee(owner.address)).to.be.at.least(BigNumber.from(fundingFee).mul(7));
+      expect(await margin.calFundingFee(owner.address)).to.be.at.least(BigNumber.from(fundingFee).mul(8));
       let latestUpdateCPF2 = await margin.lastUpdateCPF();
 
       expect(BigNumber.from(latestUpdateCPF2).sub(latestUpdateCPF1).gt(0)).to.be.equal(true);

@@ -10,7 +10,8 @@ interface IConfig {
     event RouterUnregistered(address indexed router);
     event SetLiquidateFeeRatio(uint256 oldLiquidateFeeRatio, uint256 liquidateFeeRatio);
     event SetLiquidateThreshold(uint256 oldLiquidateThreshold, uint256 liquidateThreshold);
-    event SetLpWithdrawThreshold(uint256 oldLpWithdrawThreshold, uint256 lpWithdrawThreshold);
+    event SetLpWithdrawThresholdForNet(uint256 oldLpWithdrawThresholdForNet, uint256 lpWithdrawThresholdForNet);
+    event SetLpWithdrawThresholdForTotal(uint256 oldLpWithdrawThresholdForTotal, uint256 lpWithdrawThresholdForTotal);
     event SetInitMarginRatio(uint256 oldInitMarginRatio, uint256 initMarginRatio);
     event SetBeta(uint256 oldBeta, uint256 beta);
     event SetFeeParameter(uint256 oldFeeParameter, uint256 feeParameter);
@@ -42,7 +43,10 @@ interface IConfig {
     function rebasePriceGap() external view returns (uint256);
 
     /// @notice get lp withdraw threshold of amm.
-    function lpWithdrawThreshold() external view returns (uint256);
+    function lpWithdrawThresholdForNet() external view returns (uint256);
+  
+    /// @notice get lp withdraw threshold of amm.
+    function lpWithdrawThresholdForTotal() external view returns (uint256);
 
     function rebaseInterval() external view returns (uint256);
 
@@ -82,9 +86,13 @@ interface IConfig {
     /// @param threshold new liquidate threshold of margin.
     function setLiquidateThreshold(uint256 threshold) external;
   
-     /// @notice Set a new lp withdraw threshold of amm
-    /// @param newLpWithdrawThreshold new lp withdraw threshold of amm.
-    function setLpWithdrawThreshold(uint256 newLpWithdrawThreshold) external;
+     /// @notice Set a new lp withdraw threshold of amm net position
+    /// @param newLpWithdrawThresholdForNet new lp withdraw threshold of amm.
+    function setLpWithdrawThresholdForNet(uint256 newLpWithdrawThresholdForNet) external;
+    
+    /// @notice Set a new lp withdraw threshold of amm total position
+    /// @param newLpWithdrawThresholdForTotal new lp withdraw threshold of amm.
+    function setLpWithdrawThresholdForTotal(uint256 newLpWithdrawThresholdForTotal) external;
 
     /// @notice Set a new liquidate fee of margin
     /// @param feeRatio new liquidate fee of margin.

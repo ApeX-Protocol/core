@@ -17,7 +17,8 @@ contract Config is IConfig, Ownable {
     uint256 public override liquidateThreshold = 10000; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio = 100; //if 100, means liquidator bot get 1% as fee
     uint256 public override feeParameter = 11; // 100 * (1/fee-1)
-    uint256 public override lpWithdrawThreshold = 10; // 1-100
+    uint256 public override lpWithdrawThresholdForNet = 10; // 1-100
+    uint256 public override lpWithdrawThresholdForTotal = 50; // 
 
     mapping(address => bool) public override routerMap;
     mapping(address => bool) public override inEmergency;
@@ -77,10 +78,16 @@ contract Config is IConfig, Ownable {
         feeParameter = newFeeParameter;
     }
    
-    function setLpWithdrawThreshold(uint256 newLpWithdrawThreshold) external override onlyOwner {
-        require(lpWithdrawThreshold > 1 && lpWithdrawThreshold <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD");
-        emit SetLpWithdrawThreshold(lpWithdrawThreshold, newLpWithdrawThreshold);
-        lpWithdrawThreshold = newLpWithdrawThreshold;
+    function setLpWithdrawThresholdForNet(uint256 newLpWithdrawThresholdForNet) external override onlyOwner {
+        require(lpWithdrawThresholdForNet >= 1 && lpWithdrawThresholdForNet <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD_FOR_NET");
+        emit SetLpWithdrawThresholdForNet(lpWithdrawThresholdForNet, newLpWithdrawThresholdForNet);
+        lpWithdrawThresholdForNet = newLpWithdrawThresholdForNet;
+    }
+    
+      function setLpWithdrawThresholdForTotal(uint256 newLpWithdrawThresholdForTotal) external override onlyOwner {
+       // require(lpWithdrawThresholdForTotal >= 1 && lpWithdrawThresholdForTotal <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD_FOR_TOTAL");
+        emit SetLpWithdrawThresholdForTotal(lpWithdrawThresholdForTotal, newLpWithdrawThresholdForTotal);
+        lpWithdrawThresholdForTotal = newLpWithdrawThresholdForTotal;
     }
     
     function setBeta(uint8 newBeta) external override onlyOwner {
