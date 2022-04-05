@@ -498,10 +498,10 @@ contract Margin is IMargin, IVault, Reentrant {
         return int256(totalQuoteShort).subU(totalQuoteLong);
     }
 
-      function totalPosition() external view override returns (uint256) {
-        return totalQuoteShort + totalQuoteLong;
+    function totalPosition() external view override returns (uint256 totalQuotePosition) {
+        totalQuotePosition = totalQuoteLong + totalQuoteShort;
     }
-    
+
     //query swap exact quote to base
     function _querySwapBaseWithAmm(bool isLong, uint256 quoteAmount) internal view returns (uint256) {
         (address inputToken, address outputToken, uint256 inputAmount, uint256 outputAmount) = _getSwapParam(

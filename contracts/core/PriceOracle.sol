@@ -157,7 +157,8 @@ contract PriceOracle is IPriceOracle, Initializable {
         uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
         price = exponent.mulDiv(quoteReserveAfter, baseReserveAfter);
 
-        uint256 indexPrice = getIndexPrice(amm);
+        address amm_ = amm; // avoid stack too deep
+        uint256 indexPrice = getIndexPrice(amm_);
         if (price * 100 >= indexPrice * (100 + priceGap) || price * 100 <= indexPrice * (100 - priceGap)) {
             price = indexPrice;
             isIndexPrice = true;
