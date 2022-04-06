@@ -51,6 +51,8 @@ interface IApeXPool {
 
     event UpdateStakeLock(address indexed by, uint256 depositId, bool isEsApeX, uint256 lockFrom, uint256 lockUntil);
 
+    event MintEsApeX(address to, uint256 amount);
+
     /// @notice Get pool token of this core pool
     function poolToken() external view returns (address);
 

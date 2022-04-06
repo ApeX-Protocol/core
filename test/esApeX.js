@@ -103,6 +103,13 @@ describe("esApeX contract", function () {
         "whitelist: NOT_IN_OPERATOR_OR_WHITELIST"
       );
     });
+
+    it("revert when transfer exceed balance", async function () {
+      await esApeXToken.connect(addr1).mint(addr1.address, 100);
+      await expect(esApeXToken.connect(addr1).transfer(owner.address, 101)).to.be.revertedWith(
+        "ERC20: transfer amount exceeds balance"
+      );
+    });
   });
 
   describe("transferFrom", function () {
@@ -116,24 +123,41 @@ describe("esApeX contract", function () {
       expect(newBalance).to.be.equal(oldBalance - 100);
     });
 
-    it("can transfer by operator", async function () {
+    it("can transferFrom by operator", async function () {
       await esApeXToken.connect(addr1).mint(addr1.address, 100);
+      await esApeXToken.connect(addr1).approve(addr1.address, 100);
       let oldBalance = (await esApeXToken.balanceOf(owner.address)).toNumber();
-      await esApeXToken.connect(addr1).transfer(owner.address, 100);
+      await esApeXToken.connect(addr1).transferFrom(addr1.address, owner.address, 100);
       let newBalance = (await esApeXToken.balanceOf(owner.address)).toNumber();
       expect(newBalance).to.be.equal(oldBalance + 100);
     });
 
-    it("revert when transfer by non-whitelist and non-operator", async function () {
-      await expect(esApeXToken.transfer(owner.address, 100)).to.be.revertedWith(
+    it("revert when transferFrom by non-whitelist and non-operator", async function () {
+      await expect(esApeXToken.transferFrom(addr1.address, owner.address, 100)).to.be.revertedWith(
         "whitelist: NOT_IN_OPERATOR_OR_WHITELIST"
       );
     });
 
-    it("revert when transfer by deleted operator", async function () {
+    it("revert when transferFrom by deleted operator", async function () {
       await esApeXToken.removeOperator(addr1.address);
-      await expect(esApeXToken.connect(addr1).transfer(owner.address, 100)).to.be.revertedWith(
+      await expect(esApeXToken.connect(addr1).transferFrom(addr1.address, owner.address, 100)).to.be.revertedWith(
         "whitelist: NOT_IN_OPERATOR_OR_WHITELIST"
+      );
+    });
+
+    it("revert when transferFrom exceed allowance", async function () {
+      await esApeXToken.connect(addr1).mint(addr1.address, 100);
+      await esApeXToken.connect(addr1).approve(addr1.address, 100);
+      await expect(esApeXToken.connect(addr1).transferFrom(addr1.address, owner.address, 101)).to.be.revertedWith(
+        "ERC20: transfer amount exceeds allowance"
+      );
+    });
+
+    it("revert when transferFrom exceed balance", async function () {
+      await esApeXToken.connect(addr1).mint(addr1.address, 100);
+      await esApeXToken.connect(addr1).approve(addr1.address, 101);
+      await expect(esApeXToken.connect(addr1).transferFrom(addr1.address, owner.address, 101)).to.be.revertedWith(
+        "ERC20: transfer amount exceeds balance"
       );
     });
   });
