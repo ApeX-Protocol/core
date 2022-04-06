@@ -148,11 +148,15 @@ contract Margin is IMargin, IVault, Reentrant {
             }
             require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
             (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-            (uint256 markRatio,) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm);
+            (, uint256 _quoteAmount, ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(
+                amm,
+                0,
+                marginAcc.abs()
+            );
+
             quoteAmountMax =
-                (quoteReserve * 10000 * marginAcc.abs()) /
-                (((IConfig(config).initMarginRatio() * quoteReserve * 1e18) / markRatio) +
-                    (200 * marginAcc.abs() * IConfig(config).beta()));
+                (quoteReserve * 10000 * _quoteAmount) /
+                ((IConfig(config).initMarginRatio() * quoteReserve) + (200 * _quoteAmount * IConfig(config).beta()));
         }
 
         bool isLong = side == 0;
@@ -215,56 +219,71 @@ contract Margin is IMargin, IVault, Reentrant {
 
         bool isLong = traderPosition.quoteSize < 0;
         int256 fundingFee = _calFundingFee(trader, _latestCPF);
-
+        address _amm = amm;
         if (
             _calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize + fundingFee) >=
             IConfig(config).liquidateThreshold()
         ) {
             //unhealthy position, liquidate self
-            int256 remainBaseAmount;
-            baseAmount = _querySwapBaseWithAmm(isLong, quoteSizeAbs);
-            if (isLong) {
-                totalQuoteLong = totalQuoteLong - quoteSizeAbs;
-                remainBaseAmount = traderPosition.baseSize.subU(baseAmount) + fundingFee;
+            (uint256 _baseAmount, , bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle())
+                .getMarkPriceInRatio(_amm, quoteSizeAbs, 0);
+            uint256 forceSwapBaseAmount;
+            uint256 forceSwapQuoteAmount;
+            if (isIndexPrice) {
+                baseAmount = _baseAmount;
+                int256 remainBaseAmount = isLong
+                    ? (traderPosition.baseSize.subU(baseAmount) + fundingFee)
+                    : (traderPosition.baseSize.addU(baseAmount) + fundingFee);
+
                 if (remainBaseAmount < 0) {
-                    IAmm(amm).forceSwap(
-                        trader,
-                        baseToken,
-                        quoteToken,
-                        (traderPosition.baseSize + fundingFee).abs(),
-                        quoteSizeAbs
-                    );
+                    forceSwapBaseAmount = remainBaseAmount.abs();
+                    IAmm(_amm).forceSwap(trader, quoteToken, baseToken, forceSwapQuoteAmount, forceSwapBaseAmount);
                     traderPosition.quoteSize = 0;
                     traderPosition.baseSize = 0;
                     traderPosition.tradeSize = 0;
+                } else {
+                    traderPosition.quoteSize = 0;
+                    traderPosition.baseSize = remainBaseAmount;
+                    traderPosition.tradeSize = 0;
+                }
+
+                if (isLong) {
+                    totalQuoteLong = totalQuoteLong - quoteSizeAbs;
+                } else {
+                    totalQuoteShort = totalQuoteShort - quoteSizeAbs;
                 }
             } else {
-                totalQuoteShort = totalQuoteShort - quoteSizeAbs;
-                remainBaseAmount = traderPosition.baseSize.addU(baseAmount) + fundingFee;
+                baseAmount = _querySwapBaseWithAmm(isLong, quoteSizeAbs);
+                forceSwapBaseAmount = (traderPosition.baseSize + fundingFee).abs();
+                forceSwapQuoteAmount = quoteSizeAbs;
+
+                int256 remainBaseAmount = isLong
+                    ? (traderPosition.baseSize.subU(baseAmount) + fundingFee)
+                    : (traderPosition.baseSize.addU(baseAmount) + fundingFee);
+
                 if (remainBaseAmount < 0) {
-                    IAmm(amm).forceSwap(
-                        trader,
-                        quoteToken,
-                        baseToken,
-                        quoteSizeAbs,
-                        (traderPosition.baseSize + fundingFee).abs()
-                    );
+                    IAmm(_amm).forceSwap(trader, quoteToken, baseToken, forceSwapQuoteAmount, forceSwapBaseAmount);
                     traderPosition.quoteSize = 0;
                     traderPosition.baseSize = 0;
                     traderPosition.tradeSize = 0;
+                } else {
+                    _minusPositionWithAmm(trader, isLong, quoteSizeAbs);
+                    traderPosition.quoteSize = 0;
+                    traderPosition.baseSize = remainBaseAmount;
+                    traderPosition.tradeSize = 0;
+                }
+
+                if (isLong) {
+                    totalQuoteLong = totalQuoteLong - quoteSizeAbs;
+                } else {
+                    totalQuoteShort = totalQuoteShort - quoteSizeAbs;
                 }
             }
-            if (remainBaseAmount >= 0) {
-                _minusPositionWithAmm(trader, isLong, quoteSizeAbs);
-                traderPosition.quoteSize = 0;
-                traderPosition.tradeSize = 0;
-                traderPosition.baseSize = remainBaseAmount;
-            }
         } else {
-            //healthy position, close position safely
-            baseAmount = _minusPositionWithAmm(trader, isLong, quoteAmount);
+            (uint256 _baseAmount, , bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle())
+                .getMarkPriceInRatio(_amm, quoteAmount, 0);
+            baseAmount = isIndexPrice ? _baseAmount : _minusPositionWithAmm(trader, isLong, quoteAmount);
 
-            //when close position, keep quoteSize/tradeSize not change, cant sub baseAmount because baseAmount contains pnl
             traderPosition.tradeSize -= (quoteAmount * traderPosition.tradeSize) / quoteSizeAbs;
 
             if (isLong) {
@@ -275,6 +294,10 @@ contract Margin is IMargin, IVault, Reentrant {
                 totalQuoteShort = totalQuoteShort - quoteAmount;
                 traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount) + fundingFee;
+            }
+            if (traderPosition.quoteSize == 0 && traderPosition.baseSize < 0) {
+                IAmm(amm).forceSwap(trader, quoteToken, baseToken, 0, traderPosition.baseSize.abs());
+                traderPosition.baseSize = 0;
             }
         }
 
@@ -309,42 +332,22 @@ contract Margin is IMargin, IVault, Reentrant {
             "Margin.liquidate: NOT_LIQUIDATABLE"
         );
 
-        baseAmount = _querySwapBaseWithAmm(isLong, quoteAmount);
-        //calc remain base after liquidate
-        int256 remainBaseAmountAfterLiquidate = isLong
-            ? baseSize.subU(baseAmount) + fundingFee
-            : baseSize.addU(baseAmount) + fundingFee;
-
-        if (remainBaseAmountAfterLiquidate > 0) {
-            //calc liquidate reward
-            bonus = (remainBaseAmountAfterLiquidate.abs() * IConfig(config).liquidateFeeRatio()) / 10000;
-        }
-
         {
-            // avoid stack too deep
-            address _trader = trader;
-            int256 _baseSize = baseSize;
-            uint256 _bonus = bonus;
-            uint256 _quoteAmount = quoteAmount;
-            if (isLong) {
-                totalQuoteLong = totalQuoteLong - _quoteAmount;
-                IAmm(amm).forceSwap(
-                    _trader,
-                    baseToken,
-                    quoteToken,
-                    (_baseSize.subU(_bonus) + fundingFee).abs(),
-                    _quoteAmount
-                );
-            } else {
-                totalQuoteShort = totalQuoteShort - _quoteAmount;
-                IAmm(amm).forceSwap(
-                    _trader,
-                    quoteToken,
-                    baseToken,
-                    _quoteAmount,
-                    (_baseSize.subU(_bonus) + fundingFee).abs()
-                );
-            }
+            (uint256 _baseAmountT, , bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle())
+                .getMarkPriceInRatio(amm, quoteAmount, 0);
+
+            baseAmount = isIndexPrice ? _baseAmountT : _querySwapBaseWithAmm(isLong, quoteAmount);
+            (uint256 _baseAmount, uint256 _quoteAmount) = (baseAmount, quoteAmount);
+            bonus = _executeForceSwap(
+                trader,
+                isIndexPrice,
+                isLong,
+                fundingFee,
+                baseSize,
+                quoteSize,
+                _baseAmount,
+                _quoteAmount
+            );
         }
 
         traderCPF[trader] = _latestCPF;
@@ -355,6 +358,57 @@ contract Margin is IMargin, IVault, Reentrant {
         delete traderPositionMap[trader];
 
         emit Liquidate(msg.sender, trader, to, quoteAmount, baseAmount, bonus, fundingFee, traderPosition);
+    }
+
+    function _executeForceSwap(
+        address _trader,
+        bool isIndexPrice,
+        bool isLong,
+        int256 fundingFee,
+        int256 baseSize,
+        int256 quoteSize,
+        uint256 baseAmount,
+        uint256 quoteAmount
+    ) internal returns (uint256 bonus) {
+        int256 remainBaseAmountAfterLiquidate = isLong
+            ? baseSize.subU(baseAmount) + fundingFee
+            : baseSize.addU(baseAmount) + fundingFee;
+
+        if (remainBaseAmountAfterLiquidate > 0) {
+            bonus = (remainBaseAmountAfterLiquidate.abs() * IConfig(config).liquidateFeeRatio()) / 10000;
+        }
+        address inputToken;
+        address outputToken;
+        uint256 inputTokenAmount;
+        uint256 outputTokenAmount;
+        if (isIndexPrice) {
+            if (remainBaseAmountAfterLiquidate < 0) {
+                (inputToken, outputToken) = (quoteToken, baseToken);
+                outputTokenAmount = remainBaseAmountAfterLiquidate.abs();
+            } else {
+                (inputToken, outputToken) = (baseToken, quoteToken);
+                inputTokenAmount = remainBaseAmountAfterLiquidate.abs() - bonus;
+            }
+            if (isLong) {
+                totalQuoteLong = totalQuoteLong - quoteSize.abs();
+            } else {
+                totalQuoteShort = totalQuoteShort - quoteSize.abs();
+            }
+        } else {
+            if (isLong) {
+                (inputToken, outputToken) = (baseToken, quoteToken);
+                inputTokenAmount = ((baseSize.subU(bonus) + fundingFee).abs());
+                outputTokenAmount = quoteAmount;
+                totalQuoteLong = totalQuoteLong - quoteSize.abs();
+            } else {
+                (inputToken, outputToken) = (quoteToken, baseToken);
+                inputTokenAmount = quoteAmount;
+                outputTokenAmount = ((baseSize.subU(bonus) + fundingFee).abs());
+                totalQuoteShort = totalQuoteShort - quoteSize.abs();
+            }
+        }
+
+        IAmm(amm).forceSwap(_trader, inputToken, outputToken, inputTokenAmount, outputTokenAmount);
     }
 
     function deposit(address user, uint256 amount) external override nonReentrant {
@@ -482,8 +536,13 @@ contract Margin is IMargin, IVault, Reentrant {
 
     function calUnrealizedPnl(address trader) external view override returns (int256 unrealizedPnl) {
         Position memory position = traderPositionMap[trader];
-        (uint256 markRatio,) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(amm);
-        uint256 repayBaseAmount = (position.quoteSize.abs() * 1e18) / markRatio;
+        if (position.quoteSize.abs() == 0) return 0;
+        (uint256 _baseAmount, , ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(
+            amm,
+            position.quoteSize.abs(),
+            0
+        );
+        uint256 repayBaseAmount = _baseAmount;
         if (position.quoteSize < 0) {
             //borrowed - repay, earn when borrow more and repay less
             unrealizedPnl = int256(1).mulU(position.tradeSize).subU(repayBaseAmount);
@@ -496,6 +555,10 @@ contract Margin is IMargin, IVault, Reentrant {
     function netPosition() external view override returns (int256) {
         require(totalQuoteShort < type(uint128).max, "Margin.netPosition: OVERFLOW");
         return int256(totalQuoteShort).subU(totalQuoteLong);
+    }
+
+    function totalPosition() external view override returns (uint256 totalQuotePosition) {
+        totalQuotePosition = totalQuoteLong + totalQuoteShort;
     }
 
     //query swap exact quote to base

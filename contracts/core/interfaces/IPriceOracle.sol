@@ -20,7 +20,24 @@ interface IPriceOracle {
 
     function getMarkPrice(address amm) external view returns (uint256 price, bool isIndexPrice);
 
-    function getMarkPriceInRatio(address amm) external view returns (uint256 ratio, bool isIndexPrice);
+    function getMarkPriceAfterSwap(
+        address amm,
+        uint256 quoteAmount,
+        uint256 baseAmount
+    ) external view returns (uint256 price, bool isIndexPrice);
+
+    function getMarkPriceInRatio(
+        address amm,
+        uint256 quoteAmount,
+        uint256 baseAmount
+    )
+        external
+        view
+        returns (
+            uint256 resultBaseAmount,
+            uint256 resultQuoteAmount,
+            bool isIndexPrice
+        );
 
     function getMarkPriceAcc(
         address amm,

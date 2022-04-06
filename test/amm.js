@@ -299,13 +299,14 @@ describe("Amm", function () {
       expect(args2.inputAmount).to.equal(ethers.BigNumber.from("1002203414634867914265"));
 
       let liquidity = await amm.balanceOf(owner.address);
-      console.log("liquidity: ", liquidity);
+      console.log("liquidity: ", liquidity);  
       // net position  200 usdc  （-，+）
-      let reserve = await amm.getReserves();
+      let reserve = await amm.getReserves();    // 99890.010998
       console.log("quoteToken: ", reserve[1].toString());
       await marginAlice.setNetPosition(ethers.BigNumber.from("100000").mul(exp2).sub(reserve[1]));
       await amm.transfer(amm.address, liquidity.mul(999).div(1000));
-      await expect(amm.burn(owner.address)).to.be.revertedWith("Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW");
+      await expect(amm.burn(owner.address)).to.be.revertedWith("Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW_FOR_NET_POSITION");
+
     });
     it("get max liquidity", async function () {
       // price AAA/usdt = 1/10
@@ -375,8 +376,11 @@ describe("Amm", function () {
       let reserve = await amm.getReserves();
       console.log("reserve: ", reserve[1]);
       await marginAlice.setNetPosition(ethers.BigNumber.from("-5000").mul(exp2));
-      let maxLiquidity1 = await amm.getTheMaxBurnLiquidity();
+  
+      let maxLiquidity1 = await amm.getTheMaxBurnLiquidity(); // 150026581965016363
+  
       console.log("maxLiquidity1: ", maxLiquidity1);
+      expect(maxLiquidity1).to.equal(ethers.BigNumber.from("89883647953223639"));
       await amm.transfer(amm.address, maxLiquidity1);
       await amm.burn(owner.address);
     });
