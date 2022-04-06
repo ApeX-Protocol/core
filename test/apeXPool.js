@@ -21,9 +21,10 @@ describe("stakingPool contract", function () {
 
   let owner;
   let addr1;
+  let addr2;
 
   beforeEach(async function () {
-    [owner, addr1] = await ethers.getSigners();
+    [owner, addr1, addr2] = await ethers.getSigners();
 
     const MockToken = await ethers.getContractFactory("MockToken");
     const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
@@ -65,6 +66,7 @@ describe("stakingPool contract", function () {
 
     await esApeXToken.setFactory(owner.address);
     await esApeXToken.mint(owner.address, 100_0000);
+    await esApeXToken.mint(addr1.address, 100_0000);
     await esApeXToken.approve(stakingPoolFactory.address, 100_0000);
   });
 
@@ -87,7 +89,7 @@ describe("stakingPool contract", function () {
       let oldPoolTokenBal = await apeXToken.balanceOf(owner.address);
       await apeXPool.stake(10000, lockUntil);
       let newPoolTokenBal = await apeXToken.balanceOf(owner.address);
-      expect(oldPoolTokenBal.toNumber()).to.be.greaterThan(newPoolTokenBal.toNumber());
+      expect(oldPoolTokenBal - newPoolTokenBal).to.be.equal(10000);
 
       let user = await apeXPool.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(10000);
@@ -124,6 +126,31 @@ describe("stakingPool contract", function () {
       expect(user.tokenAmount.toNumber()).to.equal(30000);
       expect(user.totalWeight.toNumber()).to.be.at.most(100000000000);
       expect(user.subYieldRewards.toNumber()).to.be.at.most(60);
+    });
+  });
+
+  describe("stakeEsApeX", function () {
+    it("stake esApeX", async function () {
+      await stakingPoolFactory.setLockTime(15768000);
+      let halfYearLockUntil = await halfYearLater();
+      await apeXPool.stakeEsApeX(10000, halfYearLockUntil);
+    });
+
+    it("revert when user stake while didn't approve", async function () {
+      await stakingPoolFactory.setLockTime(15768000);
+      let halfYearLockUntil = await halfYearLater();
+      await expect(apeXPool.connect(addr2).stakeEsApeX(10000, halfYearLockUntil)).to.be.revertedWith(
+        "ERC20: transfer amount exceeds allowance"
+      );
+    });
+
+    it("revert when user stake while didn't have balance", async function () {
+      await stakingPoolFactory.setLockTime(15768000);
+      let halfYearLockUntil = await halfYearLater();
+      await esApeXToken.connect(addr2).approve(stakingPoolFactory.address, 10000);
+      await expect(apeXPool.connect(addr2).stakeEsApeX(10000, halfYearLockUntil)).to.be.revertedWith(
+        "ERC20: transfer amount exceeds balance"
+      );
     });
   });
 
