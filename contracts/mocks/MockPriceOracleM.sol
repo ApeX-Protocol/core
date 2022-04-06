@@ -69,6 +69,6 @@ contract MockPriceOracleOfMargin {
             bool
         )
     {
-        return (quoteAmount / markPriceInRatio, baseAmount * markPriceInRatio, isIndex);
+        return ((quoteAmount * 1e18) / markPriceInRatio, (baseAmount * markPriceInRatio) / 1e18, isIndex);
     }
 }

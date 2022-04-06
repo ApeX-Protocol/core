@@ -255,6 +255,36 @@ describe("Margin contract", function () {
         expect(BigNumber.from(oldResult[2]).sub(newResult[2])).to.be.equal(0);
       });
 
+      it("withdraw from an old position's unrealizedPnl", async function () {
+        let newPrice = 4000_000000;
+        await mockPriceOracle.setMarkPriceInRatio(newPrice);
+        await mockAmm.setPrice(newPrice);
+
+        let fundingFee = await margin.calFundingFee(owner.address);
+        expect(fundingFee).to.be.equal(0);
+        let unrealizedPnl = await margin.calUnrealizedPnl(owner.address);
+        expect(unrealizedPnl).to.be.equal((quoteAmount * 1e18) / newPrice);
+
+        let oldResult = await getPosition(margin, owner.address);
+        await margin.removeMargin(owner.address, owner.address, unrealizedPnl);
+        let newResult = await getPosition(margin, owner.address);
+        expect(BigNumber.from(oldResult[1]).sub(newResult[1])).to.be.equal(unrealizedPnl);
+        expect(BigNumber.from(oldResult[2]).sub(newResult[2])).to.be.equal(unrealizedPnl);
+      });
+
+      it("withdraw from an old position's margin while unrealizedPnl is 0", async function () {
+        let fundingFee = await margin.calFundingFee(owner.address);
+        expect(fundingFee).to.be.equal(0);
+        let unrealizedPnl = await margin.calUnrealizedPnl(owner.address);
+        expect(unrealizedPnl).to.be.equal(0);
+
+        let oldResult = await getPosition(margin, owner.address);
+        await margin.removeMargin(owner.address, owner.address, 10000);
+        let newResult = await getPosition(margin, owner.address);
+        expect(BigNumber.from(oldResult[1]).sub(newResult[1])).to.be.equal(10000);
+        expect(BigNumber.from(oldResult[2]).sub(newResult[2])).to.be.equal(0);
+      });
+
       it("withdraw from an old position's margin while unrealizedPnl not 0", async function () {
         let newPrice = 4000_000000;
         await mockAmm.setPrice(newPrice);
@@ -419,6 +449,13 @@ describe("Margin contract", function () {
         expect(position[2]).to.equal(BigNumber.from(oldPosition[2]).add((quoteAmount * 1e18) / price));
       });
 
+      it("reverted when open position more than margin", async function () {
+        let quoteAmount = "500000000000";
+        await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+          "Margin.openPosition: INIT_MARGIN_RATIO"
+        );
+      });
+
       it("reverted when exist position is zero value", async function () {
         let quoteAmount = "500000000000";
         await mockAmm.setPrice(100000);
@@ -518,6 +555,14 @@ describe("Margin contract", function () {
         expect(position[0]).to.equal(-1 * quoteAmount);
         expect(position[1]).to.equal(oldPosition[1].add((quoteAmount * 1e18) / price));
         expect(position[2]).to.equal((quoteAmount * 1e18) / price);
+      });
+
+      it("revert when open position with 0.9 margin ratio while lack margin", async function () {
+        let quoteAmount = 10000_000000;
+        await mockConfig.setInitMarginRatio(9000);
+        await expect(margin.openPosition(owner.address, longSide, quoteAmount)).to.be.revertedWith(
+          "Margin.openPosition: INIT_MARGIN_RATIO"
+        );
       });
     });
   });
@@ -619,6 +664,90 @@ describe("Margin contract", function () {
       expect(result[1]).to.be.equal("309969220");
       expect(result[2]).to.be.equal("0");
     });
+
+    describe("use index price", async function () {
+      beforeEach(async function () {
+        await mockPriceOracle.setIsIndex(true);
+        let result = await mockPriceOracle.getMarkPriceInRatio(mockAmm.address, 0, 0);
+
+        expect(result[0]).to.be.equal(0);
+        expect(result[2]).to.be.equal(true);
+        let withdrawable = await margin.getWithdrawable(addr1.address);
+        await margin.connect(addr1).removeMargin(addr1.address, addr1.address, withdrawable);
+        withdrawable = await margin.getWithdrawable(owner.address);
+        await margin.removeMargin(owner.address, owner.address, withdrawable);
+      });
+
+      it("close long, remain < 0", async function () {
+        await mockPriceOracle.setMarkPriceInRatio(1000_000000);
+        await mockPriceOracle.setMarkPrice(1000_000000);
+
+        let oldReserves = await mockAmm.getReserves();
+        let position = await margin.traderPositionMap(owner.address);
+        await margin.closePosition(owner.address, position.quoteSize.abs());
+        let newReserves = await mockAmm.getReserves();
+        position = await margin.traderPositionMap(owner.address);
+
+        expect(BigNumber.from(oldReserves[0]).sub(newReserves[0])).to.be.equal(BigNumber.from("450005499945000"));
+        expect(oldReserves[1] - newReserves[1]).to.be.equal(0);
+        expect(position.tradeSize).to.be.equal(0);
+        expect(position.quoteSize).to.be.equal(0);
+        expect(position.baseSize).to.be.equal(0);
+      });
+
+      it("close long, remain > 0", async function () {
+        await mockPriceOracle.setMarkPriceInRatio(1700_000000);
+        await mockPriceOracle.setMarkPrice(1600_000000);
+        await mockPriceOracle.setPf(BigNumber.from("-20000000000000000"));
+
+        let oldReserves = await mockAmm.getReserves();
+        let position = await margin.traderPositionMap(owner.address);
+        await margin.closePosition(owner.address, position.quoteSize.abs());
+        let newReserves = await mockAmm.getReserves();
+        position = await margin.traderPositionMap(owner.address);
+
+        expect(BigNumber.from(oldReserves[0]).sub(newReserves[0])).to.be.equal(0);
+        expect(oldReserves[1] - newReserves[1]).to.be.equal(0);
+        expect(position.tradeSize).to.be.equal(0);
+        expect(position.quoteSize).to.be.equal(0);
+        expect(position.baseSize).to.be.equal("1759205937353");
+      });
+
+      it("close short, remain < 0", async function () {
+        await mockPriceOracle.setMarkPriceInRatio(4000_000000);
+        await mockPriceOracle.setMarkPrice(4000_000000);
+
+        let oldReserves = await mockAmm.getReserves();
+        let position = await margin.traderPositionMap(addr1.address);
+        await margin.closePosition(addr1.address, position.quoteSize.abs());
+        let newReserves = await mockAmm.getReserves();
+        position = await margin.traderPositionMap(addr1.address);
+
+        expect(BigNumber.from(oldReserves[0]).sub(newReserves[0])).to.be.equal(BigNumber.from("204550000000000"));
+        expect(oldReserves[1] - newReserves[1]).to.be.equal(0);
+        expect(position.tradeSize).to.be.equal(0);
+        expect(position.quoteSize).to.be.equal(0);
+        expect(position.baseSize).to.be.equal(0);
+      });
+
+      it("close short, remain > 0", async function () {
+        await mockPriceOracle.setMarkPriceInRatio(2400_000000);
+        await mockPriceOracle.setMarkPrice(2500_000000);
+        await mockPriceOracle.setPf(BigNumber.from("20000000000000000"));
+
+        let oldReserves = await mockAmm.getReserves();
+        let position = await margin.traderPositionMap(addr1.address);
+        await margin.closePosition(addr1.address, position.quoteSize.abs());
+        let newReserves = await mockAmm.getReserves();
+        position = await margin.traderPositionMap(addr1.address);
+
+        expect(BigNumber.from(oldReserves[0]).sub(newReserves[0])).to.be.equal(0);
+        expect(newReserves[1] - oldReserves[1]).to.be.equal(0);
+        expect(position.tradeSize).to.be.equal(0);
+        expect(position.quoteSize).to.be.equal(0);
+        expect(position.baseSize).to.be.equal("2116666666666");
+      });
+    });
   });
 
   describe("liquidate", async function () {
@@ -629,6 +758,11 @@ describe("Margin contract", function () {
       await mockConfig.registerRouter(liquidator.address);
       let withdrawable = await margin.getWithdrawable(addr1.address);
       await margin.connect(addr1).removeMargin(addr1.address, addr1.address, withdrawable);
+
+      await mockRouter.connect(addr2).addMargin(addr2.address, addr2InitBaseAmount);
+      await margin.connect(addr2).openPosition(addr2.address, longSide, quoteAmount);
+      withdrawable = await margin.getWithdrawable(addr2.address);
+      await margin.connect(addr2).removeMargin(addr2.address, addr2.address, withdrawable);
     });
 
     it("revert when liquidate 0 position", async function () {
@@ -679,6 +813,90 @@ describe("Margin contract", function () {
       expect(result[0]).to.be.equal("0");
       expect(result[1]).to.be.equal("0");
       expect(result[2]).to.be.equal("0");
+    });
+
+    describe("use index price", async function () {
+      beforeEach(async function () {
+        await mockPriceOracle.setIsIndex(true);
+
+        let result = await mockPriceOracle.getMarkPriceInRatio(mockAmm.address, 0, 0);
+        expect(result[0]).to.be.equal(0);
+        expect(result[2]).to.be.equal(true);
+      });
+
+      it("liquidate long, remain < 0", async function () {
+        await mockPriceOracle.setMarkPriceInRatio(1000_000000);
+        await mockPriceOracle.setMarkPrice(1000_000000);
+
+        let oldReserves = await mockAmm.getReserves();
+        await margin.connect(liquidator).liquidate(addr2.address, liquidator.address);
+        let newReserves = await mockAmm.getReserves();
+        let balance = await mockBaseToken.balanceOf(liquidator.address);
+        let position = await margin.traderPositionMap(owner.address);
+
+        expect(BigNumber.from(oldReserves[0]).sub(newReserves[0])).to.be.equal(BigNumber.from("450005499945000"));
+        expect(oldReserves[1] - newReserves[1]).to.be.equal(0);
+        expect(balance).to.be.equal(0);
+        expect(position.tradeSize).to.be.equal(0);
+        expect(position.quoteSize).to.be.equal(0);
+        expect(position.baseSize).to.be.equal(0);
+      });
+
+      it("liquidate long, remain > 0", async function () {
+        await mockPriceOracle.setMarkPriceInRatio(1700_000000);
+        await mockPriceOracle.setMarkPrice(1600_000000);
+        await mockPriceOracle.setPf(BigNumber.from("-20000000000000000"));
+
+        let oldReserves = await mockAmm.getReserves();
+        await margin.connect(liquidator).liquidate(addr2.address, liquidator.address);
+        let newReserves = await mockAmm.getReserves();
+        let balance = await mockBaseToken.balanceOf(liquidator.address);
+        let position = await margin.traderPositionMap(owner.address);
+
+        expect(BigNumber.from(oldReserves[0]).sub(newReserves[0])).to.be.equal("-9407364749883");
+        expect(oldReserves[1] - newReserves[1]).to.be.equal(0);
+        expect(balance).to.be.equal(2351841187470);
+        expect(position.tradeSize).to.be.equal(0);
+        expect(position.quoteSize).to.be.equal(0);
+        expect(position.baseSize).to.be.equal(0);
+      });
+
+      it("liquidate short, remain < 0", async function () {
+        await mockPriceOracle.setMarkPriceInRatio(4000_000000);
+        await mockPriceOracle.setMarkPrice(4000_000000);
+
+        let oldReserves = await mockAmm.getReserves();
+        await margin.connect(liquidator).liquidate(addr1.address, liquidator.address);
+        let newReserves = await mockAmm.getReserves();
+        let balance = await mockBaseToken.balanceOf(liquidator.address);
+        let position = await margin.traderPositionMap(owner.address);
+
+        expect(BigNumber.from(oldReserves[0]).sub(newReserves[0])).to.be.equal(BigNumber.from("204550000000000"));
+        expect(oldReserves[1] - newReserves[1]).to.be.equal(0);
+        expect(balance).to.be.equal(0);
+        expect(position.tradeSize).to.be.equal(0);
+        expect(position.quoteSize).to.be.equal(0);
+        expect(position.baseSize).to.be.equal(0);
+      });
+
+      it("liquidate short, remain > 0", async function () {
+        await mockPriceOracle.setMarkPriceInRatio(2400_000000);
+        await mockPriceOracle.setMarkPrice(2500_000000);
+        await mockPriceOracle.setPf(BigNumber.from("20000000000000000"));
+
+        let oldReserves = await mockAmm.getReserves();
+        await margin.connect(liquidator).liquidate(addr1.address, liquidator.address);
+        let newReserves = await mockAmm.getReserves();
+        let balance = await mockBaseToken.balanceOf(liquidator.address);
+        let position = await margin.traderPositionMap(owner.address);
+
+        expect(BigNumber.from(oldReserves[0]).sub(newReserves[0])).to.be.equal("-9693333333333");
+        expect(newReserves[1] - oldReserves[1]).to.be.equal(0);
+        expect(balance).to.be.equal(2423333333333);
+        expect(position.tradeSize).to.be.equal(0);
+        expect(position.quoteSize).to.be.equal(0);
+        expect(position.baseSize).to.be.equal(0);
+      });
     });
   });
 
@@ -762,13 +980,26 @@ describe("Margin contract", function () {
     });
 
     it("can liquidate", async function () {
-      await mockPriceOracle.setMarkPrice(400000000000);
+      await mockPriceOracle.setMarkPrice(400000_000000);
       await mockAmm.setPrice(2100_000000);
       expect(await margin.canLiquidate(addr1.address)).to.be.equal(true);
     });
 
     it("can not liquidate", async function () {
       expect(await margin.canLiquidate(addr1.address)).to.be.equal(false);
+    });
+  });
+
+  describe("calUnrealizedPnl", async function () {
+    let quoteAmount = 2000_000000;
+    beforeEach(async function () {
+      await mockRouter.addMargin(owner.address, "1000000000000000000");
+      await margin.openPosition(owner.address, longSide, quoteAmount);
+    });
+
+    it("calculate unrealized pnl ", async function () {
+      await mockPriceOracle.setMarkPriceInRatio(4000_000000);
+      expect(await margin.calUnrealizedPnl(owner.address)).to.be.equal(BigNumber.from("500000000000000000"));
     });
   });
 
@@ -875,7 +1106,7 @@ describe("Margin contract", function () {
       expect(await margin.calFundingFee(owner.address)).to.be.equal(BigNumber.from(fundingFee).mul(2));
 
       await margin.updateCPF();
-      expect(await margin.calFundingFee(owner.address)).to.be.at.least(BigNumber.from(fundingFee).mul(8));
+      expect(await margin.calFundingFee(owner.address)).to.be.at.least(BigNumber.from(fundingFee).mul(7));
       let latestUpdateCPF2 = await margin.lastUpdateCPF();
 
       expect(BigNumber.from(latestUpdateCPF2).sub(latestUpdateCPF1).gt(0)).to.be.equal(true);
