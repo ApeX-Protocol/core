@@ -34,16 +34,16 @@ let marginAddress;
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  // await attachApeXToken();
+  await attachApeXToken();
   await createPriceOracle();
-  // await createConfig();
-  // await createPairFactory();
+  await createConfig();
+  await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
-  // await createPair();
+  await createPair();
 };
 
 async function attachApeXToken() {
@@ -62,11 +62,11 @@ async function createPriceOracle() {
   // priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
   // console.log("PriceOracle:", priceOracle.address);
 
-  if (config == null) {
-    const Config = await ethers.getContractFactory("Config");
-    config = await Config.attach("0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26");
-    config.setPriceOracle(priceOracle.address);
-  }
+  // if (config == null) {
+  //   const Config = await ethers.getContractFactory("Config");
+  //   config = await Config.attach("0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26");
+  //   config.setPriceOracle(priceOracle.address);
+  // }
 }
 
 async function createConfig() {
@@ -127,7 +127,7 @@ async function createRouter() {
   //   pairFactory = await PairFactory.attach(pairFactoryAddress);
   // }
   if (pcvTreasury == null) {
-    let pcvTreasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
+    let pcvTreasuryAddress = "0x42C0E0fdA16CE20C3c15bBF666Ee79EaB5998F20";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
     pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
   }
