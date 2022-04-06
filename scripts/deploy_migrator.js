@@ -1,3 +1,4 @@
+const { BigNumber } = require("ethers");
 const { ethers } = require("hardhat");
 const verifyStr = "npx hardhat verify --network";
 
