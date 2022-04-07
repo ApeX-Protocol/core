@@ -25,7 +25,6 @@ describe("Margin contract", function () {
   let shortSide = 1;
   let initBaseLiquidity = "1000000000000000000000";
   let initQuoteLiquidity = "2000000000000";
-  let markPriceInRatio = 2000 * 1e6; //2000*(1e-12)*1e18
 
   beforeEach(async function () {
     [owner, addr1, addr2, addr3, liquidator, ...addrs] = await ethers.getSigners();
@@ -57,7 +56,7 @@ describe("Margin contract", function () {
     const Margin = await ethers.getContractFactory("Margin");
     margin = Margin.attach(marginAddress);
 
-    await mockPriceOracle.setMarkPriceInRatio(markPriceInRatio);
+    await mockPriceOracle.setMarkPriceInRatio(2000 * 1e6); //2000*(1e-12)*1e18
     await mockFactory.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address);
     await mockRouter.setMarginContract(margin.address);
     await mockAmm.initialize(mockBaseToken.address, mockQuoteToken.address);
@@ -634,61 +633,6 @@ describe("Margin contract", function () {
       let result = await mockAmm.getReserves();
       expect(result[0] - initBaseLiquidity).to.be.lessThan(0);
       expect(result[1]).to.be.equal(initQuoteLiquidity);
-    });
-
-    it("close a long position with index price while debtRatio < 100%", async function () {
-      let quoteAmount = 20000_000000;
-      await mockRouter.connect(addr2).addMargin(addr2.address, "1000000000000000000");
-      await margin.connect(addr2).openPosition(addr2.address, longSide, quoteAmount);
-      position = await margin.traderPositionMap(addr2.address);
-      expect(position[0]).to.equal(-1 * quoteAmount);
-      expect(position[1].toString()).to.equal("11000000000000000000");
-      expect(position[2].toString()).to.equal("10000000000000000000");
-
-      await mockPriceOracle.setMarkPrice(1900000000);
-      await mockAmm.setPrice(1400000000);
-      await mockPriceOracle.setIsIndex(true);
-
-      expect(await margin.canLiquidate(addr2.address)).to.be.equal(false);
-      await margin.closePosition(addr2.address, quoteAmount);
-
-      position = await margin.traderPositionMap(addr2.address);
-      expect(position[0]).to.be.equal(0);
-      expect(position[1]).to.be.equal("1000000000000000000");
-      expect(position[2]).to.be.equal(0);
-
-      let result = await mockAmm.getReserves();
-      expect(result[0]).to.be.equal("1010000000000000000000");
-      expect(result[1]).to.be.equal("1980000000000");
-      expect(result[0] - initBaseLiquidity).to.be.equal((quoteAmount * 1e18) / markPriceInRatio);
-      expect(BigNumber.from(initQuoteLiquidity) - result[1]).to.be.equal(quoteAmount);
-    });
-
-    it("close a short position with index price while debtRatio < 100%", async function () {
-      let quoteAmount = 20000_000000;
-      await mockRouter.connect(addr2).addMargin(addr2.address, "1000000000000000000");
-      await margin.connect(addr2).openPosition(addr2.address, shortSide, quoteAmount);
-      position = await margin.traderPositionMap(addr2.address);
-      expect(position[0]).to.equal(quoteAmount);
-      expect(position[1].toString()).to.equal("-9000000000000000000");
-      expect(position[2].toString()).to.equal("10000000000000000000");
-
-      await mockPriceOracle.setMarkPrice(1900000000);
-      await mockAmm.setPrice(1400000000);
-      await mockPriceOracle.setIsIndex(true);
-      expect(await margin.canLiquidate(addr2.address)).to.be.equal(false);
-      await margin.closePosition(addr2.address, quoteAmount);
-
-      position = await margin.traderPositionMap(addr2.address);
-      expect(position[0]).to.be.equal(0);
-      expect(position[1]).to.be.equal("1000000000000000000");
-      expect(position[2]).to.be.equal(0);
-
-      let result = await mockAmm.getReserves();
-      expect(result[0]).to.be.equal("990000000000000000000");
-      expect(result[1]).to.be.equal("2020000000000");
-      expect(initBaseLiquidity - result[0]).to.be.equal((quoteAmount * 1e18) / markPriceInRatio);
-      expect(result[1] - BigNumber.from(initQuoteLiquidity)).to.be.equal(quoteAmount);
     });
 
     it("close liquidatable position, no remain left", async function () {

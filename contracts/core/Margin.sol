@@ -290,16 +290,10 @@ contract Margin is IMargin, IVault, Reentrant {
                 totalQuoteLong = totalQuoteLong - quoteAmount;
                 traderPosition.quoteSize = traderPosition.quoteSize.addU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.subU(baseAmount) + fundingFee;
-                if (isIndexPrice) {
-                    IAmm(amm).forceSwap(trader, baseToken, quoteToken, baseAmount, quoteAmount);
-                }
             } else {
                 totalQuoteShort = totalQuoteShort - quoteAmount;
                 traderPosition.quoteSize = traderPosition.quoteSize.subU(quoteAmount);
                 traderPosition.baseSize = traderPosition.baseSize.addU(baseAmount) + fundingFee;
-                if (isIndexPrice) {
-                    IAmm(amm).forceSwap(trader, quoteToken, baseToken, quoteAmount, baseAmount);
-                }
             }
             if (traderPosition.quoteSize == 0 && traderPosition.baseSize < 0) {
                 IAmm(amm).forceSwap(trader, quoteToken, baseToken, 0, traderPosition.baseSize.abs());
