@@ -7,6 +7,7 @@ const verifyStr = "npx hardhat verify --network";
 // const treasuryAddress = ""; // PCVTreasury address
 // const slpTokenAddress = ""; // APEX-WETH slp
 //// Testnet
+const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
 const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
 const treasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06"; // PCVTreasury address
 const slpTokenAddress = "0x473BfBD8bda825f7E39e4Fa826D9a8B5129cE4E7"; // APEX-WETH slp
@@ -27,12 +28,14 @@ let apeXPool;
 let slpPool;
 let stakingPoolTemplate;
 let stakingPoolFactory;
+let rewardForStaking;
 
 const main = async () => {
-  await createContracts();
+  await createPools();
+  await createReward();
 };
 
-async function createContracts() {
+async function createPools() {
   const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
   const StakingPool = await ethers.getContractFactory("StakingPool");
   const ApeXPool = await ethers.getContractFactory("ApeXPool");
@@ -90,6 +93,13 @@ async function createContracts() {
   await stakingPoolFactory.createPool(slpTokenAddress, slpPoolWeight);
   slpPool = StakingPool.attach(await stakingPoolFactory.tokenPoolMap(slpTokenAddress));
   console.log("slpPool:", slpPool.address);
+}
+
+async function createReward() {
+  const RewardForStaking = await ethers.getContractFactory("RewardForStaking");
+  rewardForStaking = await RewardForStaking.deploy(wethAddress);
+  console.log("RewardForStaking:", rewardForStaking.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, rewardForStaking.address, wethAddress);
 }
 
 main()
