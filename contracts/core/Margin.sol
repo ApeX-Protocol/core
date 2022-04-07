@@ -3,7 +3,6 @@ pragma solidity ^0.8.0;
 
 import "./interfaces/IERC20.sol";
 import "./interfaces/IMarginFactory.sol";
-import "./interfaces/IPairFactory.sol";
 import "./interfaces/IAmmFactory.sol";
 import "./interfaces/IAmm.sol";
 import "./interfaces/IConfig.sol";
@@ -318,11 +317,19 @@ contract Margin is IMargin, IVault, Reentrant {
                 _minusPositionWithAmm(_trader, isLong, quoteAmount);
             }
 
-            address treasury = IAmmFactory(IAmm(amm).factory()).feeTo();
-            if (treasury != address(0)) {
-                IERC20(baseToken).transfer(treasury, remainBaseAmountAfterLiquidate.abs() - bonus);
-            } else {
-                IAmm(amm).forceSwap(_trader, baseToken, quoteToken, remainBaseAmountAfterLiquidate.abs() - bonus, 0);
+            if (remainBaseAmountAfterLiquidate.abs() > bonus) {
+                address treasury = IAmmFactory(IAmm(amm).factory()).feeTo();
+                if (treasury != address(0)) {
+                    IERC20(baseToken).transfer(treasury, remainBaseAmountAfterLiquidate.abs() - bonus);
+                } else {
+                    IAmm(amm).forceSwap(
+                        _trader,
+                        baseToken,
+                        quoteToken,
+                        remainBaseAmountAfterLiquidate.abs() - bonus,
+                        0
+                    );
+                }
             }
         } else {
             if (!isIndexPrice) {

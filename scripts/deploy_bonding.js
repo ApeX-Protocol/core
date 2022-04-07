@@ -12,7 +12,7 @@ const verifyStr = "npx hardhat verify --network";
 //// Testnet
 const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
 const pcvTreasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
-const routerAddress = "";
+const routerAddress = "0x6DB28E52F23Af499008Ab3bDa41b723273d45fD7";
 const v3FactoryAddress = "0x1F98431c8aD98523631AE4a59f267346ea31F984"; // testnet uniV3factory
 const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mock WETH
 const usdcAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526"; // mock USDC

@@ -113,8 +113,6 @@ interface IRouter {
         address to
     ) external returns (uint256 quoteAmount, uint256 baseAmount, uint256 bonus);
 
-    function collectFee(address amm) external returns (bool feeOn);
-
     function getReserves(address baseToken, address quoteToken)
         external
         view
