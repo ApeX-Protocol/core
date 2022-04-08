@@ -18,9 +18,7 @@ const main = async () => {
   console.log("FeeTreasury:", feeTreasury.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, feeTreasury.address, v3Router, usdc, operator, nextSettleTime);
 
-  let configAddress = "";
-  const Config = await ethers.getContractFactory("Config");
-  let config = await Config.attach(configAddress);
+  let config = await ethers.getContractAt("Config", "0x38a71796bC0291Bc09f4D890B45A9A93d49eDf70");
   await config.registerRouter(feeTreasury.address);
 };
 
