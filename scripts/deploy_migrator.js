@@ -4,12 +4,15 @@ const verifyStr = "npx hardhat verify --network";
 
 const main = async () => {
   //// ArbitrumOne
-
+  const oldRouter = "";
+  const newRouter = "";
+  const oldConfigAddress = "";
+  const newConfigAddress = "";
   //// Testnet
-  const oldRouter = "0xcbccda0Df16Ba36AfEde7bc6d676E261098f3a9E";
-  const newRouter = "0x363fE608166b204ea70017F095949295374fd371";
-  const oldConfigAddress = "0xF74F984F78CEBC8734A98F6C8aFf4c13F274EA6B";
-  const newConfigAddress = "0x37a74ECe864f40b156eA7e0b2b8EAB8097cb2512";
+  // const oldRouter = "0xcbccda0Df16Ba36AfEde7bc6d676E261098f3a9E";
+  // const newRouter = "0x363fE608166b204ea70017F095949295374fd371";
+  // const oldConfigAddress = "0xF74F984F78CEBC8734A98F6C8aFf4c13F274EA6B";
+  // const newConfigAddress = "0x37a74ECe864f40b156eA7e0b2b8EAB8097cb2512";
 
   const Migrator = await ethers.getContractFactory("Migrator");
   let migrator = await Migrator.deploy(oldRouter, newRouter);
