@@ -34,9 +34,9 @@ let marginAddress;
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
-  await attachApeXToken();
-  await createPriceOracle();
-  await createConfig();
+  // await attachApeXToken();
+  // await createPriceOracle();
+  // await createConfig();
   await createPairFactory();
   // await createPCVTreasury();
   await createRouter();
@@ -84,11 +84,11 @@ async function createConfig() {
 }
 
 async function createPairFactory() {
-  // if (config == null) {
-  //   let configAddress = "0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26";
-  //   const Config = await ethers.getContractFactory("Config");
-  //   config = await Config.attach(configAddress);
-  // }
+  if (config == null) {
+    let configAddress = "0x37a74ECe864f40b156eA7e0b2b8EAB8097cb2512";
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach(configAddress);
+  }
 
   const PairFactory = await ethers.getContractFactory("PairFactory");
   const AmmFactory = await ethers.getContractFactory("AmmFactory");
