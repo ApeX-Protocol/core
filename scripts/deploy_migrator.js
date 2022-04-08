@@ -6,9 +6,9 @@ const main = async () => {
   //// ArbitrumOne
 
   //// Testnet
-  const oldRouter = "0x4afF3d09fE028D3fCEC4DE851B5eb4fb357B0725";
-  const newRouter = "0x6DB28E52F23Af499008Ab3bDa41b723273d45fD7";
-  const oldConfigAddress = "0x34a1365C55242559F4f7Ae0A075967FE5659933c";
+  const oldRouter = "0x6DB28E52F23Af499008Ab3bDa41b723273d45fD7";
+  const newRouter = "0x0cb8E61d0b531d107432E9f04D3a77B4E37f3213";
+  const oldConfigAddress = "0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26";
   const newConfigAddress = "0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26";
 
   const Migrator = await ethers.getContractFactory("Migrator");

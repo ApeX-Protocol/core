@@ -18,6 +18,8 @@ interface IPriceOracle {
 
     function getIndexPrice(address amm) external view returns (uint256);
 
+    function getMarketPrice(address amm) external view returns (uint256);
+
     function getMarkPrice(address amm) external view returns (uint256 price, bool isIndexPrice);
 
     function getMarkPriceAfterSwap(

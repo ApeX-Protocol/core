@@ -35,15 +35,15 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   // await attachApeXToken();
-  await createPriceOracle();
+  // await createPriceOracle();
   // await createConfig();
-  // await createPairFactory();
+  await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
-  // await createPair();
+  await createPair();
 };
 
 async function attachApeXToken() {
@@ -84,11 +84,11 @@ async function createConfig() {
 }
 
 async function createPairFactory() {
-  // if (config == null) {
-  //   let configAddress = "0xF1D5FC94A3cA88644E0D05195fbb2db1E60B9e75";
-  //   const Config = await ethers.getContractFactory("Config");
-  //   config = await Config.attach(configAddress);
-  // }
+  if (config == null) {
+    let configAddress = "0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26";
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach(configAddress);
+  }
 
   const PairFactory = await ethers.getContractFactory("PairFactory");
   const AmmFactory = await ethers.getContractFactory("AmmFactory");
@@ -146,9 +146,9 @@ async function createRouter() {
     wethAddress
   );
 
-  router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
+  // router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
   await config.registerRouter(router.address);
-  console.log("Router:", router.address);
+  // console.log("Router:", router.address);
 }
 
 async function createMulticall2() {
