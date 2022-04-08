@@ -37,9 +37,9 @@ const main = async () => {
   // await attachApeXToken();
   // await createPriceOracle();
   // await createConfig();
-  await createPairFactory();
+  // await createPairFactory();
   // await createPCVTreasury();
-  await createRouter();
+  // await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -174,11 +174,11 @@ async function createPair() {
   // let baseTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mockWETH in testnet
   // let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526"; // mockUSDC in testnet
 
-  // if (pairFactory == null) {
-  //   let pairFactoryAddress = "0x125A70fDa17D69b364cD67200E0df3417dBb7869";
-  //   const PairFactory = await ethers.getContractFactory("PairFactory");
-  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
-  // }
+  if (pairFactory == null) {
+    let pairFactoryAddress = "0xaE357428B82672c81648c8f6C99642d0aa787213";
+    const PairFactory = await ethers.getContractFactory("PairFactory");
+    pairFactory = await PairFactory.attach(pairFactoryAddress);
+  }
 
   await pairFactory.createPair(baseTokenAddress, quoteTokenAddress);
   ammAddress = await pairFactory.getAmm(baseTokenAddress, quoteTokenAddress);

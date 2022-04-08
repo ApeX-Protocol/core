@@ -4,8 +4,8 @@ const verifyStr = "npx hardhat verify --network";
 
 const main = async () => {
   //// ArbitrumOne
-  const oldRouter = "0x18f434a074d1e0e4e01de38cf7dcf925db10a0c0";
-  const newRouter = "0x102e70dfB3E399D7b9f34D8C407C1B7d17eD70aD";
+  const oldRouter = "0x4e101bC1Eb3Ebb22276a7D94Bd8B5adf2da8d793";
+  const newRouter = "0xfc0344cb434cBf28d6A87f2ACE06B673a5EA0Fc9";
   const oldConfigAddress = "0xC69d007331957808B215e7f42d645FF439f16b47";
   const newConfigAddress = "0x38a71796bC0291Bc09f4D890B45A9A93d49eDf70";
   //// Testnet
