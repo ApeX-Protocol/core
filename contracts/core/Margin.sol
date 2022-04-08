@@ -149,11 +149,12 @@ contract Margin is IMargin, IVault, Reentrant {
             }
             require(marginAcc > 0, "Margin.openPosition: INVALID_MARGIN_ACC");
             (, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-            (, uint256 _quoteAmount, ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(
-                amm,
-                0,
-                marginAcc.abs()
-            );
+            (, uint256 _quoteAmountT, bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle())
+                .getMarkPriceInRatio(amm, 0, marginAcc.abs());
+
+            uint256 _quoteAmount = isIndexPrice
+                ? _quoteAmountT
+                : IAmm(amm).estimateSwap(baseToken, quoteToken, marginAcc.abs(), 0)[1];
 
             quoteAmountMax =
                 (quoteReserve * 10000 * _quoteAmount) /
@@ -322,7 +323,13 @@ contract Margin is IMargin, IVault, Reentrant {
                 if (treasury != address(0)) {
                     IERC20(baseToken).transfer(treasury, remainBaseAmountAfterLiquidate.abs() - bonus);
                 } else {
-                    IAmm(amm).forceSwap(_trader, baseToken, quoteToken, remainBaseAmountAfterLiquidate.abs() - bonus, 0);
+                    IAmm(amm).forceSwap(
+                        _trader,
+                        baseToken,
+                        quoteToken,
+                        remainBaseAmountAfterLiquidate.abs() - bonus,
+                        0
+                    );
                 }
             }
         } else {
@@ -476,12 +483,14 @@ contract Margin is IMargin, IVault, Reentrant {
     function calUnrealizedPnl(address trader) external view override returns (int256 unrealizedPnl) {
         Position memory position = traderPositionMap[trader];
         if (position.quoteSize.abs() == 0) return 0;
-        (uint256 _baseAmount, , ) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(
+        (uint256 _baseAmountT, , bool isIndexPrice) = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceInRatio(
             amm,
             position.quoteSize.abs(),
             0
         );
-        uint256 repayBaseAmount = _baseAmount;
+        uint256 repayBaseAmount = isIndexPrice
+            ? _baseAmountT
+            : _querySwapBaseWithAmm(position.quoteSize < 0, position.quoteSize.abs());
         if (position.quoteSize < 0) {
             //borrowed - repay, earn when borrow more and repay less
             unrealizedPnl = int256(1).mulU(position.tradeSize).subU(repayBaseAmount);
