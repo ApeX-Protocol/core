@@ -327,10 +327,6 @@ contract Router is IRouter, Initializable {
         (quoteAmount, baseAmount, bonus) = IMargin(margin).liquidate(trader, to);
     }
 
-    function collectFee(address amm) external override returns (bool feeOn) {
-        return IAmm(amm).collectFee();
-    }
-
     function getReserves(address baseToken, address quoteToken)
         external
         view

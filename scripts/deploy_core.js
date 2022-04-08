@@ -85,7 +85,7 @@ async function createConfig() {
 
 async function createPairFactory() {
   // if (config == null) {
-  //   let configAddress = "0xF1D5FC94A3cA88644E0D05195fbb2db1E60B9e75";
+  //   let configAddress = "0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26";
   //   const Config = await ethers.getContractFactory("Config");
   //   config = await Config.attach(configAddress);
   // }
@@ -146,9 +146,9 @@ async function createRouter() {
     wethAddress
   );
 
-  router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
+  // router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
   await config.registerRouter(router.address);
-  console.log("Router:", router.address);
+  // console.log("Router:", router.address);
 }
 
 async function createMulticall2() {
@@ -178,11 +178,11 @@ async function createPair() {
   let baseTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mockWETH in testnet
   let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526"; // mockUSDC in testnet
 
-  if (pairFactory == null) {
-    let pairFactoryAddress = "0x125A70fDa17D69b364cD67200E0df3417dBb7869";
-    const PairFactory = await ethers.getContractFactory("PairFactory");
-    pairFactory = await PairFactory.attach(pairFactoryAddress);
-  }
+  // if (pairFactory == null) {
+  //   let pairFactoryAddress = "0x125A70fDa17D69b364cD67200E0df3417dBb7869";
+  //   const PairFactory = await ethers.getContractFactory("PairFactory");
+  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
+  // }
 
   await pairFactory.createPair(baseTokenAddress, quoteTokenAddress);
   ammAddress = await pairFactory.getAmm(baseTokenAddress, quoteTokenAddress);

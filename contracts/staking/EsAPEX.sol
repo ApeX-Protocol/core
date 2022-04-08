@@ -38,8 +38,10 @@ contract EsAPEX is IERC20, Whitelist {
         address to,
         uint256 value
     ) external override operatorOrWhitelist returns (bool) {
-        if (allowance[from][msg.sender] != type(uint256).max) {
-            allowance[from][msg.sender] = allowance[from][msg.sender] - value;
+        uint256 currentAllowance = allowance[from][msg.sender];
+        if (currentAllowance != type(uint256).max) {
+            require(currentAllowance >= value, "ERC20: transfer amount exceeds allowance");
+            allowance[from][msg.sender] = currentAllowance - value;
         }
         _transfer(from, to, value);
         return true;
@@ -76,7 +78,9 @@ contract EsAPEX is IERC20, Whitelist {
         address to,
         uint256 value
     ) private {
-        balanceOf[from] = balanceOf[from] - value;
+        uint256 fromBalance = balanceOf[from];
+        require(fromBalance >= value, "ERC20: transfer amount exceeds balance");
+        balanceOf[from] = fromBalance - value;
         balanceOf[to] = balanceOf[to] + value;
         emit Transfer(from, to, value);
     }

@@ -54,6 +54,10 @@ contract PriceOracleForTest is IPriceOracle {
         return quoteAmount * (10**(18 - quoteDecimals));
     }
 
+    function getMarketPrice(address amm) public view override returns (uint256) {
+        
+    }
+
     function getMarkPrice(address amm) public view override returns (uint256 price, bool isIndexPrice) {
         (uint256 baseReserve, uint256 quoteReserve, ) = IAmm(amm).getReserves();
         uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();

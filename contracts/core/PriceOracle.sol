@@ -128,14 +128,17 @@ contract PriceOracle is IPriceOracle, Initializable {
         return quoteAmount * (10**(18 - quoteDecimals));
     }
 
-    // the price is scaled by 1e18. example: 1eth = 2000usdt, price = 2000*1e18
-    function getMarkPrice(address amm) public view override returns (uint256 price, bool isIndexPrice) {
+    function getMarketPrice(address amm) public view override returns (uint256) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
         uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
         uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
         uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
-        price = exponent.mulDiv(quoteReserve, baseReserve);
+        return exponent.mulDiv(quoteReserve, baseReserve);
+    }
 
+    // the price is scaled by 1e18. example: 1eth = 2000usdt, price = 2000*1e18
+    function getMarkPrice(address amm) public view override returns (uint256 price, bool isIndexPrice) {
+        price = getMarketPrice(amm);
         uint256 indexPrice = getIndexPrice(amm);
         if (price * 100 >= indexPrice * (100 + priceGap) || price * 100 <= indexPrice * (100 - priceGap)) {
             price = indexPrice;
@@ -252,12 +255,12 @@ contract PriceOracle is IPriceOracle, Initializable {
         }
     }
 
-    //premiumFraction is (markPrice - indexPrice) / 24h / indexPrice, scale by 1e18
+    //premiumFraction is (marketPrice - indexPrice) / 24h / indexPrice, scale by 1e18
     function getPremiumFraction(address amm) external view override returns (int256) {
-        (uint256 markPrice, ) = getMarkPrice(amm);
+        uint256 marketPrice = getMarketPrice(amm);
         uint256 indexPrice = getIndexPrice(amm);
-        require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
-        return ((int256(markPrice) - int256(indexPrice)) * 1e18) / (24 * 3600) / int256(indexPrice);
+        require(marketPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
+        return ((int256(marketPrice) - int256(indexPrice)) * 1e18) / (24 * 3600) / int256(indexPrice);
     }
 
     function quoteSingle(

@@ -340,6 +340,7 @@ contract ApeXPool is IApeXPool, Reentrant {
 
         //mint esApeX to _staker
         factory.mintEsApeX(_staker, yieldAmount);
+        emit MintEsApeX(_staker, yieldAmount);
     }
 
     function vest(uint256 vestAmount) external override {

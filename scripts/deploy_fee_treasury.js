@@ -9,25 +9,20 @@ const main = async () => {
   // const operator = "0x1956b2c4C511FDDd9443f50b36C4597D10cD9985";
   // const nextSettleTime = Math.round(new Date().getTime() / 1000) + 24 * 3600;
   //// Testnet
-  const router = "0x6DB28E52F23Af499008Ab3bDa41b723273d45fD7";
   const v3Router = "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45";
   const usdc = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526"; // mockUSDC in testnet
   const operator = "0x1956b2c4C511FDDd9443f50b36C4597D10cD9985";
   const nextSettleTime = Math.round(new Date().getTime() / 1000) + 60 * 10;
 
   const FeeTreasury = await ethers.getContractFactory("FeeTreasury");
-  let feeTreasury = await FeeTreasury.deploy(router, v3Router, usdc, operator, nextSettleTime);
-  console.log("feeTreasury:", feeTreasury.address);
-  console.log(
-    verifyStr,
-    process.env.HARDHAT_NETWORK,
-    feeTreasury.address,
-    router,
-    v3Router,
-    usdc,
-    operator,
-    nextSettleTime
-  );
+  let feeTreasury = await FeeTreasury.deploy(v3Router, usdc, operator, nextSettleTime);
+  console.log("FeeTreasury:", feeTreasury.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, feeTreasury.address, v3Router, usdc, operator, nextSettleTime);
+
+  let configAddress = "0x37a74ECe864f40b156eA7e0b2b8EAB8097cb2512";
+  const Config = await ethers.getContractFactory("Config");
+  let config = await Config.attach(configAddress);
+  await config.registerRouter(feeTreasury.address);
 };
 
 main()

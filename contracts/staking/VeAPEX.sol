@@ -6,6 +6,8 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 
 contract VeAPEX is ERC20Votes {
     address public stakingPoolFactory;
+    event Mint(address, uint256);
+    event Burn(address, uint256);
 
     constructor(address _stakingPoolFactory) ERC20("veApeX token", "veApeX") ERC20Permit("veApeX token") {
         stakingPoolFactory = _stakingPoolFactory;
@@ -14,11 +16,15 @@ contract VeAPEX is ERC20Votes {
     function mint(address account, uint256 amount) external {
         require(msg.sender == stakingPoolFactory, "veApeX.mint: NO_AUTHORITY");
         _mint(account, amount);
+
+        emit Mint(account, amount);
     }
 
     function burn(address account, uint256 amount) external {
         require(msg.sender == stakingPoolFactory, "veApeX.burn: NO_AUTHORITY");
         _burn(account, amount);
+
+        emit Burn(account, amount);
     }
 
     function approve(address, uint256) public pure override returns (bool) {

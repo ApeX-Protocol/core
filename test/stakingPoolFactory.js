@@ -91,6 +91,37 @@ describe("stakingPoolFactory contract", function () {
     it("revert when set null address", async function () {
       await expect(stakingPoolFactory.setStakingPoolTemplate(ethers.constants.AddressZero)).to.be.reverted;
     });
+
+    describe("after set new pool template", function () {
+      let alpToken;
+      let StakingPoolTemplate;
+      let NewStakingPoolTemplate;
+      let MockToken;
+      beforeEach(async function () {
+        StakingPoolTemplate = await ethers.getContractFactory("StakingPool");
+        NewStakingPoolTemplate = await ethers.getContractFactory("NewPoolTemplate");
+        MockToken = await ethers.getContractFactory("MockToken");
+
+        alpToken = await MockToken.deploy("alp token", "alp");
+        newStakingPoolTemplate = await NewStakingPoolTemplate.deploy();
+
+        await stakingPoolFactory.createPool(slpToken.address, 79);
+        await stakingPoolFactory.setStakingPoolTemplate(newStakingPoolTemplate.address);
+        await stakingPoolFactory.createPool(alpToken.address, 1000);
+      });
+
+      it("old created pool use old pool template", async function () {
+        slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
+        slpPool = StakingPoolTemplate.attach(slpPoolAddress);
+        expect((await slpPool.getDepositsLength(owner.address)).toNumber()).to.be.equal(0);
+      });
+
+      it("new created pool use new pool template", async function () {
+        alpPoolAddress = await stakingPoolFactory.tokenPoolMap(alpToken.address);
+        alpPool = NewStakingPoolTemplate.attach(alpPoolAddress);
+        expect((await alpPool.getDepositsLength(owner.address)).toNumber()).to.be.equal(10000);
+      });
+    });
   });
 
   describe("createPool", function () {
@@ -136,7 +167,7 @@ describe("stakingPoolFactory contract", function () {
       const StakingPoolTemplate = await ethers.getContractFactory("StakingPool");
       await stakingPoolFactory.createPool(slpToken.address, 79);
       slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
-      slpPool = await StakingPoolTemplate.attach(slpPoolAddress);
+      slpPool = StakingPoolTemplate.attach(slpPoolAddress);
       await expect(slpPool.initialize(stakingPoolFactory.address, slpToken.address)).to.be.revertedWith(
         "Initializable: contract is already initialized"
       );
@@ -154,12 +185,47 @@ describe("stakingPoolFactory contract", function () {
         await stakingPoolFactory.createPool(slpToken.address, 79);
       });
 
-      it("can create pool", async function () {
+      it("can create pool again", async function () {
         let slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
         await stakingPoolFactory.unregisterPool(slpPoolAddress);
 
         await stakingPoolFactory.createPool(slpToken.address, 69);
         expect(await stakingPoolFactory.totalWeight()).to.be.equal(90);
+      });
+    });
+
+    describe("settle the former pools when register new pool or unregister old pool", function () {
+      let pendingReward;
+      let oldPriceOfWeight;
+      let newPriceOfWeight;
+      beforeEach(async function () {
+        pendingReward = await stakingPoolFactory.calPendingFactoryReward();
+        expect(pendingReward.toNumber()).to.greaterThan(0);
+
+        oldPriceOfWeight = await stakingPoolFactory.priceOfWeight();
+        expect(oldPriceOfWeight.toNumber()).to.equal(0);
+      });
+
+      it("price of weight increase", async function () {
+        await stakingPoolFactory.createPool(slpToken.address, 79);
+        pendingReward = await stakingPoolFactory.calPendingFactoryReward();
+        expect(pendingReward).to.be.equal(0);
+        newPriceOfWeight = await stakingPoolFactory.priceOfWeight();
+        expect(newPriceOfWeight - oldPriceOfWeight).to.greaterThan(0);
+        oldPriceOfWeight = newPriceOfWeight;
+
+        await stakingPoolFactory.unregisterPool(await stakingPoolFactory.tokenPoolMap(slpToken.address));
+        pendingReward = await stakingPoolFactory.calPendingFactoryReward();
+        expect(pendingReward).to.be.equal(0);
+        newPriceOfWeight = await stakingPoolFactory.priceOfWeight();
+        expect(newPriceOfWeight - oldPriceOfWeight).to.greaterThan(0);
+        oldPriceOfWeight = newPriceOfWeight;
+
+        await stakingPoolFactory.createPool(slpToken.address, 69);
+        pendingReward = await stakingPoolFactory.calPendingFactoryReward();
+        expect(pendingReward).to.be.equal(0);
+        newPriceOfWeight = await stakingPoolFactory.priceOfWeight();
+        expect(newPriceOfWeight - oldPriceOfWeight).to.greaterThan(0);
       });
     });
   });
@@ -188,6 +254,21 @@ describe("stakingPoolFactory contract", function () {
     it("unregister a registered stakingPool", async function () {
       await stakingPoolFactory.unregisterPool(apexPool.address);
       expect(await stakingPoolFactory.totalWeight()).to.be.equal(0);
+      expect((await stakingPoolFactory.lastTimeUpdatePriceOfWeight()).toNumber()).to.greaterThan(0);
+
+      let poolWeight = await stakingPoolFactory.poolWeightMap(apexPool.address);
+      expect(poolWeight.weight).to.be.equal(21);
+      expect(poolWeight.lastYieldPriceOfWeight).to.be.equal(0);
+      expect(poolWeight.exitYieldPriceOfWeight.toNumber()).to.be.equal(await stakingPoolFactory.priceOfWeight());
+
+      expect(await stakingPoolFactory.tokenPoolMap(apexPool.address)).to.be.equal(ethers.constants.AddressZero);
+    });
+
+    it("reverted when unregister a unregistered stakingPool", async function () {
+      await stakingPoolFactory.unregisterPool(apexPool.address);
+      await expect(stakingPoolFactory.unregisterPool(apexPool.address)).to.be.revertedWith(
+        "spf.unregisterPool: POOL_HAS_UNREGISTERED"
+      );
     });
 
     it("reverted when unregister by unauthorized account", async function () {
@@ -196,7 +277,7 @@ describe("stakingPoolFactory contract", function () {
       );
     });
 
-    it("revert when unregister a unregistered stakingPool", async function () {
+    it("revert when unregister a never registered stakingPool", async function () {
       await expect(stakingPoolFactory.unregisterPool(fakeApexPool.address)).to.be.revertedWith(
         "spf.unregisterPool: POOL_NOT_REGISTERED"
       );
@@ -211,7 +292,7 @@ describe("stakingPoolFactory contract", function () {
 
       it("can process exist reward after unregister pool", async function () {
         let slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
-        let slpPool = await StakingPoolTemplate.attach(slpPoolAddress);
+        let slpPool = StakingPoolTemplate.attach(slpPoolAddress);
         await slpToken.mint(owner.address, 100_0000);
         await slpToken.approve(slpPool.address, 100_0000);
         await slpPool.stake(10000, 0);
@@ -227,7 +308,7 @@ describe("stakingPoolFactory contract", function () {
 
       it("final reward of unregister pool is fixed", async function () {
         let slpPoolAddress = await stakingPoolFactory.tokenPoolMap(slpToken.address);
-        let slpPool = await StakingPoolTemplate.attach(slpPoolAddress);
+        let slpPool = StakingPoolTemplate.attach(slpPoolAddress);
         await slpToken.mint(owner.address, 100_0000);
         await slpToken.approve(slpPool.address, 100_0000);
         await slpPool.stake(10000, 0);
@@ -250,26 +331,11 @@ describe("stakingPoolFactory contract", function () {
     });
   });
 
-  describe("updateApeXPerSec", function () {
-    it("update apex rewards per sec", async function () {
-      await network.provider.send("evm_mine");
-      await stakingPoolFactory.updateApeXPerSec();
-      expect(await stakingPoolFactory.apeXPerSec()).to.be.equal(97);
-
-      await network.provider.send("evm_mine");
-      await stakingPoolFactory.updateApeXPerSec();
-      expect(await stakingPoolFactory.apeXPerSec()).to.be.equal(94);
-    });
-
-    it("revert when update apeXPerSec in next block", async function () {
-      await stakingPoolFactory.updateApeXPerSec();
-      await expect(stakingPoolFactory.updateApeXPerSec()).to.be.revertedWith("spf.updateApeXPerSec: TOO_FREQUENT");
-    });
-  });
-
   describe("changePoolWeight", function () {
     it("change pool weight", async function () {
       await stakingPoolFactory.changePoolWeight(apexPool.address, 89);
+      let poolWeight = await stakingPoolFactory.poolWeightMap(apexPool.address);
+      expect(poolWeight.weight).to.be.equal(89);
       expect(await stakingPoolFactory.totalWeight()).to.be.equal(89);
     });
 
@@ -297,6 +363,69 @@ describe("stakingPoolFactory contract", function () {
         "spf.changePoolWeight: CANT_CHANGE_TO_ZERO_WEIGHT"
       );
     });
+
+    describe("settle the former pools when change pool weight", function () {
+      let pendingReward;
+      let oldPriceOfWeight;
+      let newPriceOfWeight;
+      beforeEach(async function () {
+        pendingReward = await stakingPoolFactory.calPendingFactoryReward();
+        expect(pendingReward.toNumber()).to.greaterThan(0);
+
+        oldPriceOfWeight = await stakingPoolFactory.priceOfWeight();
+        expect(oldPriceOfWeight.toNumber()).to.equal(0);
+      });
+
+      it("price of weight increase after change pool weight", async function () {
+        await stakingPoolFactory.changePoolWeight(apexPool.address, 79);
+        pendingReward = await stakingPoolFactory.calPendingFactoryReward();
+        expect(pendingReward).to.be.equal(0);
+        newPriceOfWeight = await stakingPoolFactory.priceOfWeight();
+        expect(newPriceOfWeight - oldPriceOfWeight).to.greaterThan(0);
+        oldPriceOfWeight = newPriceOfWeight;
+
+        await stakingPoolFactory.changePoolWeight(apexPool.address, 69);
+        pendingReward = await stakingPoolFactory.calPendingFactoryReward();
+        expect(pendingReward).to.be.equal(0);
+        newPriceOfWeight = await stakingPoolFactory.priceOfWeight();
+        expect(newPriceOfWeight - oldPriceOfWeight).to.greaterThan(0);
+        oldPriceOfWeight = newPriceOfWeight;
+
+        await stakingPoolFactory.changePoolWeight(apexPool.address, 59);
+        pendingReward = await stakingPoolFactory.calPendingFactoryReward();
+        expect(pendingReward).to.be.equal(0);
+        newPriceOfWeight = await stakingPoolFactory.priceOfWeight();
+        expect(newPriceOfWeight - oldPriceOfWeight).to.greaterThan(0);
+      });
+    });
+  });
+
+  describe("updateApeXPerSec", function () {
+    it("update apex rewards per sec", async function () {
+      await network.provider.send("evm_mine");
+      await stakingPoolFactory.updateApeXPerSec();
+      expect(await stakingPoolFactory.apeXPerSec()).to.be.equal(97);
+
+      await network.provider.send("evm_mine");
+      await stakingPoolFactory.updateApeXPerSec();
+      expect(await stakingPoolFactory.apeXPerSec()).to.be.equal(94);
+    });
+
+    it("revert when update apeXPerSec in next block", async function () {
+      await stakingPoolFactory.updateApeXPerSec();
+      await expect(stakingPoolFactory.updateApeXPerSec()).to.be.revertedWith("spf.updateApeXPerSec: TOO_FREQUENT");
+    });
+
+    it("after update apeXPerSec, decrease release ratio", async function () {
+      await network.provider.send("evm_mine");
+      await stakingPoolFactory.updateApeXPerSec();
+      let oldPendingReward = await stakingPoolFactory.calPendingFactoryReward();
+
+      await network.provider.send("evm_mine");
+      await stakingPoolFactory.updateApeXPerSec();
+      let newPendingReward = await stakingPoolFactory.calPendingFactoryReward();
+      expect(oldPendingReward * 0.97 - newPendingReward).to.lessThan(oldPendingReward * 0.001);
+    });
   });
 
   describe("calStakingPoolApeXReward", function () {
@@ -306,6 +435,7 @@ describe("stakingPoolFactory contract", function () {
       let result = await stakingPoolFactory.calStakingPoolApeXReward(apexToken.address);
       let pending = (await stakingPoolFactory.calPendingFactoryReward()).toNumber();
       expect(result[0].toNumber()).to.lessThanOrEqual(pending);
+      expect(result[0].toNumber()).to.greaterThan(0);
     });
   });
 
@@ -379,6 +509,10 @@ describe("stakingPoolFactory contract", function () {
         "Ownable: REQUIRE_OWNER"
       );
     });
+
+    it("reverted when set esApeX which has been set", async function () {
+      await expect(stakingPoolFactory.setEsApeX(addr1.address)).to.be.revertedWith("spf.setEsApeX: HAS_SET");
+    });
   });
 
   describe("setVeApeX", function () {
@@ -387,9 +521,18 @@ describe("stakingPoolFactory contract", function () {
         "Ownable: REQUIRE_OWNER"
       );
     });
+
+    it("reverted when set veApeX which has been set", async function () {
+      await expect(stakingPoolFactory.setVeApeX(addr2.address)).to.be.revertedWith("spf.setVeApeX: HAS_SET");
+    });
   });
 
   describe("setMinRemainRatioAfterBurn", function () {
+    it("can set min remain ratio after burn", async function () {
+      await stakingPoolFactory.setMinRemainRatioAfterBurn(10);
+      expect(await stakingPoolFactory.minRemainRatioAfterBurn()).to.be.equal(10);
+    });
+
     it("reverted when set by unauthorized account", async function () {
       await expect(stakingPoolFactory.connect(addr1).setMinRemainRatioAfterBurn(10)).to.be.revertedWith(
         "Ownable: REQUIRE_OWNER"
@@ -404,6 +547,11 @@ describe("stakingPoolFactory contract", function () {
   });
 
   describe("setRemainForOtherVest", function () {
+    it("can set remain for other vest", async function () {
+      await stakingPoolFactory.setRemainForOtherVest(10);
+      expect(await stakingPoolFactory.remainForOtherVest()).to.be.equal(10);
+    });
+
     it("reverted when set by unauthorized account", async function () {
       await expect(stakingPoolFactory.connect(addr1).setRemainForOtherVest(10)).to.be.revertedWith(
         "Ownable: REQUIRE_OWNER"
