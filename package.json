@@ -1,6 +1,6 @@
 {
   "name": "@apex-protocol/core",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Smart contracts of ApeX Protocol",
   "publishConfig": {
     "access": "public"
@@ -20,8 +20,14 @@
   "homepage": "https://apex.exchange",
   "files": [
     "contracts/core",
+    "contracts/utils",
+    "contracts/libraries",
     "artifacts/contracts/core/**/*.json",
-    "!artifacts/contracts/core/**/*.dbg.json"
+    "artifacts/contracts/utils/**/*.json",
+    "artifacts/contracts/libraries/**/*.json",
+    "!artifacts/contracts/core/**/*.dbg.json",
+    "!artifacts/contracts/utils/**/*.dbg.json",
+    "!artifacts/contracts/libraries/**/*.dbg.json"
   ],
   "engines": {
     "node": ">=10"

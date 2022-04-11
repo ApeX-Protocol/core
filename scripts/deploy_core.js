@@ -39,11 +39,11 @@ const main = async () => {
   // await createConfig();
   // await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
-  await createPair();
+  // await createPair();
 };
 
 async function attachApeXToken() {
@@ -120,16 +120,16 @@ async function createPCVTreasury() {
 }
 
 async function createRouter() {
-  // if (config == null) {
-  //   let configAddress = "0x38a71796bC0291Bc09f4D890B45A9A93d49eDf70";
-  //   const Config = await ethers.getContractFactory("Config");
-  //   config = await Config.attach(configAddress);
-  // }
-  // if (pairFactory == null) {
-  //   let pairFactoryAddress = "0xb34f82f214ccb2877612941b0a597160279873da";
-  //   const PairFactory = await ethers.getContractFactory("PairFactory");
-  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
-  // }
+  if (config == null) {
+    let configAddress = "0x38a71796bC0291Bc09f4D890B45A9A93d49eDf70";
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach(configAddress);
+  }
+  if (pairFactory == null) {
+    let pairFactoryAddress = "0xA7B799832B46B51b2b6a156FDCE58525dE24Ac0f";
+    const PairFactory = await ethers.getContractFactory("PairFactory");
+    pairFactory = await PairFactory.attach(pairFactoryAddress);
+  }
   if (pcvTreasury == null) {
     let pcvTreasuryAddress = "0x73f5d8fb154d19a0C496E7411488cD455aB0373A";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
@@ -138,7 +138,7 @@ async function createRouter() {
 
   const Router = await ethers.getContractFactory("Router");
   router = await Router.deploy();
-  // await router.initialize(config.address, pairFactory.address, pcvTreasury.address, wethAddress);
+  await router.initialize(config.address, pairFactory.address, pcvTreasury.address, wethAddress);
   console.log("Router:", router.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, router.address);
 
@@ -174,11 +174,11 @@ async function createPair() {
   // let baseTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mockWETH in testnet
   // let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526"; // mockUSDC in testnet
 
-  if (pairFactory == null) {
-    let pairFactoryAddress = "0xaE357428B82672c81648c8f6C99642d0aa787213";
-    const PairFactory = await ethers.getContractFactory("PairFactory");
-    pairFactory = await PairFactory.attach(pairFactoryAddress);
-  }
+  // if (pairFactory == null) {
+  //   let pairFactoryAddress = "0xaE357428B82672c81648c8f6C99642d0aa787213";
+  //   const PairFactory = await ethers.getContractFactory("PairFactory");
+  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
+  // }
 
   await pairFactory.createPair(baseTokenAddress, quoteTokenAddress);
   ammAddress = await pairFactory.getAmm(baseTokenAddress, quoteTokenAddress);
