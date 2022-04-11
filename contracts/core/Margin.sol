@@ -315,7 +315,11 @@ contract Margin is IMargin, IVault, Reentrant {
         if (remainBaseAmountAfterLiquidate >= 0) {
             bonus = (remainBaseAmountAfterLiquidate.abs() * IConfig(config).liquidateFeeRatio()) / 10000;
             if (!isIndexPrice) {
-                _minusPositionWithAmm(_trader, isLong, quoteAmount);
+                if (isLong) {
+                    IAmm(amm).forceSwap(_trader, baseToken, quoteToken, baseAmount, quoteAmount);
+                } else {
+                    IAmm(amm).forceSwap(_trader, quoteToken, baseToken, quoteAmount, baseAmount);
+                }
             }
 
             if (remainBaseAmountAfterLiquidate.abs() > bonus) {
