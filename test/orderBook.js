@@ -15,7 +15,7 @@ let ammFactory;
 let routerForKeeper;
 let orderBook;
 let orderStruct =
-  "tuple(address routerToExecute, address trader, address baseToken, address quoteToken, uint8 side, uint256 baseAmount, uint256 quoteAmount, uint256 baseAmountLimit, uint256 limitPrice, uint256 deadline, bool withWallet, bytes nonce)";
+  "tuple(address routerToExecute, address trader, address baseToken, address quoteToken, uint8 side, uint256 baseAmount, uint256 quoteAmount, uint256 slippage, uint256 limitPrice, uint256 deadline, bool withWallet, bytes nonce)";
 let closeOrderStruct =
   "tuple(address routerToExecute, address trader, address baseToken, address quoteToken, uint8 side, uint256 quoteAmount, uint256 limitPrice, uint256 deadline, bool autoWithdraw, bytes nonce)";
 let order;
@@ -76,7 +76,7 @@ describe("OrderBook Contract", function () {
       side: 0,
       baseAmount: 10000,
       quoteAmount: 30000,
-      baseAmountLimit: 1000,
+      slippage: 500, //5%
       limitPrice: "2100000000000000000", //2.1
       deadline: 999999999999,
       withWallet: true,
@@ -91,7 +91,7 @@ describe("OrderBook Contract", function () {
       side: 0,
       baseAmount: 0, //wrong amount
       quoteAmount: 30000,
-      baseAmountLimit: 1000,
+      slippage: 500, //5%
       limitPrice: "2100000000000000000",
       deadline: 999999999999,
       withWallet: true,
@@ -106,7 +106,7 @@ describe("OrderBook Contract", function () {
       side: 1,
       baseAmount: 10000,
       quoteAmount: 30000,
-      baseAmountLimit: 100000,
+      slippage: 600, //6%
       limitPrice: "1900000000000000000", //1.9
       deadline: 999999999999,
       withWallet: true,
@@ -242,7 +242,6 @@ describe("OrderBook Contract", function () {
     it("execute a new open long position order", async function () {
       data = abiCoder.encode([orderStruct], [order]);
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
-
       await orderBook.executeOpen(order, signature);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(-30000);
@@ -287,6 +286,22 @@ describe("OrderBook Contract", function () {
       let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
 
       await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("OrderBook.executeOpen: WRONG_ROUTER");
+    });
+
+    it("revert when execute long with an invalid slippage", async function () {
+      order.slippage = 1;
+      data = abiCoder.encode([orderStruct], [order]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("_executeOpen: call failed");
+    });
+
+    it("revert when execute short with invalid slippage", async function () {
+      orderShort.slippage = 1;
+      data = abiCoder.encode([orderStruct], [orderShort]);
+      let signature = await owner.signMessage(hexStringToByteArray(ethers.utils.keccak256(data)));
+
+      await expect(orderBook.executeOpen(orderShort, signature)).to.be.revertedWith("_executeOpen: call failed");
     });
   });
 

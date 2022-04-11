@@ -8,7 +8,6 @@ import "./interfaces/IOrderBook.sol";
 import "./interfaces/IRouterForKeeper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "hardhat/console.sol";
 
 contract OrderBook is IOrderBook, Ownable, Reentrant {
     using ECDSA for bytes32;
@@ -94,11 +93,8 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         require(order.baseToken != address(0), "OrderBook.executeOpen: ORDER_NOT_FOUND");
         require(order.side == 0 || order.side == 1, "OrderBook.executeOpen: INVALID_SIDE");
 
-        uint256 currentPrice = IRouterForKeeper(routerForKeeper).getSpotPriceWithMultiplier(
-            order.baseToken,
-            order.quoteToken
-        );
-        //check price
+        (uint256 currentPrice, uint256 baseDecimals, uint256 quoteDecimals) = IRouterForKeeper(routerForKeeper)
+            .getSpotPriceWithMultiplier(order.baseToken, order.quoteToken);
         if (order.side == 0) {
             require(currentPrice <= order.limitPrice, "OrderBook.executeOpen: WRONG_PRICE");
         } else {
@@ -107,32 +103,23 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
 
         bool success;
         bytes memory ret;
+        uint256 slippageRatio = (order.side == 0)
+            ? (order.limitPrice * (10**(quoteDecimals - baseDecimals)) * (10000 - order.slippage)) / 10000
+            : (order.limitPrice * (10**(quoteDecimals - baseDecimals)) * (10000 + order.slippage)) / 10000;
         if (order.withWallet) {
             (success, ret) = routerForKeeper.call(
                 abi.encodeWithSignature(
-                    "openPositionWithWallet(address,address,address,address,uint8,uint256,uint256,uint256,uint256)",
-                    order.baseToken,
-                    order.quoteToken,
-                    order.trader,
-                    order.trader,
-                    order.side,
-                    order.baseAmount,
-                    order.quoteAmount,
-                    order.baseAmountLimit,
-                    order.deadline
+                    "openPositionWithWallet((address,address,address,address,uint8,uint256,uint256,uint256,uint256,uint256,bool,bytes),uint256)",
+                    order,
+                    slippageRatio
                 )
             );
         } else {
             (success, ret) = routerForKeeper.call(
                 abi.encodeWithSignature(
-                    "openPositionWithMargin(address,address,address,uint8,uint256,uint256,uint256)",
-                    order.baseToken,
-                    order.quoteToken,
-                    order.trader,
-                    order.side,
-                    order.quoteAmount,
-                    order.baseAmountLimit,
-                    order.deadline
+                    "openPositionWithMargin((address,address,address,address,uint8,uint256,uint256,uint256,uint256,uint256,bool,bytes),uint256)",
+                    order,
+                    slippageRatio
                 )
             );
         }
@@ -154,28 +141,20 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         require(order.baseToken != address(0), "OrderBook.executeClose: ORDER_NOT_FOUND");
         require(order.side == 0 || order.side == 1, "OrderBook.executeClose: INVALID_SIDE");
 
-        uint256 currentPrice = IRouterForKeeper(routerForKeeper).getSpotPriceWithMultiplier(
+        (uint256 currentPrice, , ) = IRouterForKeeper(routerForKeeper).getSpotPriceWithMultiplier(
             order.baseToken,
             order.quoteToken
         );
 
-        //check price
-        if (order.side == 0) {
-            require(currentPrice >= order.limitPrice, "OrderBook.executeClose: WRONG_PRICE");
-        } else {
-            require(currentPrice <= order.limitPrice, "OrderBook.executeClose: WRONG_PRICE");
-        }
+        require(
+            order.side == 0 ? currentPrice >= order.limitPrice : currentPrice <= order.limitPrice,
+            "OrderBook.executeClose: WRONG_PRICE"
+        );
 
         (bool success, bytes memory ret) = routerForKeeper.call(
             abi.encodeWithSignature(
-                "closePosition(address,address,address,address,uint256,uint256,bool)",
-                order.baseToken,
-                order.quoteToken,
-                order.trader,
-                order.trader,
-                order.quoteAmount,
-                order.deadline,
-                order.autoWithdraw
+                "closePosition((address,address,address,address,uint8,uint256,uint256,uint256,bool,bytes))",
+                order
             )
         );
 

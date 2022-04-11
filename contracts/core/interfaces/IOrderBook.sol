@@ -15,7 +15,7 @@ interface IOrderBook {
         uint8 side;
         uint256 baseAmount;
         uint256 quoteAmount;
-        uint256 baseAmountLimit;
+        uint256 slippage;
         uint256 limitPrice;
         uint256 deadline;
         bool withWallet;
