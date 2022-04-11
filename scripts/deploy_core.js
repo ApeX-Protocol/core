@@ -188,14 +188,14 @@ async function createPair() {
 async function createOrderBook() {
   const RouterForKeeper = await ethers.getContractFactory("RouterForKeeper");
   routerForKeeper = await RouterForKeeper.deploy(pairFactory.address, wethAddress);
+  console.log("RouterForKeeper:", routerForKeeper.address);
 
   const OrderBook = await ethers.getContractFactory("OrderBook");
   orderBook = await OrderBook.deploy(routerForKeeper.address);
-
-  console.log("RouterForKeeper:", routerForKeeper.address);
   console.log("OrderBook:", orderBook.address);
+
   console.log(verifyStr, process.env.HARDHAT_NETWORK, routerForKeeper.address, pairFactory.address, wethAddress);
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, routerForKeeper.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, orderBook.address, routerForKeeper.address);
 }
 
 main()
