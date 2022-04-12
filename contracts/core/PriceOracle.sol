@@ -317,6 +317,7 @@ contract PriceOracle is IPriceOracle, Initializable {
         address quoteToken,
         address pool
     ) internal {
+        require(v3Pools[baseToken][quoteToken] != address(0), "PriceOracle._setupV3Pool: POOL_ALREADY_SETUP");
         v3Pools[baseToken][quoteToken] = pool;
         IUniswapV3Pool v3Pool = IUniswapV3Pool(pool);
         (, , , , uint16 cardinalityNext, , ) = v3Pool.slot0();

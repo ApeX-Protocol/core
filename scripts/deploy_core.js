@@ -35,11 +35,11 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   // await attachApeXToken();
-  // await createPriceOracle();
+  await createPriceOracle();
   // await createConfig();
   // await createPairFactory();
   // await createPCVTreasury();
-  await createRouter();
+  // await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -59,8 +59,8 @@ async function createPriceOracle() {
   console.log("PriceOracle:", priceOracle.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, priceOracle.address);
 
-  priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
-  console.log("PriceOracle:", priceOracle.address);
+  // priceOracle = await upgrades.deployProxy(PriceOracle, [wethAddress, v3FactoryAddress]);
+  // console.log("PriceOracle:", priceOracle.address);
 
   // if (config == null) {
   //   const Config = await ethers.getContractFactory("Config");
