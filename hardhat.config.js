@@ -49,6 +49,14 @@ module.exports = {
       url: process.env.ARBITRUM_TESTNET_RPC,
       accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
     },
+    bscMainnet: {
+      url: process.env.BSC_MAINNET_PRC,
+      accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
+    },
+    bscTestnet: {
+      url: process.env.BSC_TESTNET_PRC,
+      accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
+    },
   },
   etherscan: {
     apiKey: process.env.ARBISCAN_API_KEY,
