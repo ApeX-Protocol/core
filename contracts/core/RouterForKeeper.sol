@@ -127,11 +127,15 @@ contract RouterForKeeper is IRouterForKeeper {
     {
         address margin = IPairFactory(pairFactory).getMargin(order.baseToken, order.quoteToken);
         require(margin != address(0), "RouterForKeeper.closePosition: NOT_FOUND_MARGIN");
+        (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(order.trader);
+        require(
+            quoteSizeBefore > 0 ? order.side == 1 : order.side == 0,
+            "RouterForKeeper.closePosition: SIDE_NOT_MATCH"
+        );
         if (!order.autoWithdraw) {
             baseAmount = IMargin(margin).closePosition(order.trader, order.quoteAmount);
         } else {
             {
-                (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(order.trader);
                 baseAmount = IMargin(margin).closePosition(order.trader, order.quoteAmount);
                 (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(order.trader);
                 int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(order.trader);

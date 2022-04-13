@@ -17,7 +17,7 @@ let ammFactory;
 let routerForKeeper;
 let order;
 
-describe("OrderBook Contract", function () {
+describe("RouterForKeeper Contract", function () {
   beforeEach(async function () {
     [owner, treasury, addr1] = await ethers.getSigners();
 
@@ -48,9 +48,6 @@ describe("OrderBook Contract", function () {
     const RouterForKeeper = await ethers.getContractFactory("RouterForKeeper");
     routerForKeeper = await RouterForKeeper.deploy(pairFactory.address, weth.address);
 
-    const OrderBook = await ethers.getContractFactory("OrderBook");
-    orderBook = await OrderBook.deploy(routerForKeeper.address);
-
     await config.setPriceOracle(priceOracle.address);
     await pairFactory.init(ammFactory.address, marginFactory.address);
 
@@ -73,7 +70,7 @@ describe("OrderBook Contract", function () {
       side: 0,
       baseAmount: 10000,
       quoteAmount: 30000,
-      baseAmountLimit: 1000,
+      slippage: 500,
       limitPrice: "2100000000000000000", //2.1
       deadline: 999999999999,
       withWallet: true,
@@ -88,7 +85,7 @@ describe("OrderBook Contract", function () {
       side: 0,
       baseAmount: 0, //wrong amount
       quoteAmount: 30000,
-      baseAmountLimit: 1000,
+      slippage: 500,
       limitPrice: "2100000000000000000",
       deadline: 999999999999,
       withWallet: true,
@@ -103,7 +100,7 @@ describe("OrderBook Contract", function () {
       side: 1,
       baseAmount: 10000,
       quoteAmount: 30000,
-      baseAmountLimit: 100000,
+      slippage: 500,
       limitPrice: "1900000000000000000", //1.9
       deadline: 999999999999,
       withWallet: true,
@@ -190,99 +187,41 @@ describe("OrderBook Contract", function () {
 
     it("can open position with wallet", async function () {
       await routerForKeeper.depositETH(owner.address, { value: 1000000 });
-      await routerForKeeper.openPositionWithWallet(
-        order.baseToken,
-        order.quoteToken,
-        order.trader,
-        order.trader,
-        order.side,
-        order.baseAmount,
-        order.quoteAmount,
-        order.baseAmountLimit,
-        order.deadline
-      );
+      await routerForKeeper.openPositionWithWallet(order, 0);
     });
 
     it("revert when open position with wrong pair", async function () {
-      await expect(
-        routerForKeeper.openPositionWithWallet(
-          order.baseToken,
-          order.baseToken,
-          order.trader,
-          order.trader,
-          order.side,
-          order.baseAmount,
-          order.quoteAmount,
-          order.baseAmountLimit,
-          order.deadline
-        )
-      ).to.be.revertedWith("RouterForKeeper.openPositionWithWallet: NOT_FOUND_MARGIN");
+      order.baseToken = owner.address;
+      await expect(routerForKeeper.openPositionWithWallet(order, 0)).to.be.revertedWith(
+        "RouterForKeeper.openPositionWithWallet: NOT_FOUND_MARGIN"
+      );
     });
 
     it("revert when open position with invalid side", async function () {
-      await expect(
-        routerForKeeper.openPositionWithWallet(
-          order.baseToken,
-          order.quoteToken,
-          order.trader,
-          order.trader,
-          2,
-          order.baseAmount,
-          order.quoteAmount,
-          order.baseAmountLimit,
-          order.deadline
-        )
-      ).to.be.revertedWith("RouterForKeeper.openPositionWithWallet: INVALID_SIDE");
+      order.side = 2;
+      await expect(routerForKeeper.openPositionWithWallet(order, 0)).to.be.revertedWith(
+        "RouterForKeeper.openPositionWithWallet: INVALID_SIDE"
+      );
     });
 
     it("revert when open position exceed balance", async function () {
-      await expect(
-        routerForKeeper.openPositionWithWallet(
-          order.baseToken,
-          order.quoteToken,
-          order.trader,
-          order.trader,
-          order.side,
-          order.baseAmount,
-          order.quoteAmount,
-          order.baseAmountLimit,
-          order.deadline
-        )
-      ).to.be.revertedWith("RouterForKeeper.openPositionWithWallet: NO_SUFFICIENT_MARGIN");
+      await expect(routerForKeeper.openPositionWithWallet(order, 0)).to.be.revertedWith(
+        "RouterForKeeper.openPositionWithWallet: NO_SUFFICIENT_MARGIN"
+      );
     });
 
     it("revert when open long position exceed limit", async function () {
       await routerForKeeper.depositETH(owner.address, { value: 1000000 });
-      await expect(
-        routerForKeeper.openPositionWithWallet(
-          order.baseToken,
-          order.quoteToken,
-          order.trader,
-          order.trader,
-          order.side,
-          order.baseAmount,
-          order.quoteAmount,
-          1000000000,
-          order.deadline
-        )
-      ).to.be.revertedWith("RouterForKeeper.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
+      await expect(routerForKeeper.openPositionWithWallet(order, "3002135611318739989")).to.be.revertedWith(
+        "RouterForKeeper.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT"
+      );
     });
 
     it("revert when open short position exceed limit", async function () {
       await routerForKeeper.depositETH(owner.address, { value: 1000000 });
-      await expect(
-        routerForKeeper.openPositionWithWallet(
-          order.baseToken,
-          order.quoteToken,
-          order.trader,
-          order.trader,
-          1,
-          order.baseAmount,
-          order.quoteAmount,
-          0,
-          order.deadline
-        )
-      ).to.be.revertedWith("RouterForKeeper.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
+      await expect(routerForKeeper.openPositionWithWallet(orderShort, 0)).to.be.revertedWith(
+        "RouterForKeeper.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT"
+      );
     });
   });
 
@@ -294,73 +233,35 @@ describe("OrderBook Contract", function () {
 
     it("can open position with margin", async function () {
       await router.deposit(weth.address, usdc.address, owner.address, 1000000);
-      await routerForKeeper.openPositionWithMargin(
-        order.baseToken,
-        order.quoteToken,
-        order.trader,
-        order.side,
-        order.quoteAmount,
-        order.baseAmountLimit,
-        order.deadline
-      );
+      await routerForKeeper.openPositionWithMargin(order, 0);
     });
 
     it("revert when open position with wrong pair", async function () {
-      await expect(
-        routerForKeeper.openPositionWithMargin(
-          order.baseToken,
-          order.baseToken,
-          order.trader,
-          order.side,
-          order.quoteAmount,
-          order.baseAmountLimit,
-          order.deadline
-        )
-      ).to.be.revertedWith("RouterForKeeper.openPositionWithMargin: NOT_FOUND_MARGIN");
+      order.baseToken = owner.address;
+      await expect(routerForKeeper.openPositionWithMargin(order, 0)).to.be.revertedWith(
+        "RouterForKeeper.openPositionWithMargin: NOT_FOUND_MARGIN"
+      );
     });
 
     it("revert when open position with invalid side", async function () {
-      await expect(
-        routerForKeeper.openPositionWithMargin(
-          order.baseToken,
-          order.quoteToken,
-          order.trader,
-          2,
-          order.quoteAmount,
-          order.baseAmountLimit,
-          order.deadline
-        )
-      ).to.be.revertedWith("RouterForKeeper.openPositionWithMargin: INVALID_SIDE");
+      order.side = 2;
+      await expect(routerForKeeper.openPositionWithMargin(order, 0)).to.be.revertedWith(
+        "RouterForKeeper.openPositionWithMargin: INVALID_SIDE"
+      );
     });
 
     it("revert when open long position exceed limit", async function () {
       await router.deposit(weth.address, usdc.address, owner.address, 1000000);
-      await expect(
-        routerForKeeper.openPositionWithMargin(
-          order.baseToken,
-          order.quoteToken,
-          order.trader,
-          order.side,
-          order.quoteAmount,
-          1000000000,
-          order.deadline
-        )
-      ).to.be.revertedWith("RouterForKeeper.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT");
+      await expect(routerForKeeper.openPositionWithMargin(order, "3002135611318739989")).to.be.revertedWith(
+        "RouterForKeeper.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT"
+      );
     });
 
     it("revert when open short position exceed limit", async function () {
       await router.deposit(weth.address, usdc.address, owner.address, 1000000);
-      await expect(
-        routerForKeeper.openPositionWithMargin(
-          order.baseToken,
-          order.quoteToken,
-          order.trader,
-          1,
-          order.quoteAmount,
-          0,
-          order.deadline
-        )
-      ).to.be.revertedWith("RouterForKeeper.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT");
+      await expect(routerForKeeper.openPositionWithMargin(orderShort, 0)).to.be.revertedWith(
+        "RouterForKeeper.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT"
+      );
     });
   });
 
@@ -368,41 +269,39 @@ describe("OrderBook Contract", function () {
     beforeEach(async function () {
       await weth.approve(router.address, 100000000);
       await router.deposit(weth.address, usdc.address, owner.address, 1000000);
-      await routerForKeeper.openPositionWithMargin(
-        order.baseToken,
-        order.quoteToken,
-        order.trader,
-        order.side,
-        order.quoteAmount,
-        order.baseAmountLimit,
-        order.deadline
-      );
+      await routerForKeeper.openPositionWithMargin(order, 800);
     });
 
     it("can close position", async function () {
-      await routerForKeeper.closePosition(
-        closeOrder.baseToken,
-        closeOrder.quoteToken,
-        closeOrder.trader,
-        closeOrder.trader,
-        closeOrder.quoteAmount,
-        closeOrder.deadline,
-        closeOrder.autoWithdraw
-      );
+      await routerForKeeper.closePosition(closeOrder);
     });
 
     it("revert when open position with wrong pair", async function () {
-      await expect(
-        routerForKeeper.closePosition(
-          closeOrder.baseToken,
-          closeOrder.baseToken,
-          closeOrder.trader,
-          closeOrder.trader,
-          closeOrder.quoteAmount,
-          closeOrder.deadline,
-          closeOrder.autoWithdraw
-        )
-      ).to.be.revertedWith("RouterForKeeper.closePosition: NOT_FOUND_MARGIN");
+      closeOrder.baseToken = owner.address;
+      await expect(routerForKeeper.closePosition(closeOrder)).to.be.revertedWith(
+        "RouterForKeeper.closePosition: NOT_FOUND_MARGIN"
+      );
+    });
+
+    it("revert when close a long position with side=1", async function () {
+      closeOrder.side = 1;
+      await expect(routerForKeeper.closePosition(closeOrder)).to.be.revertedWith(
+        "RouterForKeeper.closePosition: SIDE_NOT_MATCH"
+      );
+    });
+
+    it("revert when close a short position with side=0", async function () {
+      await weth.connect(addr1).deposit({ value: 100000000000000 });
+      await weth.connect(addr1).approve(router.address, 100000000000000);
+      await router.connect(addr1).deposit(weth.address, usdc.address, addr1.address, 1000000);
+      orderShort.trader = addr1.address;
+      await routerForKeeper.connect(addr1).openPositionWithMargin(orderShort, "3002135611318739989");
+
+      closeOrderShort.side = 0;
+      closeOrderShort.trader = addr1.address;
+      await expect(routerForKeeper.connect(addr1).closePosition(closeOrderShort)).to.be.revertedWith(
+        "RouterForKeeper.closePosition: SIDE_NOT_MATCH"
+      );
     });
   });
 });
