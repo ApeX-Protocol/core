@@ -108,16 +108,16 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
             : (order.limitPrice * (10**(quoteDecimals - baseDecimals)) * (10000 + order.slippage)) / 10000;
         if (order.withWallet) {
             (success, ret) = routerForKeeper.call(
-                abi.encodeWithSignature(
-                    "openPositionWithWallet((address,address,address,address,uint8,uint256,uint256,uint256,uint256,uint256,bool,bytes),uint256)",
+                abi.encodeWithSelector(
+                    IRouterForKeeper(address(0)).openPositionWithWallet.selector,
                     order,
                     slippageRatio
                 )
             );
         } else {
             (success, ret) = routerForKeeper.call(
-                abi.encodeWithSignature(
-                    "openPositionWithMargin((address,address,address,address,uint8,uint256,uint256,uint256,uint256,uint256,bool,bytes),uint256)",
+                abi.encodeWithSelector(
+                    IRouterForKeeper(address(0)).openPositionWithMargin.selector,
                     order,
                     slippageRatio
                 )
@@ -152,10 +152,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         );
 
         (bool success, bytes memory ret) = routerForKeeper.call(
-            abi.encodeWithSignature(
-                "closePosition((address,address,address,address,uint8,uint256,uint256,uint256,bool,bytes))",
-                order
-            )
+            abi.encodeWithSelector(IRouterForKeeper(address(0)).closePosition.selector, order)
         );
 
         if (requireSuccess) {
