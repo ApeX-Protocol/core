@@ -9,7 +9,7 @@ const verifyStr = "npx hardhat verify --network";
 //// Testnet
 const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
 const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
-const treasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06"; // PCVTreasury address
+const treasuryAddress = "0x42C0E0fdA16CE20C3c15bBF666Ee79EaB5998F20"; // PCVTreasury address
 const slpTokenAddress = "0x473BfBD8bda825f7E39e4Fa826D9a8B5129cE4E7"; // APEX-WETH slp
 
 const apeXPerSec = BigNumber.from("82028346620490110");
