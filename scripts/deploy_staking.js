@@ -31,8 +31,9 @@ let stakingPoolFactory;
 let rewardForStaking;
 
 const main = async () => {
-  await createPools();
-  await createReward();
+  // await createPools();
+  // await createReward();
+  await createPool();
 };
 
 async function createPools() {
@@ -100,6 +101,15 @@ async function createReward() {
   rewardForStaking = await RewardForStaking.deploy(wethAddress);
   console.log("RewardForStaking:", rewardForStaking.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, rewardForStaking.address, wethAddress);
+}
+
+async function createPool() {
+  let lpAddress = "0x2A7Cc7B20732CcB98ee07017eE5970015862ac65";
+  const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
+  stakingPoolFactory = await StakingPoolFactory.attach("0xD016d30b95BF366bFBF019e6B8CDCB453cbeC2b8");
+  await stakingPoolFactory.createPool(lpAddress, slpPoolWeight);
+  let lpPool = StakingPool.attach(await stakingPoolFactory.tokenPoolMap(lpAddress));
+  console.log("lpPool:", lpPool.address);
 }
 
 main()
