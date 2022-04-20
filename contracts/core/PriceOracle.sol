@@ -85,7 +85,7 @@ contract PriceOracle is IPriceOracle, Initializable {
             uint32 _twapInterval = twapInterval;
             if (delta < _twapInterval) _twapInterval = delta;
             uint32[] memory secondsAgos = new uint32[](2);
-            secondsAgos[0] = twapInterval; // from (before)
+            secondsAgos[0] = _twapInterval; // from (before)
             secondsAgos[1] = 0; // to (now)
             int56[] memory tickCumulatives = ammObservations[_amm].observe(
                 currentTime,
