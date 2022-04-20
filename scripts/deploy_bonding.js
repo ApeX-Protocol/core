@@ -27,8 +27,8 @@ let bondPoolFactory;
 
 const main = async () => {
   await createBondPriceOracle();
-  await createPoolTemplate();
-  await createPoolFactory();
+  // await createPoolTemplate();
+  // await createPoolFactory();
 };
 
 async function createBondPriceOracle() {
