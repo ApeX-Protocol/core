@@ -184,4 +184,15 @@ contract FeeTreasury is Ownable {
         
         nextSettleTime = nextSettleTime + settlementInterval;
     }
+
+    function withdrawETH(address to) external onlyOwner {
+        payable(to).transfer(address(this).balance);
+    }
+
+    function withdrawERC20Token(address token_, address to, uint256 amount) external onlyOwner returns (bool) {
+        uint256 balance = IERC20(token_).balanceOf(address(this));
+        require(balance >= amount, "NOT_ENOUGH_BALANCE");
+        require(IERC20(token_).transfer(to, amount));
+        return true;
+    }
 }

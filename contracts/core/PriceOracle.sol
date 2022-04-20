@@ -27,6 +27,8 @@ contract PriceOracle is IPriceOracle, Initializable {
     address public v3Factory;
     uint24[3] public v3Fees;
 
+    // baseToken => quoteToken => true/false
+    mapping(address => mapping(address => bool)) public useBridge;
     // baseToken => quoteToken => v3Pool
     mapping(address => mapping(address => address)) public v3Pools;
     mapping(address => V3Oracle.Observation[65535]) public ammObservations;
@@ -56,6 +58,8 @@ contract PriceOracle is IPriceOracle, Initializable {
             pool = getTargetPool(WETH, quoteToken);
             require(pool != address(0), "PriceOracle.setupTwap: POOL_NOT_FOUND");
             _setupV3Pool(WETH, quoteToken, pool);
+
+            useBridge[baseToken][quoteToken] = true;
         }
 
         ammObservationIndex[amm] = 0;
@@ -85,7 +89,7 @@ contract PriceOracle is IPriceOracle, Initializable {
             uint32 _twapInterval = twapInterval;
             if (delta < _twapInterval) _twapInterval = delta;
             uint32[] memory secondsAgos = new uint32[](2);
-            secondsAgos[0] = twapInterval; // from (before)
+            secondsAgos[0] = _twapInterval; // from (before)
             secondsAgos[1] = 0; // to (now)
             int56[] memory tickCumulatives = ammObservations[_amm].observe(
                 currentTime,
@@ -110,8 +114,13 @@ contract PriceOracle is IPriceOracle, Initializable {
         address quoteToken,
         uint256 baseAmount
     ) public view override returns (uint256 quoteAmount, uint8 source) {
-        quoteAmount = quoteSingle(baseToken, quoteToken, baseAmount);
-        if (quoteAmount == 0) {
+        if (!useBridge[baseToken][quoteToken]) {
+            quoteAmount = quoteSingle(baseToken, quoteToken, baseAmount);
+            if (quoteAmount == 0) {
+                uint256 wethAmount = quoteSingle(baseToken, WETH, baseAmount);
+                quoteAmount = quoteSingle(WETH, quoteToken, wethAmount);
+            }
+        } else {
             uint256 wethAmount = quoteSingle(baseToken, WETH, baseAmount);
             quoteAmount = quoteSingle(WETH, quoteToken, wethAmount);
         }
