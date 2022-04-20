@@ -2,8 +2,8 @@ const { ethers } = require("hardhat");
 const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
-let eachNFT = BigNumber.from("20000000000000000");
-let maxCount = 56;
+let eachNFT = BigNumber.from("200000000000000000");
+let maxCount = 4560;
 let nftRebate;
 
 const main = async () => {

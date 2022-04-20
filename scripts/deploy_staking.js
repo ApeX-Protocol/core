@@ -3,14 +3,15 @@ const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
 //// ArbitrumOne
+const wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
 // const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
 // const treasuryAddress = ""; // PCVTreasury address
 // const slpTokenAddress = ""; // APEX-WETH slp
 //// Testnet
-const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
-const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
-const treasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06"; // PCVTreasury address
-const slpTokenAddress = "0x473BfBD8bda825f7E39e4Fa826D9a8B5129cE4E7"; // APEX-WETH slp
+// const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
+// const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
+// const treasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06"; // PCVTreasury address
+// const slpTokenAddress = "0x473BfBD8bda825f7E39e4Fa826D9a8B5129cE4E7"; // APEX-WETH slp
 
 const apeXPerSec = BigNumber.from("82028346620490110");
 const secSpanPerUpdate = 14 * 24 * 3600; //two weeks
@@ -31,7 +32,7 @@ let stakingPoolFactory;
 let rewardForStaking;
 
 const main = async () => {
-  await createPools();
+  // await createPools();
   await createReward();
 };
 
