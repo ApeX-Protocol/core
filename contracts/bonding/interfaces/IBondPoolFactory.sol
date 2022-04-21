@@ -5,11 +5,8 @@ pragma solidity ^0.8.0;
 /// @notice For create bond pool
 interface IBondPoolFactory {
     event BondPoolCreated(address indexed amm, address indexed pool);
-    event RouterUpdated(address indexed oldRouter, address indexed newRouter);
     event PriceOracleUpdated(address indexed oldOracle, address indexed newOracle);
     event PoolTemplateUpdated(address indexed oldTemplate, address indexed newTemplate);
-
-    function setRouter(address newRouter) external;
 
     function setPriceOracle(address newOracle) external;
 
@@ -23,13 +20,17 @@ interface IBondPoolFactory {
 
     function createPool(address amm) external returns (address);
 
+    function addLiquidity(
+        address amm,
+        address baseToken,
+        uint256 baseAmount
+    ) external returns (uint256 liquidity);
+
     function WETH() external view returns (address);
 
     function apeXToken() external view returns (address);
 
     function treasury() external view returns (address);
-
-    function router() external view returns (address);
 
     function priceOracle() external view returns (address);
 

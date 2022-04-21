@@ -36,14 +36,14 @@ const main = async () => {
   signer = accounts[0].address;
   // await attachApeXToken();
   await createPriceOracle();
-  // await createConfig();
-  // await createPairFactory();
+  await createConfig();
+  await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
-  // await createPair();
+  await createPair();
 };
 
 async function attachApeXToken() {
@@ -65,7 +65,7 @@ async function createPriceOracle() {
   // if (config == null) {
   //   const Config = await ethers.getContractFactory("Config");
   //   config = await Config.attach("0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26");
-  //   config.setPriceOracle(priceOracle.address);
+  //   await config.setPriceOracle(priceOracle.address);
   // }
 }
 
@@ -84,11 +84,11 @@ async function createConfig() {
 }
 
 async function createPairFactory() {
-  if (config == null) {
-    let configAddress = "0x38a71796bC0291Bc09f4D890B45A9A93d49eDf70";
-    const Config = await ethers.getContractFactory("Config");
-    config = await Config.attach(configAddress);
-  }
+  // if (config == null) {
+  //   let configAddress = "0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26";
+  //   const Config = await ethers.getContractFactory("Config");
+  //   config = await Config.attach(configAddress);
+  // }
 
   const PairFactory = await ethers.getContractFactory("PairFactory");
   const AmmFactory = await ethers.getContractFactory("AmmFactory");
@@ -120,16 +120,16 @@ async function createPCVTreasury() {
 }
 
 async function createRouter() {
-  if (config == null) {
-    let configAddress = "0x38a71796bC0291Bc09f4D890B45A9A93d49eDf70";
-    const Config = await ethers.getContractFactory("Config");
-    config = await Config.attach(configAddress);
-  }
-  if (pairFactory == null) {
-    let pairFactoryAddress = "0xA7B799832B46B51b2b6a156FDCE58525dE24Ac0f";
-    const PairFactory = await ethers.getContractFactory("PairFactory");
-    pairFactory = await PairFactory.attach(pairFactoryAddress);
-  }
+  // if (config == null) {
+  //   let configAddress = "0xBfE1B5d8F2719Ce143b88B7727ACE0af893B7f26";
+  //   const Config = await ethers.getContractFactory("Config");
+  //   config = await Config.attach(configAddress);
+  // }
+  // if (pairFactory == null) {
+  //   let pairFactoryAddress = "0xA7B799832B46B51b2b6a156FDCE58525dE24Ac0f";
+  //   const PairFactory = await ethers.getContractFactory("PairFactory");
+  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
+  // }
   if (pcvTreasury == null) {
     let pcvTreasuryAddress = "0x73f5d8fb154d19a0C496E7411488cD455aB0373A";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
@@ -142,9 +142,9 @@ async function createRouter() {
   console.log("Router:", router.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, router.address);
 
-  router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
-  await config.registerRouter(router.address);
-  console.log("Router:", router.address);
+  // router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
+  // await config.registerRouter(router.address);
+  // console.log("Router:", router.address);
 }
 
 async function createMulticall2() {
@@ -169,10 +169,10 @@ async function createMockTokens() {
 }
 
 async function createPair() {
-  let baseTokenAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH in ArbitrumOne
-  let quoteTokenAddress = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"; // USDC in ArbitrumOne
-  // let baseTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mockWETH in testnet
-  // let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526"; // mockUSDC in testnet
+  // let baseTokenAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1"; // WETH in ArbitrumOne
+  // let quoteTokenAddress = "0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8"; // USDC in ArbitrumOne
+  let baseTokenAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44"; // mockWETH in testnet
+  let quoteTokenAddress = "0x79dCF515aA18399CF8fAda58720FAfBB1043c526"; // mockUSDC in testnet
 
   // if (pairFactory == null) {
   //   let pairFactoryAddress = "0xaE357428B82672c81648c8f6C99642d0aa787213";
