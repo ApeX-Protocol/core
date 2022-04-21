@@ -13,8 +13,9 @@ import "../libraries/UniswapV3TwapGetter.sol";
 import "../libraries/FixedPoint96.sol";
 import "../libraries/V3Oracle.sol";
 import "../utils/Initializable.sol";
+import "../utils/Ownable.sol";
 
-contract PriceOracle is IPriceOracle, Initializable {
+contract PriceOracle is IPriceOracle, Initializable, Ownable {
     using Math for uint256;
     using FullMath for uint256;
     using V3Oracle for V3Oracle.Observation[65535];
@@ -42,10 +43,44 @@ contract PriceOracle is IPriceOracle, Initializable {
         v3Fees[2] = 10000;
     }
 
-    function setupTwap(address amm) external override {
-        require(!ammObservations[amm][0].initialized, "PriceOracle.setupTwap: ALREADY_SETUP");
+    function resetTwap(address amm, bool useBridge_) external onlyOwner {
+        require(ammObservations[amm][0].initialized, "PriceOracle.resetTwap: AMM_NOT_INIT");
         address baseToken = IAmm(amm).baseToken();
         address quoteToken = IAmm(amm).quoteToken();
+
+        delete v3Pools[baseToken][quoteToken];
+        delete useBridge[baseToken][quoteToken];
+
+        if (!useBridge_) {
+            address pool = getTargetPool(baseToken, quoteToken);
+            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+            _setupV3Pool(baseToken, quoteToken, pool);
+        } else {
+            v3Pools[baseToken][WETH] = address(0);
+            v3Pools[WETH][quoteToken] = address(0);
+
+            address pool = getTargetPool(baseToken, WETH);
+            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+            _setupV3Pool(baseToken, WETH, pool);
+
+            pool = getTargetPool(WETH, quoteToken);
+            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+            _setupV3Pool(WETH, quoteToken, pool);
+
+            useBridge[baseToken][quoteToken] = true;
+        }
+
+        delete ammObservations[amm];
+        ammObservationIndex[amm] = 0;
+        ammObservations[amm].initialize(_blockTimestamp());
+        ammObservations[amm].grow(1, cardinality);
+    }
+
+    function setupTwap(address amm) external override {
+        require(!ammObservations[amm][0].initialized, "PriceOracle.setupTwap: AMM_ALREADY_SETUP");
+        address baseToken = IAmm(amm).baseToken();
+        address quoteToken = IAmm(amm).quoteToken();
+        require(!useBridge[baseToken][quoteToken] || v3Pools[baseToken][quoteToken] == address(0), "PriceOracle.setupTwap: PAIR_ALREADY_SETUP");
 
         address pool = getTargetPool(baseToken, quoteToken);
         if (pool != address(0)) {
