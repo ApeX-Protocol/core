@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface IStakingPoolFactory {
+    
     struct PoolWeight {
         uint256 weight;
         uint256 lastYieldPriceOfWeight; //multiplied by 10000

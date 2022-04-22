@@ -5,6 +5,7 @@ import "./interfaces/IApeXPool.sol";
 import "./interfaces/IStakingPoolFactory.sol";
 import "../core/interfaces/IERC20.sol";
 import "../utils/Reentrant.sol";
+import "hardhat/console.sol";
 
 contract ApeXPool is IApeXPool, Reentrant {
     uint256 internal constant WEIGHT_MULTIPLIER = 1e6;
@@ -25,26 +26,26 @@ contract ApeXPool is IApeXPool, Reentrant {
         poolToken = _poolToken;
     }
 
-    function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
-        _stake(_amount, _lockUntil, false);
+    function stake(uint256 _amount, uint256 _lockDuration) external override nonReentrant {
+        _stake(_amount, _lockDuration, false);
         IERC20(poolToken).transferFrom(msg.sender, address(this), _amount);
     }
 
-    function stakeEsApeX(uint256 _amount, uint256 _lockUntil) external override {
-        _stake(_amount, _lockUntil, true);
+    function stakeEsApeX(uint256 _amount, uint256 _lockDuration) external override {
+        _stake(_amount, _lockDuration, true);
         factory.transferEsApeXFrom(msg.sender, address(factory), _amount);
     }
 
     function _stake(
         uint256 _amount,
-        uint256 _lockUntil,
+        uint256 _lockDuration,
         bool _isEsApeX
     ) internal {
         require(_amount > 0, "sp.stake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
         uint256 lockTime = factory.lockTime();
         require(
-            _lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + lockTime),
+            _lockDuration == 0 || (_lockDuration > 0 && _lockDuration <= lockTime),
             "sp._stake: INVALID_LOCK_INTERVAL"
         );
 
@@ -53,14 +54,14 @@ contract ApeXPool is IApeXPool, Reentrant {
         _processRewards(_staker, user);
 
         //if 0, not lock
-        uint256 lockFrom = _lockUntil > 0 ? now256 : 0;
-        uint256 stakeWeight = (((_lockUntil - lockFrom) * WEIGHT_MULTIPLIER) / lockTime + WEIGHT_MULTIPLIER) * _amount;
+        uint256 lockFrom = _lockDuration > 0 ? now256 : 0;
+        uint256 stakeWeight = ((_lockDuration * WEIGHT_MULTIPLIER) / lockTime + WEIGHT_MULTIPLIER) * _amount;
         uint256 depositId = user.deposits.length;
         Deposit memory deposit = Deposit({
             amount: _amount,
             weight: stakeWeight,
             lockFrom: lockFrom,
-            lockUntil: _lockUntil
+            lockDuration: _lockDuration
         });
 
         if (_isEsApeX) {
@@ -75,7 +76,7 @@ contract ApeXPool is IApeXPool, Reentrant {
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight += stakeWeight;
 
-        emit Staked(_staker, depositId, _isEsApeX, _amount, lockFrom, _lockUntil);
+        emit Staked(_staker, depositId, _isEsApeX, _amount, lockFrom, lockFrom + _lockDuration);
     }
 
     function batchWithdraw(
@@ -115,13 +116,13 @@ contract ApeXPool is IApeXPool, Reentrant {
             require(_amount != 0, "sp.batchWithdraw: INVALID_DEPOSIT_AMOUNT");
             stakeDeposit = user.deposits[_id];
             require(
-                stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockUntil,
+                stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockFrom + stakeDeposit.lockDuration,
                 "sp.batchWithdraw: DEPOSIT_LOCKED"
             );
             require(stakeDeposit.amount >= _amount, "sp.batchWithdraw: EXCEED_DEPOSIT_STAKED");
 
             newWeight =
-                (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
+                ((stakeDeposit.lockDuration * WEIGHT_MULTIPLIER) /
                     lockTime +
                     WEIGHT_MULTIPLIER) *
                 (stakeDeposit.amount - _amount);
@@ -145,13 +146,13 @@ contract ApeXPool is IApeXPool, Reentrant {
                 require(_amount != 0, "sp.batchWithdraw: INVALID_ESDEPOSIT_AMOUNT");
                 stakeDeposit = user.esDeposits[_id];
                 require(
-                    stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockUntil,
+                    stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockFrom + stakeDeposit.lockDuration,
                     "sp.batchWithdraw: ESDEPOSIT_LOCKED"
                 );
                 require(stakeDeposit.amount >= _amount, "sp.batchWithdraw: EXCEED_ESDEPOSIT_STAKED");
 
                 newWeight =
-                    (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
+                    ((stakeDeposit.lockDuration * WEIGHT_MULTIPLIER) /
                         lockTime +
                         WEIGHT_MULTIPLIER) *
                     (stakeDeposit.amount - _amount);
@@ -265,11 +266,11 @@ contract ApeXPool is IApeXPool, Reentrant {
     //only can extend lock time
     function updateStakeLock(
         uint256 _id,
-        uint256 _lockUntil,
+        uint256 _lockDuration,
         bool _isEsApeX
     ) external override {
         uint256 now256 = block.timestamp;
-        require(_lockUntil > now256, "sp.updateStakeLock: INVALID_LOCK_UNTIL");
+        require(_lockDuration > 0, "sp.updateStakeLock: INVALID_LOCK_DURATION");
 
         uint256 lockTime = factory.lockTime();
         address _staker = msg.sender;
@@ -282,28 +283,29 @@ contract ApeXPool is IApeXPool, Reentrant {
         } else {
             stakeDeposit = user.deposits[_id];
         }
-        require(_lockUntil > stakeDeposit.lockUntil, "sp.updateStakeLock: INVALID_NEW_LOCK");
+        require(_lockDuration > stakeDeposit.lockDuration, "sp.updateStakeLock: INVALID_NEW_LOCK");
 
         if (stakeDeposit.lockFrom == 0) {
-            require(_lockUntil <= now256 + lockTime, "sp.updateStakeLock: EXCEED_MAX_LOCK_PERIOD");
+            require(_lockDuration <= lockTime, "sp.updateStakeLock: EXCEED_MAX_LOCK_PERIOD");
             stakeDeposit.lockFrom = now256;
         } else {
-            require(_lockUntil <= stakeDeposit.lockFrom + lockTime, "sp.updateStakeLock: EXCEED_MAX_LOCK");
+            require(_lockDuration <= lockTime, "sp.updateStakeLock: EXCEED_MAX_LOCK");
         }
 
         uint256 oldWeight = stakeDeposit.weight;
-        uint256 newWeight = (((_lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
+        uint256 newWeight = ((_lockDuration * WEIGHT_MULTIPLIER) /
             lockTime +
             WEIGHT_MULTIPLIER) * stakeDeposit.amount;
 
+        console.log("newWeight is ", newWeight, oldWeight, WEIGHT_MULTIPLIER);
         factory.mintVeApeX(_staker, (newWeight - oldWeight) / WEIGHT_MULTIPLIER);
-        stakeDeposit.lockUntil = _lockUntil;
+        stakeDeposit.lockDuration = _lockDuration;
         stakeDeposit.weight = newWeight;
         user.totalWeight = user.totalWeight - oldWeight + newWeight;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight = usersLockingWeight - oldWeight + newWeight;
 
-        emit UpdateStakeLock(_staker, _id, _isEsApeX, stakeDeposit.lockFrom, _lockUntil);
+        emit UpdateStakeLock(_staker, _id, _isEsApeX, stakeDeposit.lockFrom, stakeDeposit.lockFrom + _lockDuration);
     }
 
     function processRewards() external override {
@@ -345,11 +347,9 @@ contract ApeXPool is IApeXPool, Reentrant {
 
     function vest(uint256 vestAmount) external override {
         User storage user = users[msg.sender];
-        _processRewards(msg.sender, user);
 
         uint256 now256 = block.timestamp;
         uint256 lockUntil = now256 + factory.lockTime();
-        emit YieldClaimed(msg.sender, user.yields.length, vestAmount, now256, lockUntil);
 
         user.yields.push(Yield({amount: vestAmount, lockFrom: now256, lockUntil: lockUntil}));
         user.tokenAmount += vestAmount;

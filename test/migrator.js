@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { BigNumber } = require("@ethersproject/bignumber");
+const { ethers } = require("hardhat");
 
 describe("Migrator contract", function () {
   let owner;

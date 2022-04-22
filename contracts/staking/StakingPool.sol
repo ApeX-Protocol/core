@@ -23,12 +23,12 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
         poolToken = _poolToken;
     }
 
-    function stake(uint256 _amount, uint256 _lockUntil) external override nonReentrant {
+    function stake(uint256 _amount, uint256 _lockDuration) external override nonReentrant {
         require(_amount > 0, "sp.stake: INVALID_AMOUNT");
         uint256 now256 = block.timestamp;
         uint256 lockTime = factory.lockTime();
         require(
-            _lockUntil == 0 || (_lockUntil > now256 && _lockUntil <= now256 + lockTime),
+            _lockDuration == 0 || (_lockDuration > 0 && _lockDuration <= lockTime),
             "sp._stake: INVALID_LOCK_INTERVAL"
         );
 
@@ -37,14 +37,14 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
         _processRewards(_staker, user);
 
         //if 0, not lock
-        uint256 lockFrom = _lockUntil > 0 ? now256 : 0;
-        uint256 stakeWeight = (((_lockUntil - lockFrom) * WEIGHT_MULTIPLIER) / lockTime + WEIGHT_MULTIPLIER) * _amount;
+        uint256 lockFrom = _lockDuration > 0 ? now256 : 0;
+        uint256 stakeWeight = ((_lockDuration * WEIGHT_MULTIPLIER) / lockTime + WEIGHT_MULTIPLIER) * _amount;
         uint256 depositId = user.deposits.length;
         Deposit memory deposit = Deposit({
             amount: _amount,
             weight: stakeWeight,
             lockFrom: lockFrom,
-            lockUntil: _lockUntil
+            lockDuration: _lockDuration
         });
 
         user.deposits.push(deposit);
@@ -53,7 +53,7 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight += stakeWeight;
 
-        emit Staked(_staker, depositId, _amount, lockFrom, _lockUntil);
+        emit Staked(_staker, depositId, _amount, lockFrom, lockFrom + _lockDuration);
         IERC20(poolToken).transferFrom(msg.sender, address(this), _amount);
     }
 
@@ -77,13 +77,13 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
             require(_amount != 0, "sp.batchWithdraw: INVALID_DEPOSIT_AMOUNT");
             stakeDeposit = user.deposits[_id];
             require(
-                stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockUntil,
+                stakeDeposit.lockFrom == 0 || block.timestamp > stakeDeposit.lockFrom + stakeDeposit.lockDuration,
                 "sp.batchWithdraw: DEPOSIT_LOCKED"
             );
             require(stakeDeposit.amount >= _amount, "sp.batchWithdraw: EXCEED_DEPOSIT_STAKED");
 
             newWeight =
-                (((stakeDeposit.lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
+                ((stakeDeposit.lockDuration * WEIGHT_MULTIPLIER) /
                     lockTime +
                     WEIGHT_MULTIPLIER) *
                 (stakeDeposit.amount - _amount);
@@ -110,9 +110,9 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
         }
     }
 
-    function updateStakeLock(uint256 _id, uint256 _lockUntil) external override {
+    function updateStakeLock(uint256 _id, uint256 _lockDuration) external override {
         uint256 now256 = block.timestamp;
-        require(_lockUntil > now256, "sp.updateStakeLock: INVALID_LOCK_UNTIL");
+        require(_lockDuration > 0, "sp.updateStakeLock: INVALID_LOCK_DURATION");
 
         uint256 lockTime = factory.lockTime();
         address _staker = msg.sender;
@@ -123,27 +123,27 @@ contract StakingPool is IStakingPool, Reentrant, Initializable {
 
         stakeDeposit = user.deposits[_id];
 
-        require(_lockUntil > stakeDeposit.lockUntil, "sp.updateStakeLock: INVALID_NEW_LOCK");
+        require(_lockDuration > stakeDeposit.lockDuration, "sp.updateStakeLock: INVALID_NEW_LOCK");
 
         if (stakeDeposit.lockFrom == 0) {
-            require(_lockUntil <= now256 + lockTime, "sp.updateStakeLock: EXCEED_MAX_LOCK_PERIOD");
+            require(_lockDuration <= lockTime, "sp.updateStakeLock: EXCEED_MAX_LOCK_PERIOD");
             stakeDeposit.lockFrom = now256;
         } else {
-            require(_lockUntil <= stakeDeposit.lockFrom + lockTime, "sp.updateStakeLock: EXCEED_MAX_LOCK");
+            require(_lockDuration <= lockTime, "sp.updateStakeLock: EXCEED_MAX_LOCK");
         }
 
         uint256 oldWeight = stakeDeposit.weight;
-        uint256 newWeight = (((_lockUntil - stakeDeposit.lockFrom) * WEIGHT_MULTIPLIER) /
+        uint256 newWeight = ((_lockDuration * WEIGHT_MULTIPLIER) /
             lockTime +
             WEIGHT_MULTIPLIER) * stakeDeposit.amount;
 
-        stakeDeposit.lockUntil = _lockUntil;
+        stakeDeposit.lockDuration = _lockDuration;
         stakeDeposit.weight = newWeight;
         user.totalWeight = user.totalWeight - oldWeight + newWeight;
         user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
         usersLockingWeight = usersLockingWeight - oldWeight + newWeight;
 
-        emit UpdateStakeLock(_staker, _id, stakeDeposit.lockFrom, _lockUntil);
+        emit UpdateStakeLock(_staker, _id, stakeDeposit.lockFrom, stakeDeposit.lockFrom + _lockDuration);
     }
 
     function processRewards() external override {
