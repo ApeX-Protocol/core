@@ -5,7 +5,6 @@ import "./interfaces/IApeXPool.sol";
 import "./interfaces/IStakingPoolFactory.sol";
 import "../core/interfaces/IERC20.sol";
 import "../utils/Reentrant.sol";
-import "hardhat/console.sol";
 
 contract ApeXPool is IApeXPool, Reentrant {
     uint256 internal constant WEIGHT_MULTIPLIER = 1e6;
@@ -297,7 +296,6 @@ contract ApeXPool is IApeXPool, Reentrant {
             lockTime +
             WEIGHT_MULTIPLIER) * stakeDeposit.amount;
 
-        console.log("newWeight is ", newWeight, oldWeight, WEIGHT_MULTIPLIER);
         factory.mintVeApeX(_staker, (newWeight - oldWeight) / WEIGHT_MULTIPLIER);
         stakeDeposit.lockDuration = _lockDuration;
         stakeDeposit.weight = newWeight;
@@ -350,10 +348,10 @@ contract ApeXPool is IApeXPool, Reentrant {
 
         uint256 now256 = block.timestamp;
         uint256 lockUntil = now256 + factory.lockTime();
+        emit YieldClaimed(msg.sender, user.yields.length, vestAmount, now256, lockUntil);
 
         user.yields.push(Yield({amount: vestAmount, lockFrom: now256, lockUntil: lockUntil}));
         user.tokenAmount += vestAmount;
-        user.subYieldRewards = (user.totalWeight * yieldRewardsPerWeight) / REWARD_PER_WEIGHT_MULTIPLIER;
 
         factory.transferEsApeXFrom(msg.sender, address(this), vestAmount);
     }
