@@ -1,5 +1,6 @@
 const { expect } = require("chai");
 const { BN, constants, time } = require("@openzeppelin/test-helpers");
+const { ethers } = require("hardhat");
 
 describe("esApeX contract", function () {
   let esApeXToken;
@@ -107,7 +108,7 @@ describe("esApeX contract", function () {
     it("revert when transfer exceed balance", async function () {
       await esApeXToken.connect(addr1).mint(addr1.address, 100);
       await expect(esApeXToken.connect(addr1).transfer(owner.address, 101)).to.be.revertedWith(
-        "ERC20: transfer amount exceeds balance"
+        "esApeX: transfer amount exceeds balance"
       );
     });
   });
@@ -149,7 +150,7 @@ describe("esApeX contract", function () {
       await esApeXToken.connect(addr1).mint(addr1.address, 100);
       await esApeXToken.connect(addr1).approve(addr1.address, 100);
       await expect(esApeXToken.connect(addr1).transferFrom(addr1.address, owner.address, 101)).to.be.revertedWith(
-        "ERC20: transfer amount exceeds allowance"
+        "esApeX: transfer amount exceeds allowance"
       );
     });
 
@@ -157,7 +158,7 @@ describe("esApeX contract", function () {
       await esApeXToken.connect(addr1).mint(addr1.address, 100);
       await esApeXToken.connect(addr1).approve(addr1.address, 101);
       await expect(esApeXToken.connect(addr1).transferFrom(addr1.address, owner.address, 101)).to.be.revertedWith(
-        "ERC20: transfer amount exceeds balance"
+        "esApeX: transfer amount exceeds balance"
       );
     });
   });

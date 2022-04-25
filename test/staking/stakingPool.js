@@ -1,5 +1,6 @@
 const { expect } = require("chai");
-const { BN, constants, time } = require("@openzeppelin/test-helpers");
+const { ethers, upgrades, network } = require("hardhat");
+const hre = require("hardhat");
 
 describe("stakingPool contract", function () {
   let apeXToken;
@@ -16,15 +17,14 @@ describe("stakingPool contract", function () {
   let secSpanPerUpdate = 2;
   let apeXPerSec = 100;
   let lockUntil = 0;
-  let invalidLockUntil = 10;
+  let invalidLockUntil = 100000000000;
   let lockTime = 10;
 
   let owner;
   let addr1;
-  let addr2;
 
   beforeEach(async function () {
-    [owner, addr1, addr2] = await ethers.getSigners();
+    [owner, addr1] = await ethers.getSigners();
 
     const MockToken = await ethers.getContractFactory("MockToken");
     const StakingPoolFactory = await ethers.getContractFactory("StakingPoolFactory");
@@ -66,7 +66,6 @@ describe("stakingPool contract", function () {
 
     await esApeXToken.setFactory(owner.address);
     await esApeXToken.mint(owner.address, 100_0000);
-    await esApeXToken.mint(addr1.address, 100_0000);
     await esApeXToken.approve(stakingPoolFactory.address, 100_0000);
   });
 
@@ -86,12 +85,14 @@ describe("stakingPool contract", function () {
     });
 
     it("stake successfully", async function () {
+      let user = await apeXPool.users(owner.address);
       let oldPoolTokenBal = await apeXToken.balanceOf(owner.address);
+      console.log(user.totalWeight.toNumber());
       await apeXPool.stake(10000, lockUntil);
       let newPoolTokenBal = await apeXToken.balanceOf(owner.address);
-      expect(oldPoolTokenBal - newPoolTokenBal).to.be.equal(10000);
+      expect(oldPoolTokenBal.toNumber()).to.be.greaterThan(newPoolTokenBal.toNumber());
 
-      let user = await apeXPool.users(owner.address);
+      user = await apeXPool.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(10000);
       expect(user.totalWeight.toNumber()).to.equal(10000 * 1e6);
       expect(user.subYieldRewards.toNumber()).to.equal(0);
@@ -113,44 +114,18 @@ describe("stakingPool contract", function () {
 
     it("stake twice, with one year lock", async function () {
       await stakingPoolFactory.setLockTime(15768000);
-      let halfYearLockUntil = await halfYearLater();
+      let halfYearLockUntil = 26 * 7 * 24 * 3600;
       await apeXPool.stake(10000, halfYearLockUntil);
       let user = await apeXPool.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(10000);
       expect(user.totalWeight.toNumber()).to.be.at.least(19000000000);
       expect(user.subYieldRewards.toNumber()).to.equal(0);
 
-      halfYearLockUntil = await halfYearLater();
       await apeXPool.stake(20000, halfYearLockUntil);
       user = await apeXPool.users(owner.address);
       expect(user.tokenAmount.toNumber()).to.equal(30000);
       expect(user.totalWeight.toNumber()).to.be.at.most(100000000000);
       expect(user.subYieldRewards.toNumber()).to.be.at.most(60);
-    });
-  });
-
-  describe("stakeEsApeX", function () {
-    it("stake esApeX", async function () {
-      await stakingPoolFactory.setLockTime(15768000);
-      let halfYearLockUntil = await halfYearLater();
-      await apeXPool.stakeEsApeX(10000, halfYearLockUntil);
-    });
-
-    it("revert when user stake while didn't approve", async function () {
-      await stakingPoolFactory.setLockTime(15768000);
-      let halfYearLockUntil = await halfYearLater();
-      await expect(apeXPool.connect(addr2).stakeEsApeX(10000, halfYearLockUntil)).to.be.revertedWith(
-        "ERC20: transfer amount exceeds allowance"
-      );
-    });
-
-    it("revert when user stake while didn't have balance", async function () {
-      await stakingPoolFactory.setLockTime(15768000);
-      let halfYearLockUntil = await halfYearLater();
-      await esApeXToken.connect(addr2).approve(stakingPoolFactory.address, 10000);
-      await expect(apeXPool.connect(addr2).stakeEsApeX(10000, halfYearLockUntil)).to.be.revertedWith(
-        "ERC20: transfer amount exceeds balance"
-      );
     });
   });
 
@@ -211,14 +186,14 @@ describe("stakingPool contract", function () {
     });
 
     it("batchWithdraw locked deposit", async function () {
-      await apeXPool.stake(20000, await halfYearLater());
+      await apeXPool.stake(20000, 26 * 7 * 24 * 3600);
       await expect(apeXPool.batchWithdraw([1], [10000], [], [], [], [])).to.be.revertedWith(
         "sp.batchWithdraw: DEPOSIT_LOCKED"
       );
     });
 
     it("batchWithdraw locked esDeposit", async function () {
-      await apeXPool.stakeEsApeX(10, await halfYearLater());
+      await apeXPool.stakeEsApeX(10, 26 * 7 * 24 * 3600);
       await expect(apeXPool.batchWithdraw([], [], [], [], [0], [10])).to.be.revertedWith(
         "sp.batchWithdraw: ESDEPOSIT_LOCKED"
       );
@@ -239,27 +214,27 @@ describe("stakingPool contract", function () {
 
     it("update stake lock to half year later", async function () {
       await stakingPoolFactory.setLockTime(15768000);
-      let oneMLater = await oneMonthLater();
+      let oneM = 30 * 24 * 3600;
       let oldBalance = (await veApeXToken.balanceOf(owner.address)).toNumber();
       let oldLockWeight = (await apeXPool.usersLockingWeight()).toNumber();
 
-      await apeXPool.updateStakeLock(0, oneMLater, false);
+      await apeXPool.updateStakeLock(0, oneM, false);
       let newBalance = (await veApeXToken.balanceOf(owner.address)).toNumber();
       let newLockWeight = (await apeXPool.usersLockingWeight()).toNumber();
       expect(newBalance).to.greaterThan(oldBalance);
       expect(newLockWeight).to.greaterThan(oldLockWeight);
     });
 
-    it("reverted when stake invalid lockUntil", async function () {
-      await expect(apeXPool.updateStakeLock(0, 0, false)).to.be.revertedWith("sp.updateStakeLock: INVALID_LOCK_UNTIL");
+    it("reverted when stake invalid lockDuration", async function () {
+      await expect(apeXPool.updateStakeLock(0, 0, false)).to.be.revertedWith("sp.updateStakeLock: INVALID_LOCK_DURATION");
     });
 
     describe("existStake", function () {
       let oneMLater;
       beforeEach(async function () {
         await stakingPoolFactory.setLockTime(15768000);
-        await apeXPool.stake(10000, await halfYearLater());
-        oneMLater = await oneMonthLater();
+        await apeXPool.stake(10000, 26 * 7 * 24 * 3600);
+        oneMLater = 30 * 24 * 3600;
       });
 
       it("reverted when update unlocked stake to time early than previous lock", async function () {

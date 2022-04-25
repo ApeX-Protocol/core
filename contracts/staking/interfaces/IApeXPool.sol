@@ -6,7 +6,7 @@ interface IApeXPool {
         uint256 amount;
         uint256 weight;
         uint256 lockFrom;
-        uint256 lockUntil;
+        uint256 lockDuration;
     }
 
     struct Yield {
@@ -82,10 +82,10 @@ interface IApeXPool {
 
     /// @notice Stake apeX
     /// @param amount apeX's amount to stake.
-    /// @param lockUntil time to lock.
-    function stake(uint256 amount, uint256 lockUntil) external;
+    /// @param _lockDuration time to lock.
+    function stake(uint256 amount, uint256 _lockDuration) external;
 
-    function stakeEsApeX(uint256 amount, uint256 lockUntil) external;
+    function stakeEsApeX(uint256 amount, uint256 _lockDuration) external;
 
     function vest(uint256 amount) external;
 
@@ -105,13 +105,13 @@ interface IApeXPool {
     /// @param depositIds the deposit index of locked reward.
     function forceWithdraw(uint256[] memory depositIds) external;
 
-    /// @notice enlarge lock time of this deposit `depositId` to `lockUntil`
+    /// @notice enlarge lock time of this deposit `depositId` to `lockDuration`
     /// @param depositId the deposit index.
-    /// @param lockUntil new lock time.
+    /// @param lockDuration new lock duration.
     /// @param isEsApeX update esApeX or apeX stake.
     function updateStakeLock(
         uint256 depositId,
-        uint256 lockUntil,
+        uint256 lockDuration,
         bool isEsApeX
     ) external;
 }
