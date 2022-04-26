@@ -25,9 +25,10 @@ let poolTemplate;
 let bondPoolFactory;
 
 const main = async () => {
-  await createBondPriceOracle();
-  await createPoolTemplate();
-  await createPoolFactory();
+  // await createBondPriceOracle();
+  // await createPoolTemplate();
+  // await createPoolFactory();
+  await createPCVPolicyForMigrator();
 };
 
 async function createBondPriceOracle() {
@@ -72,6 +73,20 @@ async function createPoolFactory() {
     discount,
     vestingTerm
   );
+}
+
+async function createPCVPolicyForMigrator() {
+  const treasury = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
+  const pairFactory = "0xf6DA867db55BCA6312132cCFC936160fB970fEF4";
+  const PCVPolicyForMigrator = await ethers.getContractFactory("PCVPolicyForMigrator");
+  let migrator = await PCVPolicyForMigrator.deploy(treasury, pairFactory);
+  console.log("PCVPolicyForMigrator:", migrator.address);
+  console.log(verifyStr, process.env.HARDHAT_NETWORK, migrator.address, treasury, pairFactory);
+
+  let configAddress = "0x43624493A79eF508BC9EDe792E67aABD44e3BfE8";
+  const Config = await ethers.getContractFactory("Config");
+  let config = await Config.attach(configAddress);
+  await config.registerRouter(migrator.address);
 }
 
 main()
