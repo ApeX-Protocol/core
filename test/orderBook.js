@@ -46,7 +46,8 @@ describe("OrderBook Contract", function () {
     ammFactory = await AmmFactory.deploy(pairFactory.address, config.address, owner.address);
 
     const Router = await ethers.getContractFactory("Router");
-    router = await Router.deploy(pairFactory.address, treasury.address, weth.address);
+    router = await Router.deploy();
+    await router.initialize(config.address, pairFactory.address, treasury.address, weth.address);
 
     const RouterForKeeper = await ethers.getContractFactory("RouterForKeeper");
     routerForKeeper = await RouterForKeeper.deploy(pairFactory.address, weth.address);
@@ -54,6 +55,9 @@ describe("OrderBook Contract", function () {
     const OrderBook = await ethers.getContractFactory("OrderBook");
     orderBook = await OrderBook.deploy(routerForKeeper.address);
 
+    await config.registerRouter(router.address);
+    await config.registerRouter(routerForKeeper.address);
+    await config.registerRouter(owner.address);
     await config.setPriceOracle(priceOracle.address);
     await pairFactory.init(ammFactory.address, marginFactory.address);
 
@@ -67,7 +71,6 @@ describe("OrderBook Contract", function () {
 
     await routerForKeeper.deposit(weth.address, owner.address, 10000000);
     expect(await routerForKeeper.balanceOf(weth.address, owner.address)).to.be.equal(10000000);
-    await config.registerRouter(routerForKeeper.address);
     order = {
       routerToExecute: routerForKeeper.address,
       trader: owner.address,

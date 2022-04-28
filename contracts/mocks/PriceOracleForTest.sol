@@ -53,9 +53,7 @@ contract PriceOracleForTest is IPriceOracle {
         return quoteAmount * (10**(18 - quoteDecimals));
     }
 
-    function getMarketPrice(address amm) public view override returns (uint256) {
-        
-    }
+    function getMarketPrice(address amm) public view override returns (uint256) {}
 
     function getMarkPrice(address amm) public view override returns (uint256 price, bool isIndexPrice) {
         (uint256 baseReserve, uint256 quoteReserve, ) = IAmm(amm).getReserves();
@@ -95,15 +93,17 @@ contract PriceOracleForTest is IPriceOracle {
         uint8 beta,
         uint256 quoteAmount,
         bool negative
-    ) public view override returns (uint256 price) {
+    ) public view override returns (uint256 baseAmount) {
         (, uint256 quoteReserve, ) = IAmm(amm).getReserves();
         (uint256 markPrice, ) = getMarkPrice(amm);
         uint256 rvalue = FullMath.mulDiv(markPrice, (2 * quoteAmount * beta) / 100, quoteReserve);
+        uint256 price;
         if (negative) {
             price = markPrice - rvalue;
         } else {
             price = markPrice + rvalue;
         }
+        baseAmount = (quoteAmount * 1e18) / price;
     }
 
     //premiumFraction is (markPrice - indexPrice) / 24h / indexPrice
@@ -114,6 +114,4 @@ contract PriceOracleForTest is IPriceOracle {
         require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
         return ((markPrice - indexPrice) * 1e18) / (24 * 3600) / indexPrice;
     }
-
-
 }
