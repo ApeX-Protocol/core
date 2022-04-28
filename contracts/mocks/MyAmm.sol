@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-import "../core/interfaces/IAmm.sol";
+pragma solidity ^0.8.0;
+
+import "../interfaces/IAmm.sol";
 import "../core/LiquidityERC20.sol";
-import "../core/interfaces/IERC20.sol";
+import "../interfaces/IERC20.sol";
 
 contract MyAmm is IAmm, LiquidityERC20  {
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
@@ -87,6 +89,10 @@ contract MyAmm is IAmm, LiquidityERC20  {
 
     }
 
+    function collectFee() external override returns (bool) {
+        
+    }
+
     function getReserves()
         external
         view override
@@ -107,6 +113,14 @@ contract MyAmm is IAmm, LiquidityERC20  {
         uint256 inputAmount,
         uint256 outputAmount
     ) external view override returns (uint256[2] memory amounts) {
+
+    }
+
+    function getFeeLiquidity() external override view returns (uint256) {
+
+    }
+
+    function getTheMaxBurnLiquidity() external override view returns (uint256 maxLiquidity) {
 
     }
 }

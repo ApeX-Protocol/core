@@ -1,32 +1,47 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/IRouter.sol";
-import "./interfaces/IPairFactory.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IMargin.sol";
-import "./interfaces/ILiquidityERC20.sol";
-import "./interfaces/IWETH.sol";
+import "../interfaces/IRouter.sol";
+import "../interfaces/IPairFactory.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IMargin.sol";
+import "../interfaces/ILiquidityERC20.sol";
+import "../interfaces/IConfig.sol";
+import "../interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/SignedMath.sol";
+import "../libraries/ChainAdapter.sol";
+import "../utils/Initializable.sol";
 
-contract Router is IRouter {
+contract Router is IRouter, Initializable {
     using SignedMath for int256;
 
-    address public immutable override pairFactory;
-    address public immutable override pcvTreasury;
-    address public immutable override WETH;
+    address public override config;
+    address public override pairFactory;
+    address public override pcvTreasury;
+    address public override WETH;
+
+    // user => amm => block
+    mapping(address => mapping(address => uint256)) public userLastOperation;
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, "Router: EXPIRED");
         _;
     }
 
-    constructor(
+    modifier notEmergency() {
+        bool inEmergency = IConfig(config).inEmergency(address(this));
+        require(inEmergency == false, "Router: IN_EMERGENCY");
+        _;
+    }
+
+    function initialize(
+        address config_,
         address pairFactory_,
         address pcvTreasury_,
         address _WETH
-    ) {
+    ) external initializer {
+        config = config_;
         pairFactory = pairFactory_;
         pcvTreasury = pcvTreasury_;
         WETH = _WETH;
@@ -43,12 +58,12 @@ contract Router is IRouter {
         uint256 quoteAmountMin,
         uint256 deadline,
         bool pcv
-    ) external override ensure(deadline) returns (uint256 quoteAmount, uint256 liquidity) {
+    ) external override ensure(deadline) notEmergency returns (uint256 quoteAmount, uint256 liquidity) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(baseToken, quoteToken);
         }
-
+        _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(baseToken, msg.sender, amm, baseAmount);
         if (pcv) {
             (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
@@ -69,6 +84,7 @@ contract Router is IRouter {
         payable
         override
         ensure(deadline)
+        notEmergency
         returns (
             uint256 ethAmount,
             uint256 quoteAmount,
@@ -79,7 +95,7 @@ contract Router is IRouter {
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(WETH, quoteToken);
         }
-
+        _recordLastOperation(msg.sender, amm);
         ethAmount = msg.value;
         IWETH(WETH).deposit{value: ethAmount}();
         assert(IWETH(WETH).transfer(amm, ethAmount));
@@ -98,8 +114,9 @@ contract Router is IRouter {
         uint256 liquidity,
         uint256 baseAmountMin,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 quoteAmount) {
+    ) external override ensure(deadline) notEmergency returns (uint256 baseAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
         (baseAmount, quoteAmount, ) = IAmm(amm).burn(msg.sender);
         require(baseAmount >= baseAmountMin, "Router.removeLiquidity: INSUFFICIENT_BASE_AMOUNT");
@@ -110,8 +127,9 @@ contract Router is IRouter {
         uint256 liquidity,
         uint256 ethAmountMin,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 ethAmount, uint256 quoteAmount) {
+    ) external override ensure(deadline) notEmergency returns (uint256 ethAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
         (ethAmount, quoteAmount, ) = IAmm(amm).burn(address(this));
         require(ethAmount >= ethAmountMin, "Router.removeLiquidityETH: INSUFFICIENT_ETH_AMOUNT");
@@ -124,14 +142,14 @@ contract Router is IRouter {
         address quoteToken,
         address holder,
         uint256 amount
-    ) external override {
+    ) external override notEmergency {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.deposit: NOT_FOUND_MARGIN");
         TransferHelper.safeTransferFrom(baseToken, msg.sender, margin, amount);
         IMargin(margin).addMargin(holder, amount);
     }
 
-    function depositETH(address quoteToken, address holder) external payable override {
+    function depositETH(address quoteToken, address holder) external payable override notEmergency {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.depositETH: NOT_FOUND_MARGIN");
         uint256 amount = msg.value;
@@ -148,14 +166,18 @@ contract Router is IRouter {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
         IMargin(margin).removeMargin(msg.sender, msg.sender, amount);
+        uint256 debtRatio = IMargin(margin).calDebtRatio(msg.sender);
+        require(debtRatio < 10000, "Router.withdraw: DEBT_RATIO_OVER");
     }
 
     function withdrawETH(address quoteToken, uint256 amount) external override {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
-        require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
+        require(margin != address(0), "Router.withdrawETH: NOT_FOUND_MARGIN");
         IMargin(margin).removeMargin(msg.sender, address(this), amount);
         IWETH(WETH).withdraw(amount);
         TransferHelper.safeTransferETH(msg.sender, amount);
+        uint256 debtRatio = IMargin(margin).calDebtRatio(msg.sender);
+        require(debtRatio < 10000, "Router.withdrawETH: DEBT_RATIO_OVER");
     }
 
     function openPositionWithWallet(
@@ -166,7 +188,9 @@ contract Router is IRouter {
         uint256 quoteAmount,
         uint256 baseAmountLimit,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount) {
+    ) external override ensure(deadline) notEmergency returns (uint256 baseAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.openPositionWithWallet: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionWithWallet: INSUFFICIENT_SIDE");
@@ -186,7 +210,9 @@ contract Router is IRouter {
         uint256 quoteAmount,
         uint256 baseAmountLimit,
         uint256 deadline
-    ) external payable override ensure(deadline) returns (uint256 baseAmount) {
+    ) external payable override ensure(deadline) notEmergency returns (uint256 baseAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.openPositionETHWithWallet: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionETHWithWallet: INSUFFICIENT_SIDE");
@@ -209,7 +235,9 @@ contract Router is IRouter {
         uint256 quoteAmount,
         uint256 baseAmountLimit,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount) {
+    ) external override ensure(deadline) notEmergency returns (uint256 baseAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.openPositionWithMargin: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionWithMargin: INSUFFICIENT_SIDE");
@@ -228,6 +256,8 @@ contract Router is IRouter {
         uint256 deadline,
         bool autoWithdraw
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         if (!autoWithdraw) {
@@ -259,6 +289,8 @@ contract Router is IRouter {
         uint256 quoteAmount,
         uint256 deadline
     ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+        address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
+        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         
@@ -282,6 +314,21 @@ contract Router is IRouter {
             IWETH(WETH).withdraw(withdrawAmount);
             TransferHelper.safeTransferETH(msg.sender, withdrawAmount);
         }
+    }
+
+    function liquidate(
+        address baseToken,
+        address quoteToken,
+        address trader,
+        address to
+    ) external override returns (uint256 quoteAmount, uint256 baseAmount, uint256 bonus) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        uint256 blockNumber = ChainAdapter.blockNumber();
+        require(userLastOperation[msg.sender][amm] != blockNumber, "Router.liquidate: FORBIDDEN");
+
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
+        require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
+        (quoteAmount, baseAmount, bonus) = IMargin(margin).liquidate(trader, to);
     }
 
     function getReserves(address baseToken, address quoteToken)
@@ -361,5 +408,12 @@ contract Router is IRouter {
         uint256 numerator = reserveIn * amountOut * 1000;
         uint256 denominator = (reserveOut - amountOut) * 999;
         amountIn = numerator / denominator + 1;
+    }
+
+    function _recordLastOperation(address user, address amm) internal {
+        require(tx.origin == msg.sender, "Router._recordLastOperation: ONLY_EOA");
+        uint256 blockNumber = ChainAdapter.blockNumber();
+        require(userLastOperation[user][amm] != blockNumber, "Router._recordLastOperation: FORBIDDEN");
+        userLastOperation[user][amm] = blockNumber;
     }
 }

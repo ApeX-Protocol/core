@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "./Margin.sol";
-import "./interfaces/IMarginFactory.sol";
+import "../interfaces/IMarginFactory.sol";
 
 //factory of margin, called by pairFactory
 contract MarginFactory is IMarginFactory {

@@ -3,10 +3,10 @@ pragma solidity ^0.8.0;
 
 import "../libraries/Math.sol";
 import "../libraries/FullMath.sol";
-import "../core/interfaces/uniswapV3/IUniswapV3Pool.sol";
+import "../interfaces/uniswapV3/IUniswapV3Pool.sol";
 import "../libraries/TickMath.sol";
 import "../libraries/V3Oracle.sol";
-import "../core/interfaces/IERC20.sol";
+import "../interfaces/IERC20.sol";
 
 contract MockUniswapV3Pool is IUniswapV3Pool {
     using Math for uint256;

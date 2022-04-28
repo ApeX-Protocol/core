@@ -1,13 +1,13 @@
 {
   "name": "@apex-protocol/core",
-  "version": "0.0.3",
+  "version": "0.1.2",
   "description": "Smart contracts of ApeX Protocol",
   "publishConfig": {
     "access": "public"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ApeX-Protocol/apex-protocol"
+    "url": "https://github.com/ApeX-Protocol/core"
   },
   "keywords": [
     "apex"
@@ -15,13 +15,13 @@
   "author": "",
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/ApeX-Protocol/apex-protocol/issues"
+    "url": "https://github.com/ApeX-Protocol/core/issues"
   },
   "homepage": "https://apex.exchange",
   "files": [
-    "contracts/core",
-    "artifacts/contracts/core/**/*.json",
-    "!artifacts/contracts/core/**/*.dbg.json"
+    "contracts/",
+    "artifacts/contracts/**/*.json",
+    "!artifacts/contracts/**/*.dbg.json"
   ],
   "engines": {
     "node": ">=10"
@@ -31,17 +31,9 @@
     "compile_watch": "npx hardhat watch compilation",
     "test": "npx hardhat test",
     "test_watch": "npx hardhat watch test",
-    "deploy_l1_main": "hardhat run scripts/deploy_l1.js --network mainnet",
     "deploy_core_arbi": "hardhat run scripts/deploy_core.js --network arbitrumOne",
-    "deploy_bonding_arbi": "hardhat run scripts/deploy_bonding.js --network arbitrumOne",
-    "deploy_staking_arbi": "hardhat run scripts/deploy_staking.js --network arbitrumOne",
-    "deploy_referral_arbi": "hardhat run scripts/deploy_referral.js --network arbitrumOne",
     "deploy_fee_treasury_arbi": "hardhat run scripts/deploy_fee_treasury.js --network arbitrumOne",
-    "deploy_l1_test": "hardhat run scripts/deploy_l1.js --network rinkeby",
     "deploy_core_test": "hardhat run scripts/deploy_core.js --network arbitrumTestnet",
-    "deploy_bonding_test": "hardhat run scripts/deploy_bonding.js --network arbitrumTestnet",
-    "deploy_staking_test": "hardhat run scripts/deploy_staking.js --network arbitrumTestnet",
-    "deploy_referral_test": "hardhat run scripts/deploy_referral.js --network arbitrumTestnet",
     "deploy_fee_treasury_test": "hardhat run scripts/deploy_fee_treasury.js --network arbitrumTestnet"
   },
   "devDependencies": {

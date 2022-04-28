@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "./Amm.sol";
-import "./interfaces/IAmmFactory.sol";
-import "./interfaces/IPriceOracle.sol";
+import "../interfaces/IAmmFactory.sol";
+import "../interfaces/IPriceOracle.sol";
 
 contract AmmFactory is IAmmFactory {
     address public immutable override upperFactory; // PairFactory

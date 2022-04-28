@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/IERC20.sol";
-import "./interfaces/IAmm.sol";
+import "../interfaces/IERC20.sol";
+import "../interfaces/IAmm.sol";
 import "../utils/Ownable.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/TickMath.sol";
-import "../core/interfaces/uniswapV3/IUniswapV3Factory.sol";
-import "../core/interfaces/uniswapV3/IUniswapV3Pool.sol";
-import "../core/interfaces/uniswapV3/ISwapRouter.sol";
-import "../core/interfaces/IWETH.sol";
+import "../interfaces/uniswapV3/IUniswapV3Factory.sol";
+import "../interfaces/uniswapV3/IUniswapV3Pool.sol";
+import "../interfaces/uniswapV3/ISwapRouter.sol";
+import "../interfaces/IWETH.sol";
 
 contract FeeTreasury is Ownable {
     event RatioForStakingChanged(uint8 oldRatio, uint8 newRatio);
@@ -107,15 +107,11 @@ contract FeeTreasury is Ownable {
     function batchRemoveLiquidity(address[] memory amms) external check {
         for (uint256 i = 0; i < amms.length; i++) {
             address amm = amms[i];
-            // first burn to remove liquidity before
+            IAmm(amm).collectFee();
+
             uint256 liquidity = IERC20(amm).balanceOf(address(this));
             if (liquidity == 0) continue;
-            TransferHelper.safeTransfer(amm, amm, liquidity);
-            IAmm(amm).burn(address(this));
-            // after first burn could be minted more liquidity in this address
-            // so make a second burn 
-            liquidity = IERC20(amm).balanceOf(address(this));
-            if (liquidity == 0) continue;
+            
             TransferHelper.safeTransfer(amm, amm, liquidity);
             IAmm(amm).burn(address(this));
         }
@@ -187,5 +183,16 @@ contract FeeTreasury is Ownable {
         }
         
         nextSettleTime = nextSettleTime + settlementInterval;
+    }
+
+    function withdrawETH(address to) external onlyOwner {
+        payable(to).transfer(address(this).balance);
+    }
+
+    function withdrawERC20Token(address token_, address to, uint256 amount) external onlyOwner returns (bool) {
+        uint256 balance = IERC20(token_).balanceOf(address(this));
+        require(balance >= amount, "NOT_ENOUGH_BALANCE");
+        require(IERC20(token_).transfer(to, amount));
+        return true;
     }
 }

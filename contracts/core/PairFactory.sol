@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/IPairFactory.sol";
-import "./interfaces/IAmmFactory.sol";
-import "./interfaces/IMarginFactory.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IMargin.sol";
+import "../interfaces/IPairFactory.sol";
+import "../interfaces/IAmmFactory.sol";
+import "../interfaces/IMarginFactory.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IMargin.sol";
 import "../utils/Ownable.sol";
 
 contract PairFactory is IPairFactory, Ownable {

@@ -2,12 +2,14 @@
 
 pragma solidity ^0.8.0;
 
-contract MockPriceOracle {
+contract MockPriceOracleOfMargin {
     int256 public pf = 0;
     uint256 public p;
+    uint256 public markPriceInRatio;
+    bool public isIndex;
 
     constructor() {
-        p = 1;
+        p = 2e9;
     }
 
     //premiumFraction is (markPrice - indexPrice) * fundingRatePrecision / 8h / indexPrice
@@ -19,13 +21,22 @@ contract MockPriceOracle {
         pf = _pf;
     }
 
+    //2000usdc = 2000*(1e-12)*1e18
+    function setMarkPriceInRatio(uint256 _markPriceInRatio) external {
+        markPriceInRatio = _markPriceInRatio;
+    }
+
+    function setIsIndex(bool value) external {
+        isIndex = value;
+    }
+
     function getMarkPriceAcc(
         address amm,
         uint8 beta,
         uint256 quoteAmount,
         bool negative
     ) public view returns (uint256 price) {
-        return quoteAmount / p;
+        return (quoteAmount * 1e18) / p;
     }
 
     function setMarkPrice(uint256 _p) external {
@@ -44,4 +55,20 @@ contract MockPriceOracle {
     function updateAmmTwap(address pair) external {}
 
     function setupTwap(address amm) external {}
+
+    function getMarkPriceInRatio(
+        address amm,
+        uint256 quoteAmount,
+        uint256 baseAmount
+    )
+        external
+        view
+        returns (
+            uint256,
+            uint256,
+            bool
+        )
+    {
+        return ((quoteAmount * 1e18) / markPriceInRatio, (baseAmount * markPriceInRatio) / 1e18, isIndex);
+    }
 }

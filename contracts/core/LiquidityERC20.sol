@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/ILiquidityERC20.sol";
+import "../interfaces/ILiquidityERC20.sol";
 
 contract LiquidityERC20 is ILiquidityERC20 {
     string public constant override name = "APEX LP";
