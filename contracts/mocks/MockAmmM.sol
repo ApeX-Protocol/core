@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "../core/interfaces/IVault.sol";
+import "../interfaces/IVault.sol";
 
 contract MockAmmOfMargin is ERC20 {
     address public baseToken;

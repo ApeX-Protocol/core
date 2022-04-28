@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "../core/interfaces/uniswapV3/ISwapRouter.sol";
+import "../interfaces/uniswapV3/ISwapRouter.sol";
 
 contract MockSwapRouter is ISwapRouter {
     address public override WETH9;

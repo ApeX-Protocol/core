@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "./LiquidityERC20.sol";
-import "./interfaces/IAmmFactory.sol";
-import "./interfaces/IConfig.sol";
-import "./interfaces/IPriceOracle.sol";
-import "./interfaces/IMarginFactory.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IVault.sol";
-import "./interfaces/IMargin.sol";
-import "./interfaces/IPairFactory.sol";
+import "../interfaces/IAmmFactory.sol";
+import "../interfaces/IConfig.sol";
+import "../interfaces/IPriceOracle.sol";
+import "../interfaces/IMarginFactory.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IVault.sol";
+import "../interfaces/IMargin.sol";
+import "../interfaces/IPairFactory.sol";
 import "../utils/Reentrant.sol";
 import "../libraries/UQ112x112.sol";
 import "../libraries/Math.sol";

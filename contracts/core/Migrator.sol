@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/IERC20.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IRouter.sol";
-import "./interfaces/IPairFactory.sol";
+import "../interfaces/IERC20.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IRouter.sol";
+import "../interfaces/IPairFactory.sol";
 import "../libraries/TransferHelper.sol";
 import "../utils/Reentrant.sol";
 

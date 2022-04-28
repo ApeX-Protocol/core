@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/IERC20.sol";
-import "./interfaces/IAmm.sol";
+import "../interfaces/IERC20.sol";
+import "../interfaces/IAmm.sol";
 import "../utils/Ownable.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/TickMath.sol";
-import "../core/interfaces/uniswapV3/IUniswapV3Factory.sol";
-import "../core/interfaces/uniswapV3/IUniswapV3Pool.sol";
-import "../core/interfaces/uniswapV3/ISwapRouter.sol";
-import "../core/interfaces/IWETH.sol";
+import "../interfaces/uniswapV3/IUniswapV3Factory.sol";
+import "../interfaces/uniswapV3/IUniswapV3Pool.sol";
+import "../interfaces/uniswapV3/ISwapRouter.sol";
+import "../interfaces/IWETH.sol";
 
 contract FeeTreasury is Ownable {
     event RatioForStakingChanged(uint8 oldRatio, uint8 newRatio);

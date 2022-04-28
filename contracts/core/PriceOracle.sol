@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/IERC20.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IPriceOracle.sol";
-import "./interfaces/uniswapV3/IUniswapV3Factory.sol";
-import "./interfaces/uniswapV3/IUniswapV3Pool.sol";
+import "../interfaces/IERC20.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IPriceOracle.sol";
+import "../interfaces/uniswapV3/IUniswapV3Factory.sol";
+import "../interfaces/uniswapV3/IUniswapV3Pool.sol";
 import "../libraries/FullMath.sol";
 import "../libraries/Math.sol";
 import "../libraries/TickMath.sol";

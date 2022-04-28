@@ -1,11 +1,10 @@
 //SPDX-License-Identifier: UNLICENSED
-
 pragma solidity ^0.8.0;
 
-import "../core/interfaces/IERC20.sol";
-import "../core/interfaces/IAmm.sol";
-import "../core/interfaces/IConfig.sol";
-import "../core/interfaces/IPriceOracle.sol";
+import "../interfaces/IERC20.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IConfig.sol";
+import "../interfaces/IPriceOracle.sol";
 import "../libraries/FullMath.sol";
 
 contract PriceOracleForTest is IPriceOracle {

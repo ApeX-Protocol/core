@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/IERC20.sol";
-import "./interfaces/IMarginFactory.sol";
-import "./interfaces/IAmmFactory.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IConfig.sol";
-import "./interfaces/IMargin.sol";
-import "./interfaces/IVault.sol";
-import "./interfaces/IPriceOracle.sol";
-import "./interfaces/IWETH.sol";
+import "../interfaces/IERC20.sol";
+import "../interfaces/IMarginFactory.sol";
+import "../interfaces/IAmmFactory.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IConfig.sol";
+import "../interfaces/IMargin.sol";
+import "../interfaces/IVault.sol";
+import "../interfaces/IPriceOracle.sol";
+import "../interfaces/IWETH.sol";
 import "../utils/Reentrant.sol";
 import "../libraries/SignedMath.sol";
 import "../libraries/ChainAdapter.sol";

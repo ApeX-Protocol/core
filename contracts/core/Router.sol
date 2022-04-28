@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/IRouter.sol";
-import "./interfaces/IPairFactory.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IMargin.sol";
-import "./interfaces/ILiquidityERC20.sol";
-import "./interfaces/IConfig.sol";
-import "./interfaces/IWETH.sol";
+import "../interfaces/IRouter.sol";
+import "../interfaces/IPairFactory.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IMargin.sol";
+import "../interfaces/ILiquidityERC20.sol";
+import "../interfaces/IConfig.sol";
+import "../interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/SignedMath.sol";
 import "../libraries/ChainAdapter.sol";

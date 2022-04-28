@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "../core/interfaces/uniswapV3/IUniswapV3Factory.sol";
+import "../interfaces/uniswapV3/IUniswapV3Factory.sol";
 
 contract MockUniswapV3Factory is IUniswapV3Factory {
     mapping(address => mapping(address => mapping(uint24 => address))) public override getPool;
