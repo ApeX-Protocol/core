@@ -1,6 +1,7 @@
 const { BigNumber } = require("@ethersproject/bignumber");
 const { expect } = require("chai");
 const  fs  = require('fs');
+const { ethers } = require("hardhat");
 
 async function deploy(name, ...params) {
   const Contract = await ethers.getContractFactory(name);

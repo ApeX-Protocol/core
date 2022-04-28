@@ -3,37 +3,38 @@ const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
 //// ArbitrumOne
+// const wethAddress = "0x82af49447d8a07e3bd95bd0d56f35241523fbab1";
 // const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
 // const treasuryAddress = ""; // PCVTreasury address
-// const slpTokenAddress = ""; // APEX-WETH slp
+// const lpTokenAddress = ""; // WETH-USDC eAMM lp
 //// Testnet
 const wethAddress = "0x655e2b2244934Aea3457E3C56a7438C271778D44";
 const apeXAddress = "0x3f355c9803285248084879521AE81FF4D3185cDD";
 const treasuryAddress = "0x42C0E0fdA16CE20C3c15bBF666Ee79EaB5998F20"; // PCVTreasury address
-const slpTokenAddress = "0x473BfBD8bda825f7E39e4Fa826D9a8B5129cE4E7"; // APEX-WETH slp
+const lpTokenAddress = "0x01A3eae4edD0512d7d1e3B57eCD40A1A1b1076EE"; // mWETH-mUSDC lp
 
 const apeXPerSec = BigNumber.from("82028346620490110");
 const secSpanPerUpdate = 14 * 24 * 3600; //two weeks
 const initTimestamp = Math.round(new Date().getTime() / 1000);
-const endTimestamp = initTimestamp + 365 * 24 * 3600; //one year after init time
-const sixMonth = 180 * 24 * 3600;
+const endTimestamp = initTimestamp + 365 * 24 * 3600 * 3; //3 years after init time
+const sixMonth = 26 * 7 * 24 * 3600;
 const apeXPoolWeight = 21;
-const slpPoolWeight = 79;
+const lpPoolWeight = 79;
 const remainForOtherVest = 50;
 const minRemainRatioAfterBurn = 6000;
 
 let esApeX;
 let veApeX;
 let apeXPool;
-let slpPool;
+let lpPool;
 let stakingPoolTemplate;
 let stakingPoolFactory;
 let rewardForStaking;
 
 const main = async () => {
-  // await createPools();
+  await createPools();
   // await createReward();
-  await createPool();
+  // await createPool();
 };
 
 async function createPools() {
@@ -60,16 +61,16 @@ async function createPools() {
   console.log("StakingPoolFactory:", stakingPoolFactory.address);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, stakingPoolFactory.address);
 
-  stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
-    apeXAddress,
-    treasuryAddress,
-    apeXPerSec,
-    secSpanPerUpdate,
-    initTimestamp,
-    endTimestamp,
-    sixMonth,
-  ]);
-  console.log("StakingPoolFactory:", stakingPoolFactory.address);
+  // stakingPoolFactory = await upgrades.deployProxy(StakingPoolFactory, [
+  //   apeXAddress,
+  //   treasuryAddress,
+  //   apeXPerSec,
+  //   secSpanPerUpdate,
+  //   initTimestamp,
+  //   endTimestamp,
+  //   sixMonth,
+  // ]);
+  // console.log("StakingPoolFactory:", stakingPoolFactory.address);
 
   apeXPool = await ApeXPool.deploy(stakingPoolFactory.address, apeXAddress);
   console.log("ApeXPool:", apeXPool.address);
@@ -91,9 +92,9 @@ async function createPools() {
 
   await stakingPoolFactory.registerApeXPool(apeXPool.address, apeXPoolWeight);
 
-  await stakingPoolFactory.createPool(slpTokenAddress, slpPoolWeight);
-  slpPool = StakingPool.attach(await stakingPoolFactory.tokenPoolMap(slpTokenAddress));
-  console.log("slpPool:", slpPool.address);
+  await stakingPoolFactory.createPool(lpTokenAddress, lpPoolWeight);
+  lpPool = StakingPool.attach(await stakingPoolFactory.tokenPoolMap(lpTokenAddress));
+  console.log("lpPool:", lpPool.address);
 }
 
 async function createReward() {

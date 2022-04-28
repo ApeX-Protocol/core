@@ -146,16 +146,8 @@ contract BondPool is IBondPool, Ownable {
         require(depositAmount > 0, "BondPool._depositInternal: ZERO_AMOUNT");
 
         address baseToken = IAmm(amm).baseToken();
-        address quoteToken = IAmm(amm).quoteToken();
-        TransferHelper.safeTransferFrom(baseToken, from, address(this), depositAmount);
-
-        address router = factory.router();
-        uint256 allowance = IERC20(baseToken).allowance(address(this), router);
-        if (allowance < depositAmount) {
-            IERC20(baseToken).approve(router, type(uint256).max);
-        }
-        (, uint256 liquidity) = IRouter(router).addLiquidity(baseToken, quoteToken, depositAmount, 1, block.timestamp, false);
-        require(liquidity > 0, "BondPool._depositInternal: AMOUNT_TOO_SMALL");
+        TransferHelper.safeTransferFrom(baseToken, from, address(factory), depositAmount);
+        uint256 liquidity = factory.addLiquidity(amm, baseToken, depositAmount);
 
         payout = payoutFor(depositAmount);
         require(payout >= minPayout, "BondPool._depositInternal: UNDER_MIN_LAYOUT");

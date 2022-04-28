@@ -166,14 +166,18 @@ contract Router is IRouter, Initializable {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
         IMargin(margin).removeMargin(msg.sender, msg.sender, amount);
+        uint256 debtRatio = IMargin(margin).calDebtRatio(msg.sender);
+        require(debtRatio < 10000, "Router.withdraw: DEBT_RATIO_OVER");
     }
 
     function withdrawETH(address quoteToken, uint256 amount) external override {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
-        require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
+        require(margin != address(0), "Router.withdrawETH: NOT_FOUND_MARGIN");
         IMargin(margin).removeMargin(msg.sender, address(this), amount);
         IWETH(WETH).withdraw(amount);
         TransferHelper.safeTransferETH(msg.sender, amount);
+        uint256 debtRatio = IMargin(margin).calDebtRatio(msg.sender);
+        require(debtRatio < 10000, "Router.withdrawETH: DEBT_RATIO_OVER");
     }
 
     function openPositionWithWallet(

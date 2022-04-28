@@ -14,7 +14,6 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
     address public immutable override WETH;
     address public immutable override apeXToken;
     address public immutable override treasury;
-    address public override router;
     address public override priceOracle;
     address public override poolTemplate;
     uint256 public override maxPayout;
@@ -29,7 +28,6 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         address WETH_,
         address apeXToken_,
         address treasury_,
-        address router_,
         address priceOracle_,
         address poolTemplate_,
         uint256 maxPayout_,
@@ -40,18 +38,11 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         WETH = WETH_;
         apeXToken = apeXToken_;
         treasury = treasury_;
-        router = router_;
         priceOracle = priceOracle_;
         poolTemplate = poolTemplate_;
         maxPayout = maxPayout_;
         discount = discount_;
         vestingTerm = vestingTerm_;
-    }
-
-    function setRouter(address newRouter) external override onlyOwner {
-        require(newRouter != address(0), "BondPoolFactory.setRouter: ZERO_ADDRESS");
-        emit RouterUpdated(router, newRouter);
-        router = newRouter;
     }
 
     function setPriceOracle(address newOracle) external override onlyOwner {
@@ -89,6 +80,16 @@ contract BondPoolFactory is IBondPoolFactory, Ownable {
         IBondPriceOracle(priceOracle).setupTwap(baseToken);
         emit BondPoolCreated(amm, pool);
         return pool;
+    }
+
+    function addLiquidity(
+        address amm,
+        address baseToken,
+        uint256 baseAmount
+    ) external override returns (uint256 liquidity) {
+        require(getPool[amm] == msg.sender, "BondPoolFactory.addLiquidity: REQUIRE_POOL");
+        TransferHelper.safeTransfer(baseToken, amm, baseAmount);
+        (, , liquidity) = IAmm(amm).mint(msg.sender);
     }
 
     function allPoolsLength() external view override returns (uint256) {

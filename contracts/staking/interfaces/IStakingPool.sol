@@ -6,7 +6,7 @@ interface IStakingPool {
         uint256 amount;
         uint256 weight;
         uint256 lockFrom;
-        uint256 lockUntil;
+        uint256 lockDuration;
     }
 
     struct User {
@@ -49,16 +49,16 @@ interface IStakingPool {
 
     /// @notice Stake poolToken
     /// @param amount poolToken's amount to stake.
-    /// @param lockUntil time to lock.
-    function stake(uint256 amount, uint256 lockUntil) external;
+    /// @param _lockDuration time to lock.
+    function stake(uint256 amount, uint256 _lockDuration) external;
 
     /// @notice BatchWithdraw poolToken
     /// @param depositIds the deposit index.
     /// @param depositAmounts poolToken's amount to unstake.
     function batchWithdraw(uint256[] memory depositIds, uint256[] memory depositAmounts) external;
 
-    /// @notice enlarge lock time of this deposit `depositId` to `lockUntil`
+    /// @notice enlarge lock time of this deposit `depositId` to `lockDuration`
     /// @param depositId the deposit index.
-    /// @param lockUntil new lock time.
-    function updateStakeLock(uint256 depositId, uint256 lockUntil) external;
+    /// @param _lockDuration new lock time.
+    function updateStakeLock(uint256 depositId, uint256 _lockDuration) external;
 }
