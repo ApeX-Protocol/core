@@ -114,6 +114,4 @@ contract PriceOracleForTest is IPriceOracle {
         require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
         return ((markPrice - indexPrice) * 1e18) / (24 * 3600) / indexPrice;
     }
-
-
 }
