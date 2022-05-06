@@ -22,9 +22,6 @@ contract Router is IRouter, Initializable {
     address public override pcvTreasury;
     address public override WETH;
 
-    // user => amm => block
-    mapping(address => mapping(address => uint256)) public userLastOperation;
-
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, "Router: EXPIRED");
         _;
@@ -402,13 +399,6 @@ contract Router is IRouter, Initializable {
         uint256 numerator = reserveIn * amountOut * 1000;
         uint256 denominator = (reserveOut - amountOut) * 999;
         amountIn = numerator / denominator + 1;
-    }
-
-    function _recordLastOperation(address user, address amm) internal {
-        require(tx.origin == msg.sender, "Router._recordLastOperation: ONLY_EOA");
-        uint256 blockNumber = ChainAdapter.blockNumber();
-        require(userLastOperation[user][amm] != blockNumber, "Router._recordLastOperation: FORBIDDEN");
-        userLastOperation[user][amm] = blockNumber;
     }
 
     //@notice withdrawable from fundingFee, unrealizedPnl and margin
