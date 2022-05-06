@@ -37,15 +37,15 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   // await attachApeXToken();
-  await createPriceOracle();
-  await createConfig();
-  await createPairFactory();
+  // await createPriceOracle();
+  // await createConfig();
+  // await createPairFactory();
   // await createPCVTreasury();
   await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
-  await createPair();
+  // await createPair();
   // await createOrderBook();
 };
 
@@ -123,16 +123,16 @@ async function createPCVTreasury() {
 }
 
 async function createRouter() {
-  // if (config == null) {
-  //   let configAddress = "0x43624493A79eF508BC9EDe792E67aABD44e3BfE8";
-  //   const Config = await ethers.getContractFactory("Config");
-  //   config = await Config.attach(configAddress);
-  // }
-  // if (pairFactory == null) {
-  //   let pairFactoryAddress = "0xf6DA867db55BCA6312132cCFC936160fB970fEF4";
-  //   const PairFactory = await ethers.getContractFactory("PairFactory");
-  //   pairFactory = await PairFactory.attach(pairFactoryAddress);
-  // }
+  if (config == null) {
+    let configAddress = "0x43624493A79eF508BC9EDe792E67aABD44e3BfE8";
+    const Config = await ethers.getContractFactory("Config");
+    config = await Config.attach(configAddress);
+  }
+  if (pairFactory == null) {
+    let pairFactoryAddress = "0xf6DA867db55BCA6312132cCFC936160fB970fEF4";
+    const PairFactory = await ethers.getContractFactory("PairFactory");
+    pairFactory = await PairFactory.attach(pairFactoryAddress);
+  }
   if (pcvTreasury == null) {
     let pcvTreasuryAddress = "0x42C0E0fdA16CE20C3c15bBF666Ee79EaB5998F20";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
