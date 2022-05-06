@@ -1,4 +1,4 @@
-const { ethers, upgrades } = require("hardhat");
+const { upgrades } = require("hardhat");
 const { BigNumber } = require("@ethersproject/bignumber");
 const verifyStr = "npx hardhat verify --network";
 
