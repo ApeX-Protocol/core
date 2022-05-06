@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "../interfaces/IPriceOracle.sol";
 import "../interfaces/IRouter.sol";
 import "../interfaces/IPairFactory.sol";
 import "../interfaces/IAmm.sol";
@@ -26,6 +27,11 @@ contract Router is IRouter, Initializable {
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, "Router: EXPIRED");
+        _;
+    }
+
+    modifier onlyEOA() {
+        require(tx.origin == msg.sender, "Router: ONLY_EOA");
         _;
     }
 
@@ -58,12 +64,11 @@ contract Router is IRouter, Initializable {
         uint256 quoteAmountMin,
         uint256 deadline,
         bool pcv
-    ) external override ensure(deadline) notEmergency returns (uint256 quoteAmount, uint256 liquidity) {
+    ) external override ensure(deadline) notEmergency onlyEOA returns (uint256 quoteAmount, uint256 liquidity) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(baseToken, quoteToken);
         }
-        _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(baseToken, msg.sender, amm, baseAmount);
         if (pcv) {
             (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
@@ -85,6 +90,7 @@ contract Router is IRouter, Initializable {
         override
         ensure(deadline)
         notEmergency
+        onlyEOA
         returns (
             uint256 ethAmount,
             uint256 quoteAmount,
@@ -95,7 +101,6 @@ contract Router is IRouter, Initializable {
         if (amm == address(0)) {
             (amm, ) = IPairFactory(pairFactory).createPair(WETH, quoteToken);
         }
-        _recordLastOperation(msg.sender, amm);
         ethAmount = msg.value;
         IWETH(WETH).deposit{value: ethAmount}();
         assert(IWETH(WETH).transfer(amm, ethAmount));
@@ -114,9 +119,8 @@ contract Router is IRouter, Initializable {
         uint256 liquidity,
         uint256 baseAmountMin,
         uint256 deadline
-    ) external override ensure(deadline) notEmergency returns (uint256 baseAmount, uint256 quoteAmount) {
+    ) external override ensure(deadline) notEmergency onlyEOA returns (uint256 baseAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
-        _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
         (baseAmount, quoteAmount, ) = IAmm(amm).burn(msg.sender);
         require(baseAmount >= baseAmountMin, "Router.removeLiquidity: INSUFFICIENT_BASE_AMOUNT");
@@ -127,9 +131,8 @@ contract Router is IRouter, Initializable {
         uint256 liquidity,
         uint256 ethAmountMin,
         uint256 deadline
-    ) external override ensure(deadline) notEmergency returns (uint256 ethAmount, uint256 quoteAmount) {
+    ) external override ensure(deadline) notEmergency onlyEOA returns (uint256 ethAmount, uint256 quoteAmount) {
         address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
-        _recordLastOperation(msg.sender, amm);
         TransferHelper.safeTransferFrom(amm, msg.sender, amm, liquidity);
         (ethAmount, quoteAmount, ) = IAmm(amm).burn(address(this));
         require(ethAmount >= ethAmountMin, "Router.removeLiquidityETH: INSUFFICIENT_ETH_AMOUNT");
@@ -165,6 +168,8 @@ contract Router is IRouter, Initializable {
     ) external override {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
+        (uint256 withdrawable, ) = _getWithdrawable(baseToken, quoteToken, msg.sender);
+        require(amount <= withdrawable, "Router.withdraw: NOT_ENOUGH_WITHDRAWABLE");
         IMargin(margin).removeMargin(msg.sender, msg.sender, amount);
         uint256 debtRatio = IMargin(margin).calDebtRatio(msg.sender);
         require(debtRatio < 10000, "Router.withdraw: DEBT_RATIO_OVER");
@@ -173,6 +178,8 @@ contract Router is IRouter, Initializable {
     function withdrawETH(address quoteToken, uint256 amount) external override {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.withdrawETH: NOT_FOUND_MARGIN");
+        (uint256 withdrawable, ) = _getWithdrawable(WETH, quoteToken, msg.sender);
+        require(amount <= withdrawable, "Router.withdrawETH: NOT_ENOUGH_WITHDRAWABLE");
         IMargin(margin).removeMargin(msg.sender, address(this), amount);
         IWETH(WETH).withdraw(amount);
         TransferHelper.safeTransferETH(msg.sender, amount);
@@ -188,9 +195,8 @@ contract Router is IRouter, Initializable {
         uint256 quoteAmount,
         uint256 baseAmountLimit,
         uint256 deadline
-    ) external override ensure(deadline) notEmergency returns (uint256 baseAmount) {
+    ) external override ensure(deadline) notEmergency onlyEOA returns (uint256 baseAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
-        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.openPositionWithWallet: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionWithWallet: INSUFFICIENT_SIDE");
@@ -210,9 +216,7 @@ contract Router is IRouter, Initializable {
         uint256 quoteAmount,
         uint256 baseAmountLimit,
         uint256 deadline
-    ) external payable override ensure(deadline) notEmergency returns (uint256 baseAmount) {
-        address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
-        _recordLastOperation(msg.sender, amm);
+    ) external payable override ensure(deadline) notEmergency onlyEOA returns (uint256 baseAmount) {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.openPositionETHWithWallet: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionETHWithWallet: INSUFFICIENT_SIDE");
@@ -235,9 +239,7 @@ contract Router is IRouter, Initializable {
         uint256 quoteAmount,
         uint256 baseAmountLimit,
         uint256 deadline
-    ) external override ensure(deadline) notEmergency returns (uint256 baseAmount) {
-        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
-        _recordLastOperation(msg.sender, amm);
+    ) external override ensure(deadline) notEmergency onlyEOA returns (uint256 baseAmount) {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.openPositionWithMargin: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionWithMargin: INSUFFICIENT_SIDE");
@@ -255,9 +257,8 @@ contract Router is IRouter, Initializable {
         uint256 quoteAmount,
         uint256 deadline,
         bool autoWithdraw
-    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
+    ) external override ensure(deadline) onlyEOA returns (uint256 baseAmount, uint256 withdrawAmount) {
         address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
-        _recordLastOperation(msg.sender, amm);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         if (!autoWithdraw) {
@@ -288,9 +289,7 @@ contract Router is IRouter, Initializable {
         address quoteToken,
         uint256 quoteAmount,
         uint256 deadline
-    ) external override ensure(deadline) returns (uint256 baseAmount, uint256 withdrawAmount) {
-        address amm = IPairFactory(pairFactory).getAmm(WETH, quoteToken);
-        _recordLastOperation(msg.sender, amm);
+    ) external override ensure(deadline) onlyEOA returns (uint256 baseAmount, uint256 withdrawAmount) {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         
@@ -322,10 +321,6 @@ contract Router is IRouter, Initializable {
         address trader,
         address to
     ) external override returns (uint256 quoteAmount, uint256 baseAmount, uint256 bonus) {
-        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
-        uint256 blockNumber = ChainAdapter.blockNumber();
-        require(userLastOperation[msg.sender][amm] != blockNumber, "Router.liquidate: FORBIDDEN");
-
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         (quoteAmount, baseAmount, bonus) = IMargin(margin).liquidate(trader, to);
@@ -361,8 +356,7 @@ contract Router is IRouter, Initializable {
         address quoteToken,
         address holder
     ) external view override returns (uint256 amount) {
-        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        amount = IMargin(margin).getWithdrawable(holder);
+        (amount, ) = _getWithdrawable(baseToken, quoteToken, holder);
     }
 
     function getPosition(
@@ -415,5 +409,52 @@ contract Router is IRouter, Initializable {
         uint256 blockNumber = ChainAdapter.blockNumber();
         require(userLastOperation[user][amm] != blockNumber, "Router._recordLastOperation: FORBIDDEN");
         userLastOperation[user][amm] = blockNumber;
+    }
+
+    //@notice withdrawable from fundingFee, unrealizedPnl and margin
+    function _getWithdrawable(
+        address baseToken,
+        address quoteToken,
+        address holder
+    ) internal view returns (uint256 amount, int256 unrealizedPnl) {
+        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
+        (int256 baseSize, int256 quoteSize, uint256 tradeSize) = IMargin(margin).getPosition(holder);
+        int256 fundingFee = IMargin(margin).calFundingFee(holder);
+        quoteSize = quoteSize + fundingFee;
+        if (quoteSize == 0) {
+            amount = baseSize <= 0 ? 0 : baseSize.abs();
+        } else if (quoteSize < 0) {
+            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+                amm,
+                IConfig(config).beta(),
+                quoteSize.abs(),
+                true
+            );
+
+            uint256 a = baseAmount * 10000;
+            uint256 b = (10000 - IConfig(config).initMarginRatio());
+            //calculate how many base needed to maintain current position
+            uint256 baseNeeded = a / b;
+            if (a % b != 0) {
+                baseNeeded += 1;
+            }
+            //borrowed - repay, earn when borrow more and repay less
+            unrealizedPnl = int256(1).mulU(tradeSize).subU(baseAmount);
+            amount = baseSize.abs() <= baseNeeded ? 0 : baseSize.abs() - baseNeeded;
+        } else {
+            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
+                amm,
+                IConfig(config).beta(),
+                quoteSize.abs(),
+                false
+            );
+
+            uint256 baseNeeded = (baseAmount * (10000 - IConfig(config).initMarginRatio())) / 10000;
+            //repay - lent, earn when lent less and repay more
+            unrealizedPnl = int256(1).mulU(baseAmount).subU(tradeSize);
+            int256 remainBase = baseSize.addU(baseNeeded);
+            amount = remainBase <= 0 ? 0 : remainBase.abs();
+        }
     }
 }
