@@ -564,7 +564,7 @@ contract Margin is IMargin, IVault, Reentrant {
                 quoteSize.abs(),
                 true
             );
-
+            // baseAmount/ (1- marginRatio) 
             uint256 a = baseAmount * 10000;
             uint256 b = (10000 - IConfig(config).initMarginRatio());
             //calculate how many base needed to maintain current position
