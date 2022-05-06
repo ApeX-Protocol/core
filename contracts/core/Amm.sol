@@ -2,14 +2,14 @@
 pragma solidity ^0.8.0;
 
 import "./LiquidityERC20.sol";
-import "./interfaces/IAmmFactory.sol";
-import "./interfaces/IConfig.sol";
-import "./interfaces/IPriceOracle.sol";
-import "./interfaces/IMarginFactory.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IVault.sol";
-import "./interfaces/IMargin.sol";
-import "./interfaces/IPairFactory.sol";
+import "../interfaces/IAmmFactory.sol";
+import "../interfaces/IConfig.sol";
+import "../interfaces/IPriceOracle.sol";
+import "../interfaces/IMarginFactory.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IVault.sol";
+import "../interfaces/IMargin.sol";
+import "../interfaces/IPairFactory.sol";
 import "../utils/Reentrant.sol";
 import "../libraries/UQ112x112.sol";
 import "../libraries/Math.sol";
@@ -148,16 +148,12 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
-
         baseAmount = (liquidity * realBaseReserve) / _totalSupply;
-
         // quoteAmount = (liquidity * _quoteReserve) / _totalSupply; // using balances ensures pro-rata distribution
         quoteAmount = (baseAmount * _quoteReserve) / _baseReserve;
-
         require(baseAmount > 0 && quoteAmount > 0, "Amm.burn: INSUFFICIENT_LIQUIDITY_BURNED");
 
         // gurantee the net postion close and total position(quote) in a tolerant sliappage after remove liquidity
-
         maxWithdrawCheck(uint256(_quoteReserve), quoteAmount);
 
         require(
@@ -177,21 +173,18 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         emit Burn(msg.sender, to, baseAmount, quoteAmount, liquidity);
     }
 
-    function maxWithdrawCheck(uint256 quoteReserve, uint256 quoteAmount) public view {
+    function maxWithdrawCheck(uint256 quoteReserve_, uint256 quoteAmount) public view {
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
-
         uint256 quoteTokenOfTotalPosition = IMargin(margin).totalPosition();
-
         uint256 lpWithdrawThresholdForNet = IConfig(config).lpWithdrawThresholdForNet();
-
         uint256 lpWithdrawThresholdForTotal = IConfig(config).lpWithdrawThresholdForTotal();
 
         require(
-            quoteTokenOfNetPosition.abs() * 100 <= (quoteReserve - quoteAmount) * lpWithdrawThresholdForNet,
+            quoteTokenOfNetPosition.abs() * 100 <= (quoteReserve_ - quoteAmount) * lpWithdrawThresholdForNet,
             "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW_FOR_NET_POSITION"
         );
         require(
-            quoteTokenOfTotalPosition * 100 <= (quoteReserve - quoteAmount) * lpWithdrawThresholdForTotal,
+            quoteTokenOfTotalPosition * 100 <= (quoteReserve_ - quoteAmount) * lpWithdrawThresholdForTotal,
             "Amm.burn: TOO_LARGE_LIQUIDITY_WITHDRAW_FOR_TOTAL_POSITION"
         );
     }

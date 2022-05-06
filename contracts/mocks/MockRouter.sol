@@ -2,8 +2,8 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "../core/interfaces/IMargin.sol";
-import "../core/interfaces/IWETH.sol";
+import "../interfaces/IMargin.sol";
+import "../interfaces/IWETH.sol";
 
 contract MockRouter {
     IMargin public margin;

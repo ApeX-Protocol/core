@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "../core/interfaces/IVault.sol";
+import "../interfaces/IVault.sol";
 
 contract MockAmmOfMargin is ERC20 {
     address public baseToken;
@@ -129,5 +129,13 @@ contract MockAmmOfMargin is ERC20 {
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external {}
+    ) external {
+        if (inputToken == baseToken) {
+            baseReserve += uint112(inputAmount);
+            quoteReserve -= uint112(outputAmount);
+        } else {
+            baseReserve -= uint112(outputAmount);
+            quoteReserve += uint112(inputAmount);
+        }
+    }
 }

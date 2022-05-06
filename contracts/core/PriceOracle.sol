@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./interfaces/IERC20.sol";
-import "./interfaces/IAmm.sol";
-import "./interfaces/IPriceOracle.sol";
-import "./interfaces/uniswapV3/IUniswapV3Factory.sol";
-import "./interfaces/uniswapV3/IUniswapV3Pool.sol";
+import "../interfaces/IERC20.sol";
+import "../interfaces/IAmm.sol";
+import "../interfaces/IPriceOracle.sol";
+import "../interfaces/uniswapV3/IUniswapV3Factory.sol";
+import "../interfaces/uniswapV3/IUniswapV3Pool.sol";
 import "../libraries/FullMath.sol";
 import "../libraries/Math.sol";
 import "../libraries/TickMath.sol";
@@ -13,8 +13,9 @@ import "../libraries/UniswapV3TwapGetter.sol";
 import "../libraries/FixedPoint96.sol";
 import "../libraries/V3Oracle.sol";
 import "../utils/Initializable.sol";
+import "../utils/Ownable.sol";
 
-contract PriceOracle is IPriceOracle, Initializable {
+contract PriceOracle is IPriceOracle, Initializable, Ownable {
     using Math for uint256;
     using FullMath for uint256;
     using V3Oracle for V3Oracle.Observation[65535];
@@ -27,6 +28,8 @@ contract PriceOracle is IPriceOracle, Initializable {
     address public v3Factory;
     uint24[3] public v3Fees;
 
+    // baseToken => quoteToken => true/false
+    mapping(address => mapping(address => bool)) public useBridge;
     // baseToken => quoteToken => v3Pool
     mapping(address => mapping(address => address)) public v3Pools;
     mapping(address => V3Oracle.Observation[65535]) public ammObservations;
@@ -40,10 +43,44 @@ contract PriceOracle is IPriceOracle, Initializable {
         v3Fees[2] = 10000;
     }
 
-    function setupTwap(address amm) external override {
-        require(!ammObservations[amm][0].initialized, "PriceOracle.setupTwap: ALREADY_SETUP");
+    function resetTwap(address amm, bool useBridge_) external onlyOwner {
+        require(ammObservations[amm][0].initialized, "PriceOracle.resetTwap: AMM_NOT_INIT");
         address baseToken = IAmm(amm).baseToken();
         address quoteToken = IAmm(amm).quoteToken();
+
+        delete v3Pools[baseToken][quoteToken];
+        delete useBridge[baseToken][quoteToken];
+
+        if (!useBridge_) {
+            address pool = getTargetPool(baseToken, quoteToken);
+            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+            _setupV3Pool(baseToken, quoteToken, pool);
+        } else {
+            v3Pools[baseToken][WETH] = address(0);
+            v3Pools[WETH][quoteToken] = address(0);
+
+            address pool = getTargetPool(baseToken, WETH);
+            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+            _setupV3Pool(baseToken, WETH, pool);
+
+            pool = getTargetPool(WETH, quoteToken);
+            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+            _setupV3Pool(WETH, quoteToken, pool);
+
+            useBridge[baseToken][quoteToken] = true;
+        }
+
+        delete ammObservations[amm];
+        ammObservationIndex[amm] = 0;
+        ammObservations[amm].initialize(_blockTimestamp());
+        ammObservations[amm].grow(1, cardinality);
+    }
+
+    function setupTwap(address amm) external override {
+        require(!ammObservations[amm][0].initialized, "PriceOracle.setupTwap: AMM_ALREADY_SETUP");
+        address baseToken = IAmm(amm).baseToken();
+        address quoteToken = IAmm(amm).quoteToken();
+        require(!useBridge[baseToken][quoteToken] || v3Pools[baseToken][quoteToken] == address(0), "PriceOracle.setupTwap: PAIR_ALREADY_SETUP");
 
         address pool = getTargetPool(baseToken, quoteToken);
         if (pool != address(0)) {
@@ -56,6 +93,8 @@ contract PriceOracle is IPriceOracle, Initializable {
             pool = getTargetPool(WETH, quoteToken);
             require(pool != address(0), "PriceOracle.setupTwap: POOL_NOT_FOUND");
             _setupV3Pool(WETH, quoteToken, pool);
+
+            useBridge[baseToken][quoteToken] = true;
         }
 
         ammObservationIndex[amm] = 0;
@@ -85,7 +124,7 @@ contract PriceOracle is IPriceOracle, Initializable {
             uint32 _twapInterval = twapInterval;
             if (delta < _twapInterval) _twapInterval = delta;
             uint32[] memory secondsAgos = new uint32[](2);
-            secondsAgos[0] = twapInterval; // from (before)
+            secondsAgos[0] = _twapInterval; // from (before)
             secondsAgos[1] = 0; // to (now)
             int56[] memory tickCumulatives = ammObservations[_amm].observe(
                 currentTime,
@@ -110,8 +149,13 @@ contract PriceOracle is IPriceOracle, Initializable {
         address quoteToken,
         uint256 baseAmount
     ) public view override returns (uint256 quoteAmount, uint8 source) {
-        quoteAmount = quoteSingle(baseToken, quoteToken, baseAmount);
-        if (quoteAmount == 0) {
+        if (!useBridge[baseToken][quoteToken]) {
+            quoteAmount = quoteSingle(baseToken, quoteToken, baseAmount);
+            if (quoteAmount == 0) {
+                uint256 wethAmount = quoteSingle(baseToken, WETH, baseAmount);
+                quoteAmount = quoteSingle(WETH, quoteToken, wethAmount);
+            }
+        } else {
             uint256 wethAmount = quoteSingle(baseToken, WETH, baseAmount);
             quoteAmount = quoteSingle(WETH, quoteToken, wethAmount);
         }
@@ -128,14 +172,17 @@ contract PriceOracle is IPriceOracle, Initializable {
         return quoteAmount * (10**(18 - quoteDecimals));
     }
 
-    // the price is scaled by 1e18. example: 1eth = 2000usdt, price = 2000*1e18
-    function getMarkPrice(address amm) public view override returns (uint256 price, bool isIndexPrice) {
+    function getMarketPrice(address amm) public view override returns (uint256) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
         uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
         uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
         uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
-        price = exponent.mulDiv(quoteReserve, baseReserve);
+        return exponent.mulDiv(quoteReserve, baseReserve);
+    }
 
+    // the price is scaled by 1e18. example: 1eth = 2000usdt, price = 2000*1e18
+    function getMarkPrice(address amm) public view override returns (uint256 price, bool isIndexPrice) {
+        price = getMarketPrice(amm);
         uint256 indexPrice = getIndexPrice(amm);
         if (price * 100 >= indexPrice * (100 + priceGap) || price * 100 <= indexPrice * (100 - priceGap)) {
             price = indexPrice;
@@ -143,14 +190,25 @@ contract PriceOracle is IPriceOracle, Initializable {
         }
     }
 
-    function getMarkPriceAfterSwap(address amm, uint256 quoteAmount) public view override returns (uint256 price, bool isIndexPrice) {
+    function getMarkPriceAfterSwap(
+        address amm,
+        uint256 quoteAmount,
+        uint256 baseAmount
+    ) public view override returns (uint256 price, bool isIndexPrice) {
         (uint112 baseReserveBefore, uint112 quoteReserveBefore, ) = IAmm(amm).getReserves();
         address baseToken = IAmm(amm).baseToken();
         address quoteToken = IAmm(amm).quoteToken();
-        uint256[2] memory amounts = IAmm(amm).estimateSwap(quoteToken, baseToken, quoteAmount, 0);
-        uint256 baseAmount = amounts[1];
-        uint256 baseReserveAfter = uint256(baseReserveBefore) - baseAmount;
-        uint256 quoteReserveAfter = uint256(quoteReserveBefore) + quoteAmount;
+        uint256 baseReserveAfter;
+        uint256 quoteReserveAfter;
+        if (quoteAmount > 0) {
+            uint256[2] memory amounts = IAmm(amm).estimateSwap(quoteToken, baseToken, quoteAmount, 0);
+            baseReserveAfter = uint256(baseReserveBefore) - amounts[1];
+            quoteReserveAfter = uint256(quoteReserveBefore) + quoteAmount;
+        } else {
+            uint256[2] memory amounts = IAmm(amm).estimateSwap(baseToken, quoteToken, baseAmount, 0);
+            baseReserveAfter = uint256(baseReserveBefore) + baseAmount;
+            quoteReserveAfter = uint256(quoteReserveBefore) - amounts[1];
+        }
 
         uint8 baseDecimals = IERC20(baseToken).decimals();
         uint8 quoteDecimals = IERC20(quoteToken).decimals();
@@ -166,22 +224,40 @@ contract PriceOracle is IPriceOracle, Initializable {
     }
 
     // example: 1eth = 2000usdt, 1eth = 1e18, 1usdt = 1e6, price = (1e6/1e18)*1e18
-    function getMarkPriceInRatio(address amm, uint256 quoteAmount) public view override returns (uint256 baseAmount, bool isIndexPrice) {
+    function getMarkPriceInRatio(
+        address amm,
+        uint256 quoteAmount,
+        uint256 baseAmount
+    )
+        public
+        view
+        override
+        returns (
+            uint256 resultBaseAmount,
+            uint256 resultQuoteAmount,
+            bool isIndexPrice
+        )
+    {
+        require(quoteAmount == 0 || baseAmount == 0, "PriceOracle.getMarkPriceInRatio: AT_LEAST_ONE_ZERO");
         uint256 markPrice;
         (markPrice, isIndexPrice) = getMarkPrice(amm);
         if (!isIndexPrice) {
-            (markPrice, isIndexPrice) = getMarkPriceAfterSwap(amm, quoteAmount);
+            (markPrice, isIndexPrice) = getMarkPriceAfterSwap(amm, quoteAmount, baseAmount);
         }
-        
+
         uint8 baseDecimals = IERC20(IAmm(amm).baseToken()).decimals();
         uint8 quoteDecimals = IERC20(IAmm(amm).quoteToken()).decimals();
-        uint256 price;
+        uint256 ratio;
         if (quoteDecimals > baseDecimals) {
-            price = markPrice * 10**(quoteDecimals - baseDecimals);
+            ratio = markPrice * 10**(quoteDecimals - baseDecimals);
         } else {
-            price = markPrice / 10**(baseDecimals - quoteDecimals);
+            ratio = markPrice / 10**(baseDecimals - quoteDecimals);
         }
-        baseAmount = quoteAmount * 1e18 / price;
+        if (quoteAmount > 0) {
+            resultBaseAmount = (quoteAmount * 1e18) / ratio;
+        } else {
+            resultQuoteAmount = (baseAmount * ratio) / 1e18;
+        }
     }
 
     // get user's mark price, return base amount, it's for checking if user's position can be liquidated.
@@ -193,9 +269,9 @@ contract PriceOracle is IPriceOracle, Initializable {
         bool negative
     ) external view override returns (uint256 baseAmount) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        require(2 * beta * quoteAmount/100 < quoteReserve, "PriceOracle.getMarkPriceAcc: SLIPPAGE_TOO_LARGE");
+        require((2 * beta * quoteAmount) / 100 < quoteReserve, "PriceOracle.getMarkPriceAcc: SLIPPAGE_TOO_LARGE");
 
-        (uint256 baseAmount_, bool isIndexPrice) = getMarkPriceInRatio(amm, quoteAmount);
+        (uint256 baseAmount_, , bool isIndexPrice) = getMarkPriceInRatio(amm, quoteAmount, 0);
         if (!isIndexPrice) {
             // markPrice = y/x
             // price = ( sqrt(y/x) +/- beta * quoteAmount / sqrt(x*y) )**2 = (y +/- beta * quoteAmount)**2 / x*y
@@ -211,8 +287,8 @@ contract PriceOracle is IPriceOracle, Initializable {
             baseAmount = quoteAmount.mulDiv(uint256(baseReserve) * quoteReserve, denominator);
         } else {
             // price = markPrice(1 +/- 2 * beta * quoteAmount / quoteReserve)
-            uint256 markPrice = quoteAmount * 1e18 / baseAmount_;
-            uint256 rvalue = markPrice.mulDiv(2 * beta * quoteAmount/100, quoteReserve);
+            uint256 markPrice = (quoteAmount * 1e18) / baseAmount_;
+            uint256 rvalue = markPrice.mulDiv((2 * beta * quoteAmount) / 100, quoteReserve);
             uint256 price;
             if (negative) {
                 price = markPrice - rvalue;
@@ -223,12 +299,12 @@ contract PriceOracle is IPriceOracle, Initializable {
         }
     }
 
-    //premiumFraction is (markPrice - indexPrice) / 24h / indexPrice, scale by 1e18
+    //premiumFraction is (marketPrice - indexPrice) / 24h / indexPrice, scale by 1e18
     function getPremiumFraction(address amm) external view override returns (int256) {
-        (uint256 markPrice,) = getMarkPrice(amm);
+        uint256 marketPrice = getMarketPrice(amm);
         uint256 indexPrice = getIndexPrice(amm);
-        require(markPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
-        return ((int256(markPrice) - int256(indexPrice)) * 1e18) / (24 * 3600) / int256(indexPrice);
+        require(marketPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
+        return ((int256(marketPrice) - int256(indexPrice)) * 1e18) / (24 * 3600) / int256(indexPrice);
     }
 
     function quoteSingle(
@@ -280,12 +356,18 @@ contract PriceOracle is IPriceOracle, Initializable {
         return uint160(priceX192.sqrt());
     }
 
-    function _setupV3Pool(address baseToken, address quoteToken, address pool) internal {
-        v3Pools[baseToken][quoteToken] = pool;
-        IUniswapV3Pool v3Pool = IUniswapV3Pool(pool);
-        (, , , , uint16 cardinalityNext, , ) = v3Pool.slot0();
-        if (cardinalityNext < cardinality) {
-            IUniswapV3Pool(pool).increaseObservationCardinalityNext(cardinality);
+    function _setupV3Pool(
+        address baseToken,
+        address quoteToken,
+        address pool
+    ) internal {
+        if (v3Pools[baseToken][quoteToken] == address(0)) {
+            v3Pools[baseToken][quoteToken] = pool;
+            IUniswapV3Pool v3Pool = IUniswapV3Pool(pool);
+            (, , , , uint16 cardinalityNext, , ) = v3Pool.slot0();
+            if (cardinalityNext < cardinality) {
+                IUniswapV3Pool(pool).increaseObservationCardinalityNext(cardinality);
+            }
         }
     }
 }
