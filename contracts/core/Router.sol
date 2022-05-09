@@ -193,7 +193,6 @@ contract Router is IRouter, Initializable {
         uint256 baseAmountLimit,
         uint256 deadline
     ) external override ensure(deadline) notEmergency onlyEOA returns (uint256 baseAmount) {
-        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.openPositionWithWallet: NOT_FOUND_MARGIN");
         require(side == 0 || side == 1, "Router.openPositionWithWallet: INSUFFICIENT_SIDE");
@@ -255,7 +254,6 @@ contract Router is IRouter, Initializable {
         uint256 deadline,
         bool autoWithdraw
     ) external override ensure(deadline) onlyEOA returns (uint256 baseAmount, uint256 withdrawAmount) {
-        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
         if (!autoWithdraw) {
