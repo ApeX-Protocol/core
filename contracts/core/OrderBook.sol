@@ -123,6 +123,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
                 )
             );
         }
+        emit ExecuteLog(order.nonce, success);
         if (requireSuccess) {
             require(success, "_executeOpen: call failed");
         }
@@ -154,6 +155,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         (bool success, bytes memory ret) = routerForKeeper.call(
             abi.encodeWithSelector(IRouterForKeeper(address(0)).closePosition.selector, order)
         );
+        emit ExecuteLog(order.nonce, success);
 
         if (requireSuccess) {
             require(success, "_executeClose: call failed");
