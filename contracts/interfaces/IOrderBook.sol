@@ -45,6 +45,8 @@ interface IOrderBook {
 
     event ExecuteClose(ClosePositionOrder order, bytes signature);
 
+    event ExecuteLog(bytes orderId, bool success);
+
     function batchExecuteOpen(
         OpenPositionOrder[] memory orders,
         bytes[] memory signatures,
