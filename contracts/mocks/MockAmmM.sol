@@ -9,12 +9,15 @@ contract MockAmmOfMargin is ERC20 {
     address public baseToken;
     address public quoteToken;
     address public margin;
+    address public factory;
     uint112 private baseReserve;
     uint112 private quoteReserve;
     uint32 private blockTimestampLast;
     uint256 public price = 2e9;
 
-    constructor(string memory name, string memory symbol) ERC20(name, symbol) {}
+    constructor(string memory name, string memory symbol) ERC20(name, symbol) {
+        factory = msg.sender;
+    }
 
     function initialize(address baseToken_, address quoteToken_) external {
         baseToken = baseToken_;
