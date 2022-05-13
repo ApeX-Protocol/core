@@ -409,7 +409,7 @@ contract Router is IRouter, Initializable {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         (int256 baseSize, int256 quoteSize, uint256 tradeSize) = IMargin(margin).getPosition(holder);
         int256 fundingFee = IMargin(margin).calFundingFee(holder);
-        quoteSize = quoteSize + fundingFee;
+        baseSize = baseSize + fundingFee;
         if (quoteSize == 0) {
             amount = baseSize <= 0 ? 0 : baseSize.abs();
         } else if (quoteSize < 0) {
