@@ -27,6 +27,7 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
     address public WETH;
     address public v3Factory;
     uint24[3] public v3Fees;
+    int256 public alpha;
 
     // baseToken => quoteToken => true/false
     mapping(address => mapping(address => bool)) public useBridge;
@@ -35,46 +36,53 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
     mapping(address => V3Oracle.Observation[65535]) public ammObservations;
     mapping(address => uint16) public ammObservationIndex;
 
-    function initialize(address WETH_, address v3Factory_) public initializer {
+    function initialize(address owner_, address WETH_, address v3Factory_) public initializer {
+        owner = owner_;
         WETH = WETH_;
         v3Factory = v3Factory_;
         v3Fees[0] = 500;
         v3Fees[1] = 3000;
         v3Fees[2] = 10000;
+        alpha = 3;
     }
 
-    function resetTwap(address amm, bool useBridge_) external onlyOwner {
-        require(ammObservations[amm][0].initialized, "PriceOracle.resetTwap: AMM_NOT_INIT");
-        address baseToken = IAmm(amm).baseToken();
-        address quoteToken = IAmm(amm).quoteToken();
-
-        delete v3Pools[baseToken][quoteToken];
-        delete useBridge[baseToken][quoteToken];
-
-        if (!useBridge_) {
-            address pool = getTargetPool(baseToken, quoteToken);
-            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
-            _setupV3Pool(baseToken, quoteToken, pool);
-        } else {
-            v3Pools[baseToken][WETH] = address(0);
-            v3Pools[WETH][quoteToken] = address(0);
-
-            address pool = getTargetPool(baseToken, WETH);
-            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
-            _setupV3Pool(baseToken, WETH, pool);
-
-            pool = getTargetPool(WETH, quoteToken);
-            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
-            _setupV3Pool(WETH, quoteToken, pool);
-
-            useBridge[baseToken][quoteToken] = true;
-        }
-
-        delete ammObservations[amm];
-        ammObservationIndex[amm] = 0;
-        ammObservations[amm].initialize(_blockTimestamp());
-        ammObservations[amm].grow(1, cardinality);
+    function setAlpha(int256 newAlpha) external onlyOwner {
+        require(newAlpha > 0, "PriceOracle.setAlpha: MUST_GREATER_THAN_ZERO");
+        alpha = newAlpha;
     }
+
+    // function resetTwap(address amm, bool useBridge_) external onlyOwner {
+    //     require(ammObservations[amm][0].initialized, "PriceOracle.resetTwap: AMM_NOT_INIT");
+    //     address baseToken = IAmm(amm).baseToken();
+    //     address quoteToken = IAmm(amm).quoteToken();
+
+    //     v3Pools[baseToken][quoteToken] = address(0);
+    //     useBridge[baseToken][quoteToken] = false;
+
+    //     if (!useBridge_) {
+    //         address pool = getTargetPool(baseToken, quoteToken);
+    //         require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+    //         _setupV3Pool(baseToken, quoteToken, pool);
+    //     } else {
+    //         v3Pools[baseToken][WETH] = address(0);
+    //         v3Pools[WETH][quoteToken] = address(0);
+
+    //         address pool = getTargetPool(baseToken, WETH);
+    //         require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+    //         _setupV3Pool(baseToken, WETH, pool);
+
+    //         pool = getTargetPool(WETH, quoteToken);
+    //         require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+    //         _setupV3Pool(WETH, quoteToken, pool);
+
+    //         useBridge[baseToken][quoteToken] = true;
+    //     }
+
+    //     delete ammObservations[amm];
+    //     ammObservationIndex[amm] = 0;
+    //     ammObservations[amm].initialize(_blockTimestamp());
+    //     ammObservations[amm].grow(1, cardinality);
+    // }
 
     function setupTwap(address amm) external override {
         require(!ammObservations[amm][0].initialized, "PriceOracle.setupTwap: AMM_ALREADY_SETUP");
@@ -299,12 +307,12 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
         }
     }
 
-    //premiumFraction is (marketPrice - indexPrice) / 24h / indexPrice, scale by 1e18
+    //premiumFraction is (marketPrice - indexPrice) / 8h * alpha / indexPrice, scale by 1e18
     function getPremiumFraction(address amm) external view override returns (int256) {
         uint256 marketPrice = getMarketPrice(amm);
         uint256 indexPrice = getIndexPrice(amm);
         require(marketPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
-        return ((int256(marketPrice) - int256(indexPrice)) * 1e18) / (24 * 3600) / int256(indexPrice);
+        return ((int256(marketPrice) - int256(indexPrice)) * 1e18) / (8 * 3600 * alpha) / int256(indexPrice);
     }
 
     function quoteSingle(
