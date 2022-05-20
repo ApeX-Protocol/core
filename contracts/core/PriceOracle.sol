@@ -276,7 +276,7 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
             // markPrice = y/x
             // price = ( sqrt(y/x) +/- beta * quoteAmount / sqrt(x*y) )**2 = (y +/- beta * quoteAmount)**2 / x*y
             // baseAmount = quoteAmount / price = quoteAmount * x * y / (y +/- beta * quoteAmount)**2
-            uint256 rvalue = (quoteAmount * beta) / 100;
+            uint256 rvalue = (quoteAmount * uint256(beta)) / 100;
             uint256 denominator;
             if (negative) {
                 denominator = quoteReserve - rvalue;
@@ -288,7 +288,7 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
         } else {
             // price = markPrice(1 +/- 2 * beta * quoteAmount / quoteReserve)
             uint256 markPrice = (quoteAmount * 1e18) / baseAmount_;
-            uint256 rvalue = markPrice.mulDiv((2 * beta * quoteAmount) / 100, quoteReserve);
+            uint256 rvalue = markPrice.mulDiv((2 * uint256(beta) * quoteAmount) / 100, quoteReserve);
             uint256 price;
             if (negative) {
                 price = markPrice - rvalue;
