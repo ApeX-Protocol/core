@@ -34,17 +34,16 @@ describe("RouterForKeeper Contract", function() {
 
     await usdc.mint(owner.address, 10000000);
     await weth.approve(routerForKeeper.address, 10000000);
+    await routerForKeeper.setOrderBook(orderBook.address);
 
-    // await routerForKeeper.deposit(weth.address, owner.address, 10000000);
-    // expect(await routerForKeeper.balanceOf(weth.address, owner.address)).to.be.equal(10000000);
     order = {
       routerToExecute: routerForKeeper.address,
       trader: owner.address,
       baseToken: weth.address,
       quoteToken: usdc.address,
       side: 0,
-      baseAmount: 10000,
-      quoteAmount: 30000,
+      baseAmount: "1000",
+      quoteAmount: 300,
       slippage: 500,
       limitPrice: "2100000000000000000", //2.1
       deadline: 999999999999,
@@ -88,10 +87,10 @@ describe("RouterForKeeper Contract", function() {
       baseToken: weth.address,
       quoteToken: usdc.address,
       side: 0,
-      quoteAmount: 30000,
+      quoteAmount: 30,
       limitPrice: "1900000000000000000", //1.9
       deadline: 999999999999,
-      autoWithdraw: false,
+      autoWithdraw: true,
       nonce: utils.formatBytes32String("this is close long nonce")
     };
 
@@ -109,60 +108,21 @@ describe("RouterForKeeper Contract", function() {
     };
   });
 
-  describe("deposit", function() {
-    it("can deposit to routerForKeeper", async function() {
-      await weth.approve(routerForKeeper.address, 10);
-      await routerForKeeper.deposit(weth.address, addr1.address, 10);
-      expect(await routerForKeeper.balanceOf(weth.address, addr1.address)).to.be.equal(10);
-    });
-
-    it("revert when no allowance", async function() {
-      await expect(routerForKeeper.deposit(weth.address, addr1.address, 10000001)).to.be.revertedWith(
-        "TransferHelper::transferFrom: transferFrom failed"
-      );
-    });
-  });
-
-  describe("depositETH", function() {
-    it("can deposit eth to routerForKeeper", async function() {
-      await routerForKeeper.depositETH(addr1.address, { value: 10 });
-      expect(await routerForKeeper.balanceOf(weth.address, addr1.address)).to.be.equal(10);
-      expect(await weth.balanceOf(routerForKeeper.address)).to.be.equal(10);
-    });
-  });
-
-  describe("withdraw", function() {
-    beforeEach(async function() {
-      await weth.approve(routerForKeeper.address, 10);
-      await routerForKeeper.deposit(weth.address, addr1.address, 10);
-    });
-
-    it("can withdraw weth", async function() {
-      await routerForKeeper.connect(addr1).withdraw(weth.address, addr1.address, 5);
-      expect(await routerForKeeper.balanceOf(weth.address, addr1.address)).to.be.equal(5);
-      expect(await weth.balanceOf(addr1.address)).to.be.equal(5);
-    });
-  });
-
-  describe("withdrawETH", function() {
-    beforeEach(async function() {
-      await routerForKeeper.depositETH(addr1.address, { value: 10 });
-    });
-
-    it("can withdraw eth", async function() {
-      await routerForKeeper.connect(addr1).withdrawETH(addr1.address, 5);
-      expect(await routerForKeeper.balanceOf(weth.address, addr1.address)).to.be.equal(5);
-    });
-  });
-
   describe("openPositionWithWallet", function() {
     beforeEach(async function() {
-      await routerForKeeper.depositETH(owner.address, { value: 10 });
+      // await weth.approve(routerForKeeper.address, 10000000000000000000);
     });
 
     it("can open position with wallet", async function() {
-      await routerForKeeper.depositETH(owner.address, { value: 1000000 });
+      let balance = await weth.balanceOf(owner.address);
+      console.log(balance.toString())
       await routerForKeeper.openPositionWithWallet(order, 0);
+      let result = await router.getPosition(weth.address, usdc.address, owner.address);
+      console.log(result.baseSize.toNumber())
+      console.log(result.quoteSize.toNumber())
+      console.log(result.tradeSize.toNumber())
+      balance = await weth.balanceOf(owner.address);
+      console.log(balance.toString())
     });
 
     it("revert when open position with wrong pair", async function() {
@@ -186,14 +146,12 @@ describe("RouterForKeeper Contract", function() {
     });
 
     it("revert when open long position exceed limit", async function() {
-      await routerForKeeper.depositETH(owner.address, { value: 1000000 });
       await expect(routerForKeeper.openPositionWithWallet(order, "3002135611318739989")).to.be.revertedWith(
         "RouterForKeeper.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT"
       );
     });
 
     it("revert when open short position exceed limit", async function() {
-      await routerForKeeper.depositETH(owner.address, { value: 1000000 });
       await expect(routerForKeeper.openPositionWithWallet(orderShort, 0)).to.be.revertedWith(
         "RouterForKeeper.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT"
       );
@@ -242,13 +200,19 @@ describe("RouterForKeeper Contract", function() {
 
   describe("closePosition", function() {
     beforeEach(async function() {
-      await weth.approve(router.address, 100000000);
-      await router.deposit(weth.address, usdc.address, owner.address, 1000000);
-      await routerForKeeper.openPositionWithMargin(order, 800);
+      await routerForKeeper.openPositionWithWallet(order, 0);
+      let result = await router.getPosition(weth.address, usdc.address, owner.address);
+      console.log(result.baseSize.toNumber())
+      console.log(result.quoteSize.toNumber())
+      console.log(result.tradeSize.toNumber())
     });
 
     it("can close position", async function() {
+      let balance = await weth.balanceOf(owner.address);
+      console.log(balance.toString())
       await routerForKeeper.closePosition(closeOrder);
+      balance = await weth.balanceOf(owner.address);
+      console.log(balance.toString())
     });
 
     it("revert when open position with wrong pair", async function() {

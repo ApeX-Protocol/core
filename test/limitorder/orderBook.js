@@ -18,7 +18,7 @@ describe("OrderBook Contract", function() {
     "tuple(address routerToExecute, address trader, address baseToken, address quoteToken, uint8 side, uint256 baseAmount, uint256 quoteAmount, uint256 slippage, uint256 limitPrice, uint256 deadline, bool withWallet, bytes nonce)";
   let closeOrderStruct =
     "tuple(address routerToExecute, address trader, address baseToken, address quoteToken, uint8 side, uint256 quoteAmount, uint256 limitPrice, uint256 deadline, bool autoWithdraw, bytes nonce)";
-  let order;
+  let order, order1, wrongOrder, orderShort, closeOrder, wrongCloseOrder, closeOrderShort;
 
   beforeEach(async function() {
     abiCoder = await ethers.utils.defaultAbiCoder;
@@ -43,8 +43,6 @@ describe("OrderBook Contract", function() {
     await usdc.mint(owner.address, 10000000);
     await weth.approve(routerForKeeper.address, 10000000);
 
-    await routerForKeeper.deposit(weth.address, owner.address, 10000000);
-    expect(await routerForKeeper.balanceOf(weth.address, owner.address)).to.be.equal(10000000);
     order = {
       routerToExecute: routerForKeeper.address,
       trader: owner.address,
@@ -60,6 +58,36 @@ describe("OrderBook Contract", function() {
       nonce: utils.formatBytes32String("this is open long nonce")
     };
 
+    order1 = {
+      routerToExecute: routerForKeeper.address,
+      trader: owner.address,
+      baseToken: weth.address,
+      quoteToken: usdc.address,
+      side: 1,
+      baseAmount: 10000,
+      quoteAmount: 40000,
+      slippage: 600,
+      limitPrice: "1900000000000000000", //2.1
+      deadline: 999999999999,
+      withWallet: true,
+      nonce: utils.formatBytes32String("this is open short nonce")
+    };
+
+    orderShort = {
+      routerToExecute: routerForKeeper.address,
+      trader: owner.address,
+      baseToken: weth.address,
+      quoteToken: usdc.address,
+      side: 1,
+      baseAmount: 10000,
+      quoteAmount: 30000,
+      slippage: 600,
+      limitPrice: "1900000000000000000", //1.9
+      deadline: 999999999999,
+      withWallet: true,
+      nonce: utils.formatBytes32String("this is open short nonce")
+    };
+
     wrongOrder = {
       routerToExecute: routerForKeeper.address,
       trader: addr1.address,
@@ -73,21 +101,6 @@ describe("OrderBook Contract", function() {
       deadline: 999999999999,
       withWallet: true,
       nonce: utils.formatBytes32String("this is wrong open long nonce")
-    };
-
-    orderShort = {
-      routerToExecute: routerForKeeper.address,
-      trader: owner.address,
-      baseToken: weth.address,
-      quoteToken: usdc.address,
-      side: 1,
-      baseAmount: 10000,
-      quoteAmount: 30000,
-      slippage: 600, //6%
-      limitPrice: "1900000000000000000", //1.9
-      deadline: 999999999999,
-      withWallet: true,
-      nonce: utils.formatBytes32String("this is open short nonce")
     };
 
     closeOrder = {
@@ -132,34 +145,35 @@ describe("OrderBook Contract", function() {
 
   describe("batchExecuteOpen", function() {
     it("can batchExecuteOpen", async function() {
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
-
-      await orderBook.batchExecuteOpen([order], [signature], false);
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
+      const order1Encoded = abiCoder.encode([orderStruct], [order1]);
+      const order1Sign = await owner.signMessage(utils.arrayify(utils.keccak256(order1Encoded)));
+      await orderBook.batchExecuteOpen([order, order1], [orderSign, order1Sign], false);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
-      expect(result.quoteSize.toNumber()).to.be.equal(-30000);
+      expect(result.quoteSize.toNumber()).to.be.equal(10000);
     });
 
-    it("not revert all when batchExecuteOpen with false", async function() {
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
-      let data1 = abiCoder.encode([orderStruct], [wrongOrder]);
-      let signature1 = await addr1.signMessage(utils.arrayify(utils.keccak256(data1)));
+    it("not revert all when batchExecuteOpen with requireSuccess false", async function() {
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
+      const wOrderEncoded = abiCoder.encode([orderStruct], [wrongOrder]);
+      const wOrderSign = await addr1.signMessage(utils.arrayify(utils.keccak256(wOrderEncoded)));
 
-      await orderBook.batchExecuteOpen([order, wrongOrder], [signature, signature1], false);
+      await orderBook.batchExecuteOpen([order, wrongOrder], [orderSign, wOrderSign], false);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(-30000);
       result = await router.getPosition(weth.address, usdc.address, addr1.address);
       expect(result.quoteSize.toNumber()).to.be.equal(0);
     });
 
-    it("revert all when batchExecuteOpen with true", async function() {
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
-      let data1 = abiCoder.encode([orderStruct], [wrongOrder]);
-      let signature1 = await addr1.signMessage(utils.arrayify(utils.keccak256(data1)));
+    it("revert all when batchExecuteOpen with requireSuccess true", async function() {
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
+      const wOrderEncoded = abiCoder.encode([orderStruct], [wrongOrder]);
+      const wOrderSign = await addr1.signMessage(utils.arrayify(utils.keccak256(wOrderEncoded)));
 
-      await expect(orderBook.batchExecuteOpen([order, wrongOrder], [signature, signature1], true)).to.be.revertedWith(
+      await expect(orderBook.batchExecuteOpen([order, wrongOrder], [orderSign, wOrderSign], true)).to.be.revertedWith(
         "_executeOpen: call failed"
       );
     });
@@ -167,61 +181,63 @@ describe("OrderBook Contract", function() {
 
   describe("batchExecuteClose", function() {
     beforeEach(async function() {
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
-      await orderBook.batchExecuteOpen([order], [signature], false);
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
+      await orderBook.batchExecuteOpen([order], [orderSign], false);
+      const result = await router.getPosition(weth.address, usdc.address, owner.address);
+      expect(result.quoteSize.toNumber()).to.be.equal(-30000);
     });
 
     it("can batchExecuteClose", async function() {
-      data = abiCoder.encode([closeOrderStruct], [closeOrder]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+      const cOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrder]);
+      let cOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(cOrderEncoded)));
 
-      await orderBook.batchExecuteClose([closeOrder], [signature], false);
-      let result = await router.getPosition(weth.address, usdc.address, owner.address);
+      await orderBook.batchExecuteClose([closeOrder], [cOrderSign], false);
+      const result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(0);
     });
 
-    it("not revert all when batchExecuteClose with false", async function() {
-      data = abiCoder.encode([closeOrderStruct], [closeOrder]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
-      let data1 = abiCoder.encode([closeOrderStruct], [wrongCloseOrder]);
-      let signature1 = await addr1.signMessage(utils.arrayify(utils.keccak256(data1)));
+    it("not revert all when batchExecuteClose with requireSuccess false", async function() {
+      const cOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrder]);
+      const cOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(cOrderEncoded)));
+      const wOrderEncoded = abiCoder.encode([closeOrderStruct], [wrongCloseOrder]);
+      const wOrderSign = await addr1.signMessage(utils.arrayify(utils.keccak256(wOrderEncoded)));
 
-      await orderBook.batchExecuteClose([closeOrder, wrongCloseOrder], [signature, signature1], false);
+      await orderBook.batchExecuteClose([closeOrder, wrongCloseOrder], [cOrderSign, wOrderSign], false);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(0);
       result = await router.getPosition(weth.address, usdc.address, addr1.address);
       expect(result.quoteSize.toNumber()).to.be.equal(0);
     });
 
-    it("revert all when batchExecuteClose with true", async function() {
-      data = abiCoder.encode([closeOrderStruct], [closeOrder]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
-      let data1 = abiCoder.encode([closeOrderStruct], [wrongCloseOrder]);
-      let signature1 = await addr1.signMessage(utils.arrayify(utils.keccak256(data1)));
+    it("revert all when batchExecuteClose with requireSuccess true", async function() {
+      const cOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrder]);
+      const cOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(cOrderEncoded)));
+      const wcOrderEncoded = abiCoder.encode([closeOrderStruct], [wrongCloseOrder]);
+      const wcOrderSign = await addr1.signMessage(utils.arrayify(utils.keccak256(wcOrderEncoded)));
 
       await expect(
-        orderBook.batchExecuteClose([closeOrder, wrongCloseOrder], [signature, signature1], true)
+        orderBook.batchExecuteClose([closeOrder, wrongCloseOrder], [cOrderSign, wcOrderSign], true)
       ).to.be.revertedWith("_executeClose: call failed");
     });
   });
 
   describe("executeOpen", function() {
     it("execute a new open long position order", async function() {
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
-      await orderBook.executeOpen(order, signature);
-      let result = await router.getPosition(weth.address, usdc.address, owner.address);
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
+      await orderBook.executeOpen(order, orderSign);
+      const result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(-30000);
     });
 
     it("execute a new open short position order", async function() {
-      data = abiCoder.encode([orderStruct], [orderShort]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+      const orderEncoded = abiCoder.encode([orderStruct], [order1]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
-      await orderBook.executeOpen(orderShort, signature);
+      await orderBook.executeOpen(order1, orderSign);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
-      expect(result.quoteSize.toNumber()).to.be.equal(30000);
+      expect(result.quoteSize.toNumber()).to.be.equal(40000);
     });
 
     it("revert when execute a wrong order", async function() {

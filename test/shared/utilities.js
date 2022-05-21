@@ -1,5 +1,6 @@
 const BN = require("bn.js");
 const { ethers } = require("hardhat");
+const { address } = require("hardhat/internal/core/config/config-validation");
 
 const maxUint256 = ethers.constants.MaxUint256;
 
@@ -133,7 +134,7 @@ async function deploy(owner) {
   let ammFactory = await deployContract("AmmFactory", [pairFactory.address, config.address, owner.address]);
   let router = await deployContract("Router", []);
   let routerForKeeper = await deployContract("RouterForKeeper", [pairFactory.address, weth.address]);
-  let orderBook = await deployContract("OrderBook", [routerForKeeper.address]);
+  let orderBook = await deployContract("OrderBook", [routerForKeeper.address, owner.address]);
 
   return {
     weth,

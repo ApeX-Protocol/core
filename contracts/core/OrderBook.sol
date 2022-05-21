@@ -13,19 +13,31 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
     using ECDSA for bytes32;
 
     address public routerForKeeper;
+    address public bot;
     mapping(bytes => bool) public usedNonce;
 
-    constructor(address _routerForKeeper) {
+    modifier onlyBot() {
+        require(msg.sender == bot, "OrderBook:only bot");
+        _;
+    }
+
+    constructor(address _routerForKeeper, address _bot) {
         require(_routerForKeeper != address(0), "OrderBook: ZERO_ADDRESS");
         owner = msg.sender;
         routerForKeeper = _routerForKeeper;
+        bot = _bot;
+    }
+
+    function setBot(address newBot) external override onlyOwner {
+        require(newBot != address(0), "OrderBook setbot: ZERO_ADDRESS");
+        bot = newBot;
     }
 
     function batchExecuteOpen(
         OpenPositionOrder[] memory orders,
         bytes[] memory signatures,
         bool requireSuccess
-    ) external override nonReentrant returns (RespData[] memory respData) {
+    ) external override nonReentrant onlyBot returns (RespData[] memory respData) {
         require(orders.length == signatures.length, "OrderBook.batchExecuteOpen: LENGTH_NOT_MATCH");
         respData = new RespData[](orders.length);
         for (uint256 i = 0; i < orders.length; i++) {
@@ -38,7 +50,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         ClosePositionOrder[] memory orders,
         bytes[] memory signatures,
         bool requireSuccess
-    ) external override nonReentrant returns (RespData[] memory respData) {
+    ) external override nonReentrant onlyBot returns (RespData[] memory respData) {
         require(orders.length == signatures.length, "OrderBook.batchExecuteClose: LENGTH_NOT_MATCH");
         respData = new RespData[](orders.length);
         for (uint256 i = 0; i < orders.length; i++) {
@@ -48,13 +60,13 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         emit BatchExecuteClose(orders, signatures, requireSuccess);
     }
 
-    function executeOpen(OpenPositionOrder memory order, bytes memory signature) external override nonReentrant {
+    function executeOpen(OpenPositionOrder memory order, bytes memory signature) external override nonReentrant onlyBot {
         _executeOpen(order, signature, true);
 
         emit ExecuteOpen(order, signature);
     }
 
-    function executeClose(ClosePositionOrder memory order, bytes memory signature) external override nonReentrant {
+    function executeClose(ClosePositionOrder memory order, bytes memory signature) external override nonReentrant onlyBot {
         _executeClose(order, signature, true);
 
         emit ExecuteClose(order, signature);
@@ -94,7 +106,19 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         require(order.side == 0 || order.side == 1, "OrderBook.executeOpen: INVALID_SIDE");
 
         (uint256 currentPrice, uint256 baseDecimals, uint256 quoteDecimals) = IRouterForKeeper(routerForKeeper)
-            .getSpotPriceWithMultiplier(order.baseToken, order.quoteToken);
+        .getSpotPriceWithMultiplier(order.baseToken, order.quoteToken);
+
+        uint256 slippageRatio;
+        if (quoteDecimals > baseDecimals) {
+            slippageRatio = (order.side == 0)
+            ? (order.limitPrice * (10 ** (quoteDecimals - baseDecimals)) * (10000 - order.slippage)) / 10000
+            : (order.limitPrice * (10 ** (quoteDecimals - baseDecimals)) * (10000 + order.slippage)) / 10000;
+        } else {
+            slippageRatio = (order.side == 0)
+            ? (order.limitPrice / (10 ** (baseDecimals - quoteDecimals)) * (10000 - order.slippage)) / 10000
+            : (order.limitPrice / (10 ** (baseDecimals - quoteDecimals)) * (10000 + order.slippage)) / 10000;
+        }
+
         if (order.side == 0) {
             require(currentPrice <= order.limitPrice, "OrderBook.executeOpen: WRONG_PRICE");
         } else {
@@ -103,9 +127,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
 
         bool success;
         bytes memory ret;
-        uint256 slippageRatio = (order.side == 0)
-            ? (order.limitPrice * (10**(quoteDecimals - baseDecimals)) * (10000 - order.slippage)) / 10000
-            : (order.limitPrice * (10**(quoteDecimals - baseDecimals)) * (10000 + order.slippage)) / 10000;
+
         if (order.withWallet) {
             (success, ret) = routerForKeeper.call(
                 abi.encodeWithSelector(
@@ -129,7 +151,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         }
 
         usedNonce[order.nonce] = true;
-        return RespData({success: success, result: ret});
+        return RespData({success : success, result : ret});
     }
 
     function _executeClose(
@@ -142,7 +164,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         require(order.baseToken != address(0), "OrderBook.executeClose: ORDER_NOT_FOUND");
         require(order.side == 0 || order.side == 1, "OrderBook.executeClose: INVALID_SIDE");
 
-        (uint256 currentPrice, , ) = IRouterForKeeper(routerForKeeper).getSpotPriceWithMultiplier(
+        (uint256 currentPrice, ,) = IRouterForKeeper(routerForKeeper).getSpotPriceWithMultiplier(
             order.baseToken,
             order.quoteToken
         );
@@ -162,6 +184,6 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         }
 
         usedNonce[order.nonce] = true;
-        return RespData({success: success, result: ret});
+        return RespData({success : success, result : ret});
     }
 }
