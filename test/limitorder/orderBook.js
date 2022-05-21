@@ -8,7 +8,7 @@ use(solidity);
 
 let weth, usdc, priceOracle, config, pairFactory, marginFactory, ammFactory, router, routerForKeeper, orderBook;
 
-describe("OrderBook Contract", function() {
+describe("OrderBook UT", function() {
 
   const provider = waffle.provider;
   let [owner, treasury, addr1] = provider.getWallets();
@@ -241,67 +241,67 @@ describe("OrderBook Contract", function() {
     });
 
     it("revert when execute a wrong order", async function() {
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
       order.side = 1 - order.side;
-      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("OrderBook.verifyOpen: NOT_SIGNER");
+      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OrderBook.verifyOpen: NOT_SIGNER");
     });
 
     it("revert when execute an used order", async function() {
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
-      await orderBook.executeOpen(order, signature);
-      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("OrderBook.verifyOpen: NONCE_USED");
+      await orderBook.executeOpen(order, orderSign);
+      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OrderBook.verifyOpen: NONCE_USED");
     });
 
     it("revert when execute a expired order", async function() {
       order.deadline = 10000;
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
-      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("OrderBook.verifyOpen: EXPIRED");
+      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OrderBook.verifyOpen: EXPIRED");
     });
 
     it("revert when execute to an invalid router", async function() {
       order.routerToExecute = addr1.address;
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
-      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("OrderBook.executeOpen: WRONG_ROUTER");
+      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OrderBook.executeOpen: WRONG_ROUTER");
     });
 
     it("revert when execute long with an invalid slippage", async function() {
       order.slippage = 1;
-      data = abiCoder.encode([orderStruct], [order]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+      const orderEncoded = abiCoder.encode([orderStruct], [order]);
+      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
-      await expect(orderBook.executeOpen(order, signature)).to.be.revertedWith("_executeOpen: call failed");
+      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("_executeOpen: call failed");
     });
 
     it("revert when execute short with invalid slippage", async function() {
       orderShort.slippage = 1;
-      data = abiCoder.encode([orderStruct], [orderShort]);
-      let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+      const sOrderEncoded = abiCoder.encode([orderStruct], [orderShort]);
+      const sOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(sOrderEncoded)));
 
-      await expect(orderBook.executeOpen(orderShort, signature)).to.be.revertedWith("_executeOpen: call failed");
+      await expect(orderBook.executeOpen(orderShort, sOrderSign)).to.be.revertedWith("_executeOpen: call failed");
     });
   });
 
   describe("executeClose", function() {
     describe("open long first", async function() {
       beforeEach(async function() {
-        data = abiCoder.encode([orderStruct], [order]);
-        let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
-        await orderBook.executeOpen(order, signature);
+        const orderEncoded = abiCoder.encode([orderStruct], [order]);
+        const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
+        await orderBook.executeOpen(order, orderSign);
       });
 
       it("execute a new close long position order", async function() {
-        let data = abiCoder.encode([closeOrderStruct], [closeOrder]);
-        let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+        const cOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrder]);
+        const cOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(cOrderEncoded)));
 
-        await orderBook.executeClose(closeOrder, signature);
+        await orderBook.executeClose(closeOrder, cOrderSign);
         let result = await router.getPosition(weth.address, usdc.address, owner.address);
         expect(result.quoteSize.toNumber()).to.be.equal(0);
       });
@@ -309,46 +309,46 @@ describe("OrderBook Contract", function() {
 
     describe("open short first", async function() {
       beforeEach(async function() {
-        data = abiCoder.encode([orderStruct], [orderShort]);
-        signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
-        await orderBook.executeOpen(orderShort, signature);
+        const sOrderEncoded = abiCoder.encode([orderStruct], [orderShort]);
+        const sOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(sOrderEncoded)));
+        await orderBook.executeOpen(orderShort, sOrderSign);
       });
 
       it("execute a new close short position order", async function() {
-        data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
-        let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+        const csOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
+        const csOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(csOrderEncoded)));
 
-        await orderBook.executeClose(closeOrderShort, signature);
-        let result = await router.getPosition(weth.address, usdc.address, owner.address);
+        await orderBook.executeClose(closeOrderShort, csOrderSign);
+        const result = await router.getPosition(weth.address, usdc.address, owner.address);
         expect(result.quoteSize.toNumber()).to.be.equal(0);
       });
 
       it("revert when execute a wrong order", async function() {
-        data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
-        let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+        const csOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
+        const csOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(csOrderEncoded)));
 
         closeOrderShort.side = 1 - closeOrderShort.side;
-        await expect(orderBook.executeClose(closeOrderShort, signature)).to.be.revertedWith(
+        await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith(
           "OrderBook.verifyClose: NOT_SIGNER"
         );
       });
 
       it("revert when execute an used order", async function() {
-        data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
-        let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+        const csOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
+        const csOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(csOrderEncoded)));
 
-        await orderBook.executeClose(closeOrderShort, signature);
-        await expect(orderBook.executeClose(closeOrderShort, signature)).to.be.revertedWith(
+        await orderBook.executeClose(closeOrderShort, csOrderSign);
+        await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith(
           "OrderBook.verifyClose: NONCE_USED"
         );
       });
 
       it("revert when execute a expired order", async function() {
         closeOrderShort.deadline = 10000;
-        data = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
-        let signature = await owner.signMessage(utils.arrayify(utils.keccak256(data)));
+        const csOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
+        const csOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(csOrderEncoded)));
 
-        await expect(orderBook.executeClose(closeOrderShort, signature)).to.be.revertedWith(
+        await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith(
           "OrderBook.verifyClose: EXPIRED"
         );
       });

@@ -51,6 +51,7 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         external
         override
         ensure(order.deadline)
+        onlyOrderBook
         returns (uint256 baseAmount)
     {
         address margin = IPairFactory(pairFactory).getMargin(order.baseToken, order.quoteToken);
@@ -94,7 +95,8 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         external
         override
         ensure(order.deadline)
-        returns (uint256 baseAmount, uint256 withdrawAmount)
+        onlyOrderBook
+    returns (uint256 baseAmount, uint256 withdrawAmount)
     {
         address margin = IPairFactory(pairFactory).getMargin(order.baseToken, order.quoteToken);
         require(margin != address(0), "RouterForKeeper.closePosition: NOT_FOUND_MARGIN");
