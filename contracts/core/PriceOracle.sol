@@ -27,6 +27,7 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
     address public WETH;
     address public v3Factory;
     uint24[3] public v3Fees;
+    int256 public alpha;
 
     // baseToken => quoteToken => true/false
     mapping(address => mapping(address => bool)) public useBridge;
@@ -35,46 +36,53 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
     mapping(address => V3Oracle.Observation[65535]) public ammObservations;
     mapping(address => uint16) public ammObservationIndex;
 
-    function initialize(address WETH_, address v3Factory_) public initializer {
+    function initialize(address owner_, address WETH_, address v3Factory_) public initializer {
+        owner = owner_;
         WETH = WETH_;
         v3Factory = v3Factory_;
         v3Fees[0] = 500;
         v3Fees[1] = 3000;
         v3Fees[2] = 10000;
+        alpha = 3;
     }
 
-    function resetTwap(address amm, bool useBridge_) external onlyOwner {
-        require(ammObservations[amm][0].initialized, "PriceOracle.resetTwap: AMM_NOT_INIT");
-        address baseToken = IAmm(amm).baseToken();
-        address quoteToken = IAmm(amm).quoteToken();
-
-        delete v3Pools[baseToken][quoteToken];
-        delete useBridge[baseToken][quoteToken];
-
-        if (!useBridge_) {
-            address pool = getTargetPool(baseToken, quoteToken);
-            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
-            _setupV3Pool(baseToken, quoteToken, pool);
-        } else {
-            v3Pools[baseToken][WETH] = address(0);
-            v3Pools[WETH][quoteToken] = address(0);
-
-            address pool = getTargetPool(baseToken, WETH);
-            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
-            _setupV3Pool(baseToken, WETH, pool);
-
-            pool = getTargetPool(WETH, quoteToken);
-            require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
-            _setupV3Pool(WETH, quoteToken, pool);
-
-            useBridge[baseToken][quoteToken] = true;
-        }
-
-        delete ammObservations[amm];
-        ammObservationIndex[amm] = 0;
-        ammObservations[amm].initialize(_blockTimestamp());
-        ammObservations[amm].grow(1, cardinality);
+    function setAlpha(int256 newAlpha) external onlyOwner {
+        require(newAlpha > 0, "PriceOracle.setAlpha: MUST_GREATER_THAN_ZERO");
+        alpha = newAlpha;
     }
+
+    // function resetTwap(address amm, bool useBridge_) external onlyOwner {
+    //     require(ammObservations[amm][0].initialized, "PriceOracle.resetTwap: AMM_NOT_INIT");
+    //     address baseToken = IAmm(amm).baseToken();
+    //     address quoteToken = IAmm(amm).quoteToken();
+
+    //     v3Pools[baseToken][quoteToken] = address(0);
+    //     useBridge[baseToken][quoteToken] = false;
+
+    //     if (!useBridge_) {
+    //         address pool = getTargetPool(baseToken, quoteToken);
+    //         require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+    //         _setupV3Pool(baseToken, quoteToken, pool);
+    //     } else {
+    //         v3Pools[baseToken][WETH] = address(0);
+    //         v3Pools[WETH][quoteToken] = address(0);
+
+    //         address pool = getTargetPool(baseToken, WETH);
+    //         require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+    //         _setupV3Pool(baseToken, WETH, pool);
+
+    //         pool = getTargetPool(WETH, quoteToken);
+    //         require(pool != address(0), "PriceOracle.resetTwap: POOL_NOT_FOUND");
+    //         _setupV3Pool(WETH, quoteToken, pool);
+
+    //         useBridge[baseToken][quoteToken] = true;
+    //     }
+
+    //     delete ammObservations[amm];
+    //     ammObservationIndex[amm] = 0;
+    //     ammObservations[amm].initialize(_blockTimestamp());
+    //     ammObservations[amm].grow(1, cardinality);
+    // }
 
     function setupTwap(address amm) external override {
         require(!ammObservations[amm][0].initialized, "PriceOracle.setupTwap: AMM_ALREADY_SETUP");
@@ -269,26 +277,26 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
         bool negative
     ) external view override returns (uint256 baseAmount) {
         (uint112 baseReserve, uint112 quoteReserve, ) = IAmm(amm).getReserves();
-        require((2 * beta * quoteAmount) / 100 < quoteReserve, "PriceOracle.getMarkPriceAcc: SLIPPAGE_TOO_LARGE");
+        require((quoteAmount * beta * 2) / 100 < quoteReserve, "PriceOracle.getMarkPriceAcc: SLIPPAGE_TOO_LARGE");
 
         (uint256 baseAmount_, , bool isIndexPrice) = getMarkPriceInRatio(amm, quoteAmount, 0);
         if (!isIndexPrice) {
             // markPrice = y/x
             // price = ( sqrt(y/x) +/- beta * quoteAmount / sqrt(x*y) )**2 = (y +/- beta * quoteAmount)**2 / x*y
             // baseAmount = quoteAmount / price = quoteAmount * x * y / (y +/- beta * quoteAmount)**2
-            uint256 rvalue = (quoteAmount * uint256(beta)) / 100;
+            uint256 rvalue = (quoteAmount * beta) / 100;
             uint256 denominator;
             if (negative) {
-                denominator = quoteReserve - rvalue;
+                denominator = uint256(quoteReserve) - rvalue;
             } else {
-                denominator = quoteReserve + rvalue;
+                denominator = uint256(quoteReserve) + rvalue;
             }
             denominator = denominator * denominator;
             baseAmount = quoteAmount.mulDiv(uint256(baseReserve) * quoteReserve, denominator);
         } else {
             // price = markPrice(1 +/- 2 * beta * quoteAmount / quoteReserve)
             uint256 markPrice = (quoteAmount * 1e18) / baseAmount_;
-            uint256 rvalue = markPrice.mulDiv((2 * uint256(beta) * quoteAmount) / 100, quoteReserve);
+            uint256 rvalue = markPrice.mulDiv((quoteAmount * beta * 2) / 100, quoteReserve);
             uint256 price;
             if (negative) {
                 price = markPrice - rvalue;
@@ -299,12 +307,12 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
         }
     }
 
-    //premiumFraction is (marketPrice - indexPrice) / 24h / indexPrice, scale by 1e18
+    //premiumFraction is (marketPrice - indexPrice) / 8h * alpha / indexPrice, scale by 1e18
     function getPremiumFraction(address amm) external view override returns (int256) {
         uint256 marketPrice = getMarketPrice(amm);
         uint256 indexPrice = getIndexPrice(amm);
         require(marketPrice > 0 && indexPrice > 0, "PriceOracle.getPremiumFraction: INVALID_PRICE");
-        return ((int256(marketPrice) - int256(indexPrice)) * 1e18) / (24 * 3600) / int256(indexPrice);
+        return ((int256(marketPrice) - int256(indexPrice)) * 1e18) / (8 * 3600 * alpha) / int256(indexPrice);
     }
 
     function quoteSingle(
