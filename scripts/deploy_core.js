@@ -37,11 +37,11 @@ const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   // await attachApeXToken();
-  await createPriceOracle();
+  // await createPriceOracle();
   // await createConfig();
   // await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
@@ -124,17 +124,17 @@ async function createPCVTreasury() {
 
 async function createRouter() {
   if (config == null) {
-    let configAddress = "0x43624493A79eF508BC9EDe792E67aABD44e3BfE8";
+    let configAddress = "0x38a71796bC0291Bc09f4D890B45A9A93d49eDf70";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
   }
   if (pairFactory == null) {
-    let pairFactoryAddress = "0xf6DA867db55BCA6312132cCFC936160fB970fEF4";
+    let pairFactoryAddress = "0xA7B799832B46B51b2b6a156FDCE58525dE24Ac0f";
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }
   if (pcvTreasury == null) {
-    let pcvTreasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
+    let pcvTreasuryAddress = "0x73f5d8fb154d19a0C496E7411488cD455aB0373A";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
     pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
   }
@@ -146,7 +146,7 @@ async function createRouter() {
   console.log(verifyStr, process.env.HARDHAT_NETWORK, router.address);
 
   // router = await upgrades.deployProxy(Router, [config.address, pairFactory.address, pcvTreasury.address, wethAddress]);
-  await config.registerRouter(router.address);
+  // await config.registerRouter(router.address);
   // console.log("Router:", router.address);
 }
 
