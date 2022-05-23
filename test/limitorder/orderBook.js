@@ -2,7 +2,7 @@ const { expect, use } = require("chai");
 const { ethers, waffle } = require("hardhat");
 const { utils } = require("ethers");
 const { solidity } = require("ethereum-waffle");
-const { expandDecimals, deploy, init } = require("../shared/utilities");
+const { expandDecimals, deploy, init, reportGasUsed } = require("../shared/utilities");
 
 use(solidity);
 
@@ -42,6 +42,7 @@ describe("OrderBook UT", function() {
 
     await usdc.mint(owner.address, 10000000);
     await weth.approve(routerForKeeper.address, 10000000);
+    await routerForKeeper.setOrderBook(orderBook.address);
 
     order = {
       routerToExecute: routerForKeeper.address,
@@ -149,7 +150,8 @@ describe("OrderBook UT", function() {
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
       const order1Encoded = abiCoder.encode([orderStruct], [order1]);
       const order1Sign = await owner.signMessage(utils.arrayify(utils.keccak256(order1Encoded)));
-      await orderBook.batchExecuteOpen([order, order1], [orderSign, order1Sign], false);
+      const tx = await orderBook.batchExecuteOpen([order, order1], [orderSign, order1Sign], false);
+      await reportGasUsed(provider, tx, "");
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(10000);
     });
@@ -174,7 +176,7 @@ describe("OrderBook UT", function() {
       const wOrderSign = await addr1.signMessage(utils.arrayify(utils.keccak256(wOrderEncoded)));
 
       await expect(orderBook.batchExecuteOpen([order, wrongOrder], [orderSign, wOrderSign], true)).to.be.revertedWith(
-        "_executeOpen: call failed"
+        "OB.EO: call failed"
       );
     });
   });
@@ -218,7 +220,7 @@ describe("OrderBook UT", function() {
 
       await expect(
         orderBook.batchExecuteClose([closeOrder, wrongCloseOrder], [cOrderSign, wcOrderSign], true)
-      ).to.be.revertedWith("_executeClose: call failed");
+      ).to.be.revertedWith("OB.EC: call failed");
     });
   });
 
@@ -245,7 +247,7 @@ describe("OrderBook UT", function() {
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
       order.side = 1 - order.side;
-      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OrderBook.verifyOpen: NOT_SIGNER");
+      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OB.VO: NOT_SIGNER");
     });
 
     it("revert when execute an used order", async function() {
@@ -253,7 +255,7 @@ describe("OrderBook UT", function() {
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
       await orderBook.executeOpen(order, orderSign);
-      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OrderBook.verifyOpen: NONCE_USED");
+      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OB.VO: NONCE_USED");
     });
 
     it("revert when execute a expired order", async function() {
@@ -261,7 +263,7 @@ describe("OrderBook UT", function() {
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
-      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OrderBook.verifyOpen: EXPIRED");
+      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OB.VO: EXPIRED");
     });
 
     it("revert when execute to an invalid router", async function() {
@@ -269,23 +271,7 @@ describe("OrderBook UT", function() {
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
-      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OrderBook.executeOpen: WRONG_ROUTER");
-    });
-
-    it("revert when execute long with an invalid slippage", async function() {
-      order.slippage = 1;
-      const orderEncoded = abiCoder.encode([orderStruct], [order]);
-      const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
-
-      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("_executeOpen: call failed");
-    });
-
-    it("revert when execute short with invalid slippage", async function() {
-      orderShort.slippage = 1;
-      const sOrderEncoded = abiCoder.encode([orderStruct], [orderShort]);
-      const sOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(sOrderEncoded)));
-
-      await expect(orderBook.executeOpen(orderShort, sOrderSign)).to.be.revertedWith("_executeOpen: call failed");
+      await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OB.EO: WRONG_ROUTER");
     });
   });
 
@@ -329,7 +315,7 @@ describe("OrderBook UT", function() {
 
         closeOrderShort.side = 1 - closeOrderShort.side;
         await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith(
-          "OrderBook.verifyClose: NOT_SIGNER"
+          "OB.VC: NOT_SIGNER"
         );
       });
 
@@ -339,7 +325,7 @@ describe("OrderBook UT", function() {
 
         await orderBook.executeClose(closeOrderShort, csOrderSign);
         await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith(
-          "OrderBook.verifyClose: NONCE_USED"
+          "OB.VC: NONCE_USED"
         );
       });
 
@@ -349,7 +335,7 @@ describe("OrderBook UT", function() {
         const csOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(csOrderEncoded)));
 
         await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith(
-          "OrderBook.verifyClose: EXPIRED"
+          "OB.VC: EXPIRED"
         );
       });
     });

@@ -111,34 +111,22 @@ describe("RouterForKeeper UT", function() {
   describe("openPositionWithWallet", function() {
 
     it("can open position with wallet", async function() {
-      await routerForKeeper.openPositionWithWallet(order, 0);
+      await routerForKeeper.openPositionWithWallet(order);
       let result = await router.getPosition(weth.address, usdc.address, owner.address);
       expect(result.quoteSize.toNumber()).to.be.equal(-300);
     });
 
     it("revert when open position with wrong pair", async function() {
       order.baseToken = owner.address;
-      await expect(routerForKeeper.openPositionWithWallet(order, 0)).to.be.revertedWith(
-        "RouterForKeeper.openPositionWithWallet: NOT_FOUND_MARGIN"
+      await expect(routerForKeeper.openPositionWithWallet(order)).to.be.revertedWith(
+        "RFK.OPWW: NOT_FOUND_MARGIN"
       );
     });
 
     it("revert when open position with invalid side", async function() {
       order.side = 2;
-      await expect(routerForKeeper.openPositionWithWallet(order, 0)).to.be.revertedWith(
-        "RouterForKeeper.openPositionWithWallet: INVALID_SIDE"
-      );
-    });
-
-    it("revert when open long position exceed limit", async function() {
-      await expect(routerForKeeper.openPositionWithWallet(order, "3002135611318739989")).to.be.revertedWith(
-        "RouterForKeeper.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT"
-      );
-    });
-
-    it("revert when open short position exceed limit", async function() {
-      await expect(routerForKeeper.openPositionWithWallet(orderShort, 0)).to.be.revertedWith(
-        "RouterForKeeper.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT"
+      await expect(routerForKeeper.openPositionWithWallet(order)).to.be.revertedWith(
+        "RFK.OPWW: INVALID_SIDE"
       );
     });
   });
@@ -151,42 +139,28 @@ describe("RouterForKeeper UT", function() {
 
     it("can open position with margin", async function() {
       await router.deposit(weth.address, usdc.address, owner.address, 1000000);
-      await routerForKeeper.openPositionWithMargin(order, 0);
+      await routerForKeeper.openPositionWithMargin(order);
     });
 
     it("revert when open position with wrong pair", async function() {
       order.baseToken = owner.address;
-      await expect(routerForKeeper.openPositionWithMargin(order, 0)).to.be.revertedWith(
-        "RouterForKeeper.openPositionWithMargin: NOT_FOUND_MARGIN"
+      await expect(routerForKeeper.openPositionWithMargin(order)).to.be.revertedWith(
+        "RFK.OPWM: NOT_FOUND_MARGIN"
       );
     });
 
     it("revert when open position with invalid side", async function() {
       order.side = 2;
-      await expect(routerForKeeper.openPositionWithMargin(order, 0)).to.be.revertedWith(
-        "RouterForKeeper.openPositionWithMargin: INVALID_SIDE"
-      );
-    });
-
-    it("revert when open long position exceed limit", async function() {
-      await router.deposit(weth.address, usdc.address, owner.address, 1000000);
-      await expect(routerForKeeper.openPositionWithMargin(order, "3002135611318739989")).to.be.revertedWith(
-        "RouterForKeeper.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT"
-      );
-    });
-
-    it("revert when open short position exceed limit", async function() {
-      await router.deposit(weth.address, usdc.address, owner.address, 1000000);
-      await expect(routerForKeeper.openPositionWithMargin(orderShort, 0)).to.be.revertedWith(
-        "RouterForKeeper.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT"
+      await expect(routerForKeeper.openPositionWithMargin(order)).to.be.revertedWith(
+        "RFK.OPWM: INVALID_SIDE"
       );
     });
   });
 
   describe("closePosition", function() {
     beforeEach(async function() {
-      await routerForKeeper.openPositionWithWallet(order, 0);
-      let result = await router.getPosition(weth.address, usdc.address, owner.address);
+      await routerForKeeper.openPositionWithWallet(order);
+      await router.getPosition(weth.address, usdc.address, owner.address);
     });
 
     it("can close position", async function() {
@@ -196,14 +170,14 @@ describe("RouterForKeeper UT", function() {
     it("revert when open position with wrong pair", async function() {
       closeOrder.baseToken = owner.address;
       await expect(routerForKeeper.closePosition(closeOrder)).to.be.revertedWith(
-        "RouterForKeeper.closePosition: NOT_FOUND_MARGIN"
+        "RFK.CP: NOT_FOUND_MARGIN"
       );
     });
 
     it("revert when close a long position with side=1", async function() {
       closeOrder.side = 1;
       await expect(routerForKeeper.closePosition(closeOrder)).to.be.revertedWith(
-        "RouterForKeeper.closePosition: SIDE_NOT_MATCH"
+        "RFK.CP: SIDE_NOT_MATCH"
       );
     });
   });

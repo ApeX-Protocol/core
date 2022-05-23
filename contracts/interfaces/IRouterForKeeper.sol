@@ -8,11 +8,11 @@ interface IRouterForKeeper {
 
     function WETH() external view returns (address);
 
-    function openPositionWithWallet(IOrderBook.OpenPositionOrder memory order, uint256 deadline)
+    function openPositionWithWallet(IOrderBook.OpenPositionOrder memory order)
         external
         returns (uint256 baseAmount);
 
-    function openPositionWithMargin(IOrderBook.OpenPositionOrder memory order, uint256 deadline)
+    function openPositionWithMargin(IOrderBook.OpenPositionOrder memory order)
         external
         returns (uint256 baseAmount);
 
