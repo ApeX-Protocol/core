@@ -13,11 +13,11 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
     using ECDSA for bytes32;
 
     address public routerForKeeper;
-    address public bot;
     mapping(bytes => bool) public usedNonce;
+    mapping(address => bool) public bots;
 
     modifier onlyBot() {
-        require(msg.sender == bot, "OB:only bot");
+        require(bots[msg.sender] == true, "OB:only bot");
         _;
     }
 
@@ -25,12 +25,17 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         require(_routerForKeeper != address(0), "OB: ZERO_ADDRESS");
         owner = msg.sender;
         routerForKeeper = _routerForKeeper;
-        bot = _bot;
+        bots[_bot] = true;
     }
 
-    function setBot(address newBot) external override onlyOwner {
+    function addBot(address newBot) external override onlyOwner {
         require(newBot != address(0), "OB.ST: ZERO_ADDRESS");
-        bot = newBot;
+        bots[newBot] = true;
+    }
+
+    function pauseBot(address bot) external override onlyOwner {
+        require(bot != address(0), "OB.PT: ZERO_ADDRESS");
+        bots[bot] = !bots[bot];
     }
 
     function batchExecuteOpen(

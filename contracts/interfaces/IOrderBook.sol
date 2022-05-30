@@ -69,5 +69,7 @@ interface IOrderBook {
 
     function setRouterForKeeper(address routerForKeeper) external;
 
-    function setBot(address newBot) external;
+    function addBot(address newBot) external;
+
+    function pauseBot(address bot) external;
 }
