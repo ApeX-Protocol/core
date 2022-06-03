@@ -68,4 +68,8 @@ interface IOrderBook {
     function verifyClose(ClosePositionOrder memory order, bytes memory signature) external view returns (bool);
 
     function setRouterForKeeper(address routerForKeeper) external;
+
+    function addBot(address newBot) external;
+
+    function reverseBotState(address bot) external;
 }

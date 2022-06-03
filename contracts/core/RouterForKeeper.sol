@@ -11,21 +11,29 @@ import "../interfaces/IWETH.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/SignedMath.sol";
 import "../libraries/FullMath.sol";
+import "../utils/Ownable.sol";
 
-contract RouterForKeeper is IRouterForKeeper {
+contract RouterForKeeper is IRouterForKeeper, Ownable {
     using SignedMath for int256;
     using FullMath for uint256;
 
     address public immutable override pairFactory;
     address public immutable override WETH;
+    address public orderBook;
     mapping(address => mapping(address => uint256)) public balanceOf;
 
     modifier ensure(uint256 deadline) {
-        require(deadline >= block.timestamp, "RouterForKeeper: EXPIRED");
+        require(deadline >= block.timestamp, "RFK: EXPIRED");
+        _;
+    }
+
+    modifier onlyOrderBook() {
+        require(msg.sender == orderBook, "RFK:only orderboook");
         _;
     }
 
     constructor(address pairFactory_, address _WETH) {
+        owner = msg.sender;
         pairFactory = pairFactory_;
         WETH = _WETH;
     }
@@ -34,103 +42,54 @@ contract RouterForKeeper is IRouterForKeeper {
         assert(msg.sender == WETH); // only accept ETH via fallback from the WETH contract
     }
 
-    function deposit(
-        address baseToken,
-        address to,
-        uint256 amount
-    ) external override {
-        TransferHelper.safeTransferFrom(baseToken, msg.sender, address(this), amount);
-        balanceOf[baseToken][to] += amount;
-        emit Deposit(baseToken, msg.sender, to, amount);
+    function setOrderBook(address newOrderBook) external override onlyOwner {
+        require(newOrderBook != address(0), "RFK.SOB: ZERO_ADDRESS");
+        orderBook = newOrderBook;
     }
 
-    function depositETH(address to) external payable override {
-        uint256 amount = msg.value;
-        IWETH(WETH).deposit{value: amount}();
-        balanceOf[WETH][to] += amount;
-        emit DepositETH(msg.sender, to, amount);
-    }
-
-    function withdraw(
-        address baseToken,
-        address to,
-        uint256 amount
-    ) external override {
-        uint256 balance = balanceOf[baseToken][msg.sender];
-        require(amount <= balance, "RouterForKeeper.withdraw: INSUFFICIENT_BASE_TOKEN");
-        TransferHelper.safeTransfer(baseToken, to, amount);
-        balanceOf[baseToken][msg.sender] -= amount;
-
-        emit Withdraw(baseToken, msg.sender, to, amount);
-    }
-
-    function withdrawETH(address to, uint256 amount) external override {
-        uint256 balance = balanceOf[WETH][msg.sender];
-        require(amount <= balance, "RouterForKeeper.withdrawETH: INSUFFICIENT_WETH");
-        IWETH(WETH).withdraw(amount);
-        TransferHelper.safeTransferETH(to, amount);
-        balanceOf[WETH][msg.sender] = balance - amount;
-
-        emit WithdrawETH(msg.sender, to, amount);
-    }
-
-    function openPositionWithWallet(IOrderBook.OpenPositionOrder memory order, uint256 slippageRatio)
+    function openPositionWithWallet(IOrderBook.OpenPositionOrder memory order)
         external
         override
         ensure(order.deadline)
+        onlyOrderBook
         returns (uint256 baseAmount)
     {
         address margin = IPairFactory(pairFactory).getMargin(order.baseToken, order.quoteToken);
-        require(margin != address(0), "RouterForKeeper.openPositionWithWallet: NOT_FOUND_MARGIN");
-        require(order.side == 0 || order.side == 1, "RouterForKeeper.openPositionWithWallet: INVALID_SIDE");
-        uint256 balance = balanceOf[order.baseToken][order.trader];
-        require(order.baseAmount <= balance, "RouterForKeeper.openPositionWithWallet: NO_SUFFICIENT_MARGIN");
+        require(margin != address(0), "RFK.OPWW: NOT_FOUND_MARGIN");
+        require(order.side == 0 || order.side == 1, "RFK.OPWW: INVALID_SIDE");
 
-        TransferHelper.safeTransfer(order.baseToken, margin, order.baseAmount);
-        balanceOf[order.baseToken][order.trader] = balance - order.baseAmount;
+        TransferHelper.safeTransferFrom(order.baseToken, order.trader, margin, order.baseAmount);
 
         IMargin(margin).addMargin(order.trader, order.baseAmount);
         baseAmount = IMargin(margin).openPosition(order.trader, order.side, order.quoteAmount);
-
-        require(
-            (order.side == 0)
-                ? slippageRatio < ((order.quoteAmount * 1e18) / baseAmount)
-                : slippageRatio > ((order.quoteAmount * 1e18) / baseAmount),
-            "RouterForKeeper.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT"
-        );
     }
 
-    function openPositionWithMargin(IOrderBook.OpenPositionOrder memory order, uint256 slippageRatio)
+    function openPositionWithMargin(IOrderBook.OpenPositionOrder memory order)
         external
         override
         ensure(order.deadline)
+        onlyOrderBook
         returns (uint256 baseAmount)
     {
         address margin = IPairFactory(pairFactory).getMargin(order.baseToken, order.quoteToken);
-        require(margin != address(0), "RouterForKeeper.openPositionWithMargin: NOT_FOUND_MARGIN");
-        require(order.side == 0 || order.side == 1, "RouterForKeeper.openPositionWithMargin: INVALID_SIDE");
+        require(margin != address(0), "RFK.OPWM: NOT_FOUND_MARGIN");
+        require(order.side == 0 || order.side == 1, "RFK.OPWM: INVALID_SIDE");
         baseAmount = IMargin(margin).openPosition(order.trader, order.side, order.quoteAmount);
-
-        require(
-            (order.side == 0)
-                ? slippageRatio < ((order.quoteAmount * 1e18) / baseAmount)
-                : slippageRatio > ((order.quoteAmount * 1e18) / baseAmount),
-            "RouterForKeeper.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT"
-        );
     }
 
     function closePosition(IOrderBook.ClosePositionOrder memory order)
         external
         override
         ensure(order.deadline)
-        returns (uint256 baseAmount, uint256 withdrawAmount)
+        onlyOrderBook
+    returns (uint256 baseAmount, uint256 withdrawAmount)
     {
         address margin = IPairFactory(pairFactory).getMargin(order.baseToken, order.quoteToken);
-        require(margin != address(0), "RouterForKeeper.closePosition: NOT_FOUND_MARGIN");
+        require(margin != address(0), "RFK.CP: NOT_FOUND_MARGIN");
         (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(order.trader);
         require(
             quoteSizeBefore > 0 ? order.side == 1 : order.side == 0,
-            "RouterForKeeper.closePosition: SIDE_NOT_MATCH"
+            "RFK.CP: SIDE_NOT_MATCH"
         );
         if (!order.autoWithdraw) {
             baseAmount = IMargin(margin).closePosition(order.trader, order.quoteAmount);

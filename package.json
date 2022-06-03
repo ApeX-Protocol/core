@@ -33,8 +33,10 @@
     "test_watch": "npx hardhat watch test",
     "deploy_core_arbi": "hardhat run scripts/deploy_core.js --network arbitrumOne",
     "deploy_fee_treasury_arbi": "hardhat run scripts/deploy_fee_treasury.js --network arbitrumOne",
+    "deploy_limit_order_arbi": "hardhat run scripts/deploy_limit_order.js --network arbitrumOne",
     "deploy_core_test": "hardhat run scripts/deploy_core.js --network arbitrumTestnet",
-    "deploy_fee_treasury_test": "hardhat run scripts/deploy_fee_treasury.js --network arbitrumTestnet"
+    "deploy_fee_treasury_test": "hardhat run scripts/deploy_fee_treasury.js --network arbitrumTestnet",
+    "deploy_limit_order_test": "hardhat run scripts/deploy_limit_order.js --network arbitrumTestnet"
   },
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "^2.0.2",
