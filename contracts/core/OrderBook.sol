@@ -7,7 +7,6 @@ import "../libraries/TransferHelper.sol";
 import "../interfaces/IOrderBook.sol";
 import "../interfaces/IRouterForKeeper.sol";
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract OrderBook is IOrderBook, Ownable, Reentrant {
     using ECDSA for bytes32;
@@ -17,15 +16,15 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
     mapping(address => bool) public bots;
 
     modifier onlyBot() {
-        require(bots[msg.sender] == true, "OB:only bot");
+        require(bots[msg.sender] == true, "OB: ONLY_BOT");
         _;
     }
 
-    constructor(address _routerForKeeper, address _bot) {
-        require(_routerForKeeper != address(0), "OB: ZERO_ADDRESS");
+    constructor(address routerForKeeper_, address bot_) {
+        require(routerForKeeper_ != address(0), "OB: ZERO_ADDRESS");
         owner = msg.sender;
-        routerForKeeper = _routerForKeeper;
-        bots[_bot] = true;
+        routerForKeeper = routerForKeeper_;
+        bots[bot_] = true;
     }
 
     function addBot(address newBot) external override onlyOwner {
@@ -110,7 +109,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         require(order.baseToken != address(0), "OB.EO: ORDER_NOT_FOUND");
         require(order.side == 0 || order.side == 1, "OB.EO: INVALID_SIDE");
 
-        (uint256 currentPrice, uint256 baseDecimals, uint256 quoteDecimals) = IRouterForKeeper(routerForKeeper)
+        (uint256 currentPrice, , ) = IRouterForKeeper(routerForKeeper)
         .getSpotPriceWithMultiplier(order.baseToken, order.quoteToken);
 
         // long 0 : price <= limitPrice * (1 + slippage)
@@ -138,7 +137,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         }
         emit ExecuteLog(order.nonce, success);
         if (requireSuccess) {
-            require(success, "OB.EO: call failed");
+            require(success, "OB.EO: CALL_FAILED");
         }
 
         usedNonce[order.nonce] = true;
@@ -171,7 +170,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         emit ExecuteLog(order.nonce, success);
 
         if (requireSuccess) {
-            require(success, "OB.EC: call failed");
+            require(success, "OB.EC: CALL_FAILED");
         }
 
         usedNonce[order.nonce] = true;

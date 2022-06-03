@@ -46,7 +46,6 @@ const main = async () => {
   //// below only deploy for testnet
   // await createMockTokens();
   // await createPair();
-  await createOrderBook();
 };
 
 async function attachApeXToken() {
@@ -192,25 +191,6 @@ async function createPair() {
   console.log("Margin:", marginAddress);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, ammAddress);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, marginAddress);
-}
-
-async function createOrderBook() {
-  // dev testnet mainnet是不一样的地址
-  const pairFactoryAddr = "0xCE09a98C734ffB8e209b907FB0657193796FE3fD";
-  const RouterForKeeper = await ethers.getContractFactory("RouterForKeeper");
-  routerForKeeper = await RouterForKeeper.deploy(pairFactoryAddr, wethAddress);
-  console.log("RouterForKeeper:", routerForKeeper.address);
-
-  // 合约可以进行配置
-  const botAddr = "0xbc6e4e0bc15293b5b9f0173c1c4a56525768d36c";
-
-  const OrderBook = await ethers.getContractFactory("OrderBook");
-  orderBook = await OrderBook.deploy(routerForKeeper.address, botAddr);
-  console.log("OrderBook:", orderBook.address);
-  await routerForKeeper.setOrderBook(orderBook.address);
-
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, routerForKeeper.address, pairFactoryAddr, wethAddress);
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, orderBook.address, routerForKeeper.address, botAddr);
 }
 
 main()
