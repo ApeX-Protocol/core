@@ -71,5 +71,5 @@ interface IOrderBook {
 
     function addBot(address newBot) external;
 
-    function pauseBot(address bot) external;
+    function reverseBotState(address bot) external;
 }

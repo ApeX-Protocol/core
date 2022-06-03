@@ -33,7 +33,7 @@ contract OrderBook is IOrderBook, Ownable, Reentrant {
         bots[newBot] = true;
     }
 
-    function pauseBot(address bot) external override onlyOwner {
+    function reverseBotState(address bot) external override onlyOwner {
         require(bot != address(0), "OB.PT: ZERO_ADDRESS");
         bots[bot] = !bots[bot];
     }
