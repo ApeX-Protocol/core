@@ -22,8 +22,6 @@ let marginFactory;
 let pcvTreasury;
 let router;
 let multicall2;
-let routerForKeeper;
-let orderBook;
 
 /// below variables only for testnet
 let mockWETH;
@@ -41,7 +39,7 @@ const main = async () => {
   // await createConfig();
   // await createPairFactory();
   // await createPCVTreasury();
-  // await createRouter();
+  await createRouter();
   // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
