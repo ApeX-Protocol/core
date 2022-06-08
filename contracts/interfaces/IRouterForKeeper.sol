@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 import "./IOrderBook.sol";
 
 interface IRouterForKeeper {
+    event CollectFee(address indexed trader, address indexed margin, uint256 fee);
 
     function pairFactory() external view returns (address);
 

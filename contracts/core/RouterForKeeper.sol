@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "../interfaces/IAmmFactory.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IRouterForKeeper.sol";
 import "../interfaces/IOrderBook.sol";
@@ -62,6 +63,9 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
 
         IMargin(margin).addMargin(order.trader, order.baseAmount);
         baseAmount = IMargin(margin).openPosition(order.trader, order.side, order.quoteAmount);
+        if (order.side == 0) {
+            _collectFee(baseAmount, margin);
+        }
     }
 
     function openPositionWithMargin(IOrderBook.OpenPositionOrder memory order)
@@ -75,6 +79,9 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         require(margin != address(0), "RFK.OPWM: NOT_FOUND_MARGIN");
         require(order.side == 0 || order.side == 1, "RFK.OPWM: INVALID_SIDE");
         baseAmount = IMargin(margin).openPosition(order.trader, order.side, order.quoteAmount);
+        if (order.side == 0) {
+            _collectFee(baseAmount, margin);
+        }
     }
 
     function closePosition(IOrderBook.ClosePositionOrder memory order)
@@ -93,9 +100,15 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         );
         if (!order.autoWithdraw) {
             baseAmount = IMargin(margin).closePosition(order.trader, order.quoteAmount);
+            if (quoteSizeBefore > 0) {
+                _collectFee(baseAmount, margin);
+            }
         } else {
             {
                 baseAmount = IMargin(margin).closePosition(order.trader, order.quoteAmount);
+                if (quoteSizeBefore > 0) {
+                    _collectFee(baseAmount, margin);
+                }
                 (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(order.trader);
                 int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(order.trader);
                 int256 traderMargin;
@@ -141,5 +154,12 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         uint256 exponent = uint256(10**(18 + baseDecimals - quoteDecimals));
 
         return (exponent.mulDiv(reserveQuote, reserveBase), baseDecimals, quoteDecimals);
+    }
+
+    function _collectFee(uint256 baseAmount, address margin) internal {
+        uint256 fee = baseAmount / 1000;
+        address feeTreasury = IAmmFactory(IPairFactory(pairFactory).ammFactory()).feeTo();
+        IMargin(margin).removeMargin(msg.sender, feeTreasury, fee);
+        emit CollectFee(msg.sender, margin, fee);
     }
 }

@@ -1,10 +1,12 @@
 const { expect } = require("chai");
 const { BigNumber } = require("@ethersproject/bignumber");
 const { ethers } = require("hardhat");
+const { Signer } = require("ethers");
 
 describe("Router contract", function () {
   let owner;
-  let treasury;
+  let pcvTreasury;
+  let feeTreasury;
   let weth;
   let router;
   let priceOracle;
@@ -13,7 +15,7 @@ describe("Router contract", function () {
   let quoteToken;
 
   beforeEach(async function () {
-    [owner, treasury] = await ethers.getSigners();
+    [owner, pcvTreasury, feeTreasury] = await ethers.getSigners();
 
     const MockWETH = await ethers.getContractFactory("MockWETH");
     weth = await MockWETH.deploy();
@@ -41,9 +43,11 @@ describe("Router contract", function () {
     let ammFactory = await AmmFactory.deploy(pairFactory.address, config.address, owner.address);
     let marginFactory = await MarginFactory.deploy(pairFactory.address, config.address);
     await pairFactory.init(ammFactory.address, marginFactory.address);
+    await ammFactory.setFeeTo(feeTreasury.address);
 
     const Router = await ethers.getContractFactory("Router");
-    router = await Router.deploy(pairFactory.address, treasury.address, weth.address);
+    router = await Router.deploy();
+    await router.initialize(config.address, pairFactory.address, pcvTreasury.address, weth.address);
     await config.registerRouter(router.address);
   });
 
