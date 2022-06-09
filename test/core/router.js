@@ -157,6 +157,14 @@ describe("Router contract", function () {
       await router.deposit(baseToken.address, quoteToken.address, owner.address, 1000);
       await router.openPositionWithMargin(baseToken.address, quoteToken.address, 1, 3300, 10000000, 9999999999);
     });
+
+    it("openPositionWithMargin with fee", async function () {
+      await baseToken.mint(owner.address, 1000000);
+      await baseToken.approve(router.address, 1000000);
+      await router.addLiquidity(baseToken.address, quoteToken.address, 100000, 1, 9999999999, false);
+      await router.deposit(baseToken.address, quoteToken.address, owner.address, 1000);
+      await router.openPositionWithMargin(baseToken.address, quoteToken.address, 1, 3300, 10000000, 9999999999);
+    });
   });
 
   describe("openPositionWithWallet", function () {

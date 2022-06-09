@@ -287,7 +287,7 @@ contract Router is IRouter, Initializable {
             }
             
             if (withdrawAmount > 0) {
-                IMargin(margin).removeMargin(msg.sender, address(this), withdrawAmount);
+                IMargin(margin).removeMargin(msg.sender, msg.sender, withdrawAmount);
             }
         }
     }
