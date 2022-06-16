@@ -121,17 +121,17 @@ async function createPCVTreasury() {
 
 async function createRouter() {
   if (config == null) {
-    let configAddress = "0x43624493A79eF508BC9EDe792E67aABD44e3BfE8";
+    let configAddress = "0xCF4f7E54Cbd24C062Eda93A6f2aE30E039109dd6";
     const Config = await ethers.getContractFactory("Config");
     config = await Config.attach(configAddress);
   }
   if (pairFactory == null) {
-    let pairFactoryAddress = "0xf6DA867db55BCA6312132cCFC936160fB970fEF4";
+    let pairFactoryAddress = "0xCE09a98C734ffB8e209b907FB0657193796FE3fD";
     const PairFactory = await ethers.getContractFactory("PairFactory");
     pairFactory = await PairFactory.attach(pairFactoryAddress);
   }
   if (pcvTreasury == null) {
-    let pcvTreasuryAddress = "0x2225F0bEef512e0302D6C4EcE4f71c85C2312c06";
+    let pcvTreasuryAddress = "0x42C0E0fdA16CE20C3c15bBF666Ee79EaB5998F20";
     const PCVTreasury = await ethers.getContractFactory("PCVTreasury");
     pcvTreasury = await PCVTreasury.attach(pcvTreasuryAddress);
   }
