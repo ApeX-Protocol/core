@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
+import "../interfaces/IAmmFactory.sol";
 import "../interfaces/IPriceOracle.sol";
 import "../interfaces/IRouter.sol";
 import "../interfaces/IPairFactory.sol";
@@ -201,6 +202,7 @@ contract Router is IRouter, Initializable {
         baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
             require(baseAmount >= baseAmountLimit, "Router.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
+            _collectFee(baseAmount, margin);
         } else {
             require(baseAmount <= baseAmountLimit, "Router.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
         }
@@ -223,6 +225,7 @@ contract Router is IRouter, Initializable {
         baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
             require(baseAmount >= baseAmountLimit, "Router.openPositionETHWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
+            _collectFee(baseAmount, margin);
         } else {
             require(baseAmount <= baseAmountLimit, "Router.openPositionETHWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
         }
@@ -242,6 +245,7 @@ contract Router is IRouter, Initializable {
         baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
             require(baseAmount >= baseAmountLimit, "Router.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT");
+            _collectFee(baseAmount, margin);
         } else {
             require(baseAmount <= baseAmountLimit, "Router.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT");
         }
@@ -256,11 +260,18 @@ contract Router is IRouter, Initializable {
     ) external override ensure(deadline) onlyEOA returns (uint256 baseAmount, uint256 withdrawAmount) {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.closePosition: NOT_FOUND_MARGIN");
+        (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
         if (!autoWithdraw) {
             baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+            if (quoteSizeBefore > 0) {
+                _collectFee(baseAmount, margin);
+            }
         } else {
-            (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
             baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+            if (quoteSizeBefore > 0) {
+                _collectFee(baseAmount, margin);
+            }
+
             (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(msg.sender);
             int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(msg.sender);
             int256 traderMargin;
@@ -274,6 +285,7 @@ contract Router is IRouter, Initializable {
             if (withdrawable < withdrawAmount) {
                 withdrawAmount = withdrawable;
             }
+            
             if (withdrawAmount > 0) {
                 IMargin(margin).removeMargin(msg.sender, msg.sender, withdrawAmount);
             }
@@ -290,6 +302,10 @@ contract Router is IRouter, Initializable {
         
         (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
+        if (quoteSizeBefore > 0) {
+            _collectFee(baseAmount, margin);
+        }
+        
         (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(msg.sender);
         int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(msg.sender);
         int256 traderMargin;
@@ -370,6 +386,13 @@ contract Router is IRouter, Initializable {
     {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         (baseSize, quoteSize, tradeSize) = IMargin(margin).getPosition(holder);
+    }
+
+    function _collectFee(uint256 baseAmount, address margin) internal {
+        uint256 fee = baseAmount / 1000;
+        address feeTreasury = IAmmFactory(IPairFactory(pairFactory).ammFactory()).feeTo();
+        IMargin(margin).removeMargin(msg.sender, feeTreasury, fee);
+        emit CollectFee(msg.sender, margin, fee);
     }
 
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset

@@ -1,10 +1,12 @@
 const { expect } = require("chai");
 const { BigNumber } = require("@ethersproject/bignumber");
 const { ethers } = require("hardhat");
+const { Signer } = require("ethers");
 
 describe("Router contract", function () {
   let owner;
-  let treasury;
+  let pcvTreasury;
+  let feeTreasury;
   let weth;
   let router;
   let priceOracle;
@@ -13,7 +15,7 @@ describe("Router contract", function () {
   let quoteToken;
 
   beforeEach(async function () {
-    [owner, treasury] = await ethers.getSigners();
+    [owner, pcvTreasury, feeTreasury] = await ethers.getSigners();
 
     const MockWETH = await ethers.getContractFactory("MockWETH");
     weth = await MockWETH.deploy();
@@ -41,9 +43,11 @@ describe("Router contract", function () {
     let ammFactory = await AmmFactory.deploy(pairFactory.address, config.address, owner.address);
     let marginFactory = await MarginFactory.deploy(pairFactory.address, config.address);
     await pairFactory.init(ammFactory.address, marginFactory.address);
+    await ammFactory.setFeeTo(feeTreasury.address);
 
     const Router = await ethers.getContractFactory("Router");
-    router = await Router.deploy(pairFactory.address, treasury.address, weth.address);
+    router = await Router.deploy();
+    await router.initialize(config.address, pairFactory.address, pcvTreasury.address, weth.address);
     await config.registerRouter(router.address);
   });
 
@@ -139,11 +143,14 @@ describe("Router contract", function () {
 
   describe("openPositionWithMargin", function () {
     it("openPositionWithMargin open long", async function () {
-      await baseToken.mint(owner.address, 1000000);
-      await baseToken.approve(router.address, 1000000);
-      await router.addLiquidity(baseToken.address, quoteToken.address, 100000, 1, 9999999999, false);
-      await router.deposit(baseToken.address, quoteToken.address, owner.address, 1000);
-      await router.openPositionWithMargin(baseToken.address, quoteToken.address, 0, 3300, 1, 9999999999);
+      await baseToken.mint(owner.address, 100000000);
+      await baseToken.approve(router.address, 100000000);
+      await router.addLiquidity(baseToken.address, quoteToken.address, 10000000, 1, 9999999999, false);
+      await router.deposit(baseToken.address, quoteToken.address, owner.address, 100000);
+      await router.openPositionWithMargin(baseToken.address, quoteToken.address, 0, 33000, 1, 9999999999);
+      let feeBalance = await baseToken.balanceOf(feeTreasury.address);
+      console.log("feeBalance:", BigNumber.from(feeBalance).toString());
+      expect(feeBalance.toNumber()).to.greaterThan(0);
     });
 
     it("openPositionWithMargin open short", async function () {
@@ -152,6 +159,9 @@ describe("Router contract", function () {
       await router.addLiquidity(baseToken.address, quoteToken.address, 100000, 1, 9999999999, false);
       await router.deposit(baseToken.address, quoteToken.address, owner.address, 1000);
       await router.openPositionWithMargin(baseToken.address, quoteToken.address, 1, 3300, 10000000, 9999999999);
+      let feeBalance = await baseToken.balanceOf(feeTreasury.address);
+      console.log("feeBalance:", BigNumber.from(feeBalance).toString());
+      expect(feeBalance.toNumber()).to.equal(0);
     });
   });
 
@@ -161,6 +171,9 @@ describe("Router contract", function () {
       await baseToken.approve(router.address, 10000000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 1000000, 1, 9999999999, false);
       await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, 9999999999);
+      let feeBalance = await baseToken.balanceOf(feeTreasury.address);
+      console.log("feeBalance:", BigNumber.from(feeBalance).toString());
+      expect(feeBalance.toNumber()).to.greaterThan(0);
     });
 
     it("openPositionWithWallet open short", async function () {
@@ -168,6 +181,9 @@ describe("Router contract", function () {
       await baseToken.approve(router.address, 10000000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 1000000, 1, 9999999999, false);
       await router.openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 100000, 9999999999);
+      let feeBalance = await baseToken.balanceOf(feeTreasury.address);
+      console.log("feeBalance:", BigNumber.from(feeBalance).toString());
+      expect(feeBalance.toNumber()).to.equal(0);
     });
   });
 
@@ -190,12 +206,42 @@ describe("Router contract", function () {
   });
 
   describe("closePosition", function () {
-    it("closePosition right", async function () {
+    it("closePosition long", async function () {
       await baseToken.mint(owner.address, 10000000000);
       await baseToken.approve(router.address, 10000000000);
       await router.addLiquidity(baseToken.address, quoteToken.address, 1000000, 1, 9999999999, false);
       await router.openPositionWithWallet(baseToken.address, quoteToken.address, 0, 3300, 10000, 1, 9999999999);
+      let feeBalanceBefore = await baseToken.balanceOf(feeTreasury.address);
+      console.log("feeBalanceBefore:", BigNumber.from(feeBalanceBefore).toString());
+      expect(feeBalanceBefore.toNumber()).to.greaterThan(0);
+      let userBalanceBefore = await baseToken.balanceOf(owner.address);
+      console.log("userBalanceBefore:", BigNumber.from(userBalanceBefore).toString());
+
       await router.closePosition(baseToken.address, quoteToken.address, 10000, 9999999999, true);
+      let feeBalanceAfter = await baseToken.balanceOf(feeTreasury.address);
+      console.log("feeBalanceAfter:", BigNumber.from(feeBalanceAfter).toString());
+      expect(feeBalanceAfter.toNumber()).to.equal(feeBalanceBefore.toNumber());
+      let userBalanceAfter = await baseToken.balanceOf(owner.address);
+      console.log("userBalanceAfter:", BigNumber.from(userBalanceAfter).toString());
+    });
+
+    it("closePosition short", async function () {
+      await baseToken.mint(owner.address, 10000000000);
+      await baseToken.approve(router.address, 10000000000);
+      await router.addLiquidity(baseToken.address, quoteToken.address, 1000000, 1, 9999999999, false);
+      await router.openPositionWithWallet(baseToken.address, quoteToken.address, 1, 3300, 10000, 100000, 9999999999);
+      let feeBalanceBefore = await baseToken.balanceOf(feeTreasury.address);
+      console.log("feeBalanceBefore:", BigNumber.from(feeBalanceBefore).toString());
+      expect(feeBalanceBefore.toNumber()).to.equal(0);
+      let userBalanceBefore = await baseToken.balanceOf(owner.address);
+      console.log("userBalanceBefore:", BigNumber.from(userBalanceBefore).toString());
+
+      await router.closePosition(baseToken.address, quoteToken.address, 10000, 9999999999, true);
+      let feeBalanceAfter = await baseToken.balanceOf(feeTreasury.address);
+      console.log("feeBalanceAfter:", BigNumber.from(feeBalanceAfter).toString());
+      expect(feeBalanceAfter.toNumber()).to.greaterThan(0);
+      let userBalanceAfter = await baseToken.balanceOf(owner.address);
+      console.log("userBalanceAfter:", BigNumber.from(userBalanceAfter).toString());
     });
   });
 });
