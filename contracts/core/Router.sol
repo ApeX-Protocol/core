@@ -71,6 +71,7 @@ contract Router is IRouter, Initializable {
         if (pcv) {
             (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
             TransferHelper.safeTransfer(amm, pcvTreasury, liquidity);
+            emit PCVAdded(msg.sender, amm, liquidity, baseAmount);
         } else {
             (, quoteAmount, liquidity) = IAmm(amm).mint(msg.sender);
         }
@@ -105,6 +106,7 @@ contract Router is IRouter, Initializable {
         if (pcv) {
             (, quoteAmount, liquidity) = IAmm(amm).mint(address(this));
             TransferHelper.safeTransfer(amm, pcvTreasury, liquidity);
+            emit PCVAdded(msg.sender, amm, liquidity, ethAmount);
         } else {
             (, quoteAmount, liquidity) = IAmm(amm).mint(msg.sender);
         }
