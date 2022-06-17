@@ -3,6 +3,7 @@ pragma solidity ^0.8.0;
 
 interface IRouter {
     event CollectFee(address indexed trader, address indexed margin, uint256 fee);
+    event PCVAdded(address indexed trader, address indexed amm, uint256 liquidity, uint256 baseAmount);
 
     function config() external view returns (address);
     

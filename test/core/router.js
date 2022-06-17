@@ -151,6 +151,7 @@ describe("Router contract", function () {
       let feeBalance = await baseToken.balanceOf(feeTreasury.address);
       console.log("feeBalance:", BigNumber.from(feeBalance).toString());
       expect(feeBalance.toNumber()).to.greaterThan(0);
+      expect(feeBalance.toNumber()).to.equal(16);
     });
 
     it("openPositionWithMargin open short", async function () {
@@ -174,6 +175,7 @@ describe("Router contract", function () {
       let feeBalance = await baseToken.balanceOf(feeTreasury.address);
       console.log("feeBalance:", BigNumber.from(feeBalance).toString());
       expect(feeBalance.toNumber()).to.greaterThan(0);
+      expect(feeBalance.toNumber()).to.equal(4);
     });
 
     it("openPositionWithWallet open short", async function () {
@@ -223,6 +225,7 @@ describe("Router contract", function () {
       expect(feeBalanceAfter.toNumber()).to.equal(feeBalanceBefore.toNumber());
       let userBalanceAfter = await baseToken.balanceOf(owner.address);
       console.log("userBalanceAfter:", BigNumber.from(userBalanceAfter).toString());
+      expect(feeBalanceAfter.toNumber()).to.equal(4);
     });
 
     it("closePosition short", async function () {
