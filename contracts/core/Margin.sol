@@ -13,11 +13,12 @@ import "../interfaces/IWETH.sol";
 import "../utils/Reentrant.sol";
 import "../libraries/SignedMath.sol";
 import "../libraries/ChainAdapter.sol";
+import "../utils/Initializable.sol";
 
-contract Margin is IMargin, IVault, Reentrant {
+contract Margin is IMargin, IVault, Reentrant, Initializable {
     using SignedMath for int256;
 
-    address public immutable override factory;
+    address public  override factory;
     address public override config;
     address public override amm;
     address public override baseToken;
@@ -30,20 +31,22 @@ contract Margin is IMargin, IVault, Reentrant {
     uint256 public totalQuoteShort;
     int256 internal latestCPF; //latestCPF with 1e18 multiplied
 
-    constructor() {
-        factory = msg.sender;
-    }
+    // constructor() {
+    //     factory = msg.sender;
+    // }
 
-    function initialize(
+    function initialize  (
         address baseToken_,
         address quoteToken_,
         address amm_
-    ) external override {
-        require(factory == msg.sender, "Margin.initialize: FORBIDDEN");
+    ) public initializer override {
+       // require(factory == msg.sender, "Margin.initialize: FORBIDDEN");
         baseToken = baseToken_;
         quoteToken = quoteToken_;
         amm = amm_;
+        factory = msg.sender;
         config = IMarginFactory(factory).config();
+        
     }
 
     //@notice before add margin, ensure contract's baseToken balance larger than depositAmount
