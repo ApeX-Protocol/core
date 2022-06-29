@@ -26,21 +26,21 @@ contract MarginFactory is IMarginFactory {
         config = config_;
     }
 
-    function createMargin(address baseToken, address quoteToken, bytes memory marginBytecode, address proxyAdmin) external override onlyUpper returns (address margin) {
+    function createMargin(address baseToken, address quoteToken, bytes memory marginBytecode, address proxyAdmin) external override onlyUpper returns (address proxyContract) {
         require(baseToken != quoteToken, "MarginFactory.createMargin: IDENTICAL_ADDRESSES");
         require(baseToken != address(0) && quoteToken != address(0), "MarginFactory.createMargin: ZERO_ADDRESS");
         require(getMargin[baseToken][quoteToken] == address(0), "MarginFactory.createMargin: MARGIN_EXIST");
         bytes32 salt = keccak256(abi.encodePacked(baseToken, quoteToken));
        // bytes memory marginBytecode = type(Margin).creationCode;
-
+        address margin;
         assembly {
             margin := create2(0, add(marginBytecode, 32), mload(marginBytecode), salt)
         }
 
-        TransparentUpgradeableProxy proxyContract =   new TransparentUpgradeableProxy(margin, proxyAdmin, "");
+        proxyContract =   address (new TransparentUpgradeableProxy(margin, proxyAdmin, ""));
     
-        getMargin[baseToken][quoteToken] = address(proxyContract);
-        emit MarginCreated(baseToken, quoteToken, address(proxyContract));
+        getMargin[baseToken][quoteToken] = (proxyContract);
+        emit MarginCreated(baseToken, quoteToken, margin,  (proxyContract), marginBytecode);
     }
 
     function initMargin(

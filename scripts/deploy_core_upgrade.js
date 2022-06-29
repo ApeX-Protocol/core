@@ -31,61 +31,82 @@ let mockSHIB;
 let ammAddress;
 let marginAddress;
 let proxyAdmin;
+let proxyAdminContract;
 
 const main = async () => {
   const accounts = await hre.ethers.getSigners();
   signer = accounts[0].address;
   console.log(signer.address)
 
-// 1 Deploy ProxyAdmin
-let proxyAdminContractFactory = await ethers.getContractFactory(
-  'ProxyAdmin'
-);
- proxyAdminContract = await proxyAdminContractFactory.deploy();
- proxyAdmin = proxyAdminContract.address; 
-
-  await proxyAdminContract.deployed();
-  console.log("ProxyAdmin contract address: ", proxyAdminContract.address)
-
+   //await createProxyAdmin()
+   // 1 Deploy ProxyAdmin
+   await createProxyAdmin();
    await createPriceOracle();
    await createConfig();
    await createPairFactory();
-  // await createPCVTreasury();
+
    await createRouter();
-  // await createMulticall2();
   //// below only deploy for testnet
   // await createMockTokens();
    await createPair();
 
+  await checkMargin();
   
-
+  await upgradeToNewMargin();
   
-  
+  await checkMarginAfter();
+
+ 
+  console.log( await proxyAdminContract.getProxyAdmin(marginAddress));
 
 
-
-  //  Deploy TransparentUpgradeableProxy
-  // const TransparentUpgradeableProxyFactory = await ethers.getContractFactory("TransparentUpgradeableProxy");
-  // //initialize，本方法对应的code为 0x8129fc1c
-  // transparentUpgradeableProxyContract = await TransparentUpgradeableProxyFactory.deploy(params.address, proxyAdminContract.address,"0x8129fc1c" );
-  // await transparentUpgradeableProxyContract.deployed();
-  // console.log("transparentUpgradeableProxy  contract address: ", transparentUpgradeableProxyContract.address)
-
-  console.log( await proxyAdminContract.getProxyAdmin(transparentUpgradeableProxyContract.address));
-
-  // await attachApeXToken();
-  // await createPriceOracle();
-  // await createConfig();
-  // await createPairFactory();
-  // await createPCVTreasury();
-  await createRouter();
-  // await createMulticall2();
-  //// below only deploy for testnet
-  // await createMockTokens();
-  // await createPair();
 };
 
 
+
+async function upgradeToNewMargin() {
+  let marginNewContractFactory = await ethers.getContractFactory('MarginNew');
+  let marginNew = await marginNewContractFactory.deploy();
+   await marginNew.deployed();
+  console.log("marginNew contract address: ", marginNew.address);
+  await proxyAdminContract.upgrade(marginAddress, marginNew.address);
+  console.log("margin upgrade to new contract!");
+}
+
+async function checkMargin() {
+  const marginFactory = await ethers.getContractFactory("Margin");
+  let marginContract = await marginFactory.attach(marginAddress);
+
+  let baseToken = await marginContract.baseToken();
+  console.log("margin baseToken: ", baseToken.toString());
+
+  let netposition = await marginContract.netPosition();
+  console.log("netPosition: ", netposition.toString());
+}
+
+async function checkMarginAfter() {
+  const marginNewFactory = await ethers.getContractFactory("Margin");
+  //let marginNewContract = await marginNewFactory.attach("0xf03a0dbceb2a9ab52da8fe31750db6b717174c41");
+  let marginNewContract = await marginNewFactory.attach(marginAddress);
+
+  let baseToken = await marginNewContract.baseToken();
+  console.log("marginNew baseToken: ", baseToken.toString());
+
+  let netposition = await marginNewContract.netPosition();
+  console.log("marginNew netPosition: ", netposition.toString());
+}
+
+
+async function createProxyAdmin() {
+  let proxyAdminContractFactory = await ethers.getContractFactory(
+    'ProxyAdmin'
+  );
+  proxyAdminContract = await proxyAdminContractFactory.deploy();
+  proxyAdmin = proxyAdminContract.address;
+
+  await proxyAdminContract.deployed();
+  console.log(" >>> ProxyAdmin contract address: ", proxyAdmin);
+}
 
 async function createPriceOracle() {
   const PriceOracle = await ethers.getContractFactory("PriceOracle");
@@ -131,7 +152,7 @@ async function createPairFactory() {
 
   pairFactory = await PairFactory.deploy();
   console.log("PairFactory:", pairFactory.address);
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, pairFactory.address);
+  console.log(">>>", verifyStr, process.env.HARDHAT_NETWORK, pairFactory.address);
 
   //todo
   await pairFactory.setProxyAdmin(proxyAdmin);
@@ -145,6 +166,9 @@ async function createPairFactory() {
   console.log(verifyStr, process.env.HARDHAT_NETWORK, marginFactory.address, pairFactory.address, config.address);
 
   await pairFactory.init(ammFactory.address, marginFactory.address);
+  let marginBytecode =  await pairFactory.marginBytecode();
+ // console.log("marginBytecode:", marginBytecode);
+
 }
 
 async function createPCVTreasury() {
@@ -228,7 +252,7 @@ async function createPair() {
   console.log("Amm:", ammAddress);
   console.log("Margin:", marginAddress);
   console.log(verifyStr, process.env.HARDHAT_NETWORK, ammAddress);
-  console.log(verifyStr, process.env.HARDHAT_NETWORK, marginAddress);
+  console.log(">>>", verifyStr, process.env.HARDHAT_NETWORK, marginAddress);
 }
 
 main()
