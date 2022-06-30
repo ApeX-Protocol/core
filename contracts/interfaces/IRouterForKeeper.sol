@@ -5,6 +5,8 @@ import "./IOrderBook.sol";
 interface IRouterForKeeper {
     event CollectFee(address indexed trader, address indexed margin, uint256 fee);
 
+    function config() external view returns (address);
+
     function pairFactory() external view returns (address);
 
     function WETH() external view returns (address);

@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import "../interfaces/IAmmFactory.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IRouterForKeeper.sol";
+import "../interfaces/IConfig.sol";
 import "../interfaces/IOrderBook.sol";
 import "../interfaces/IPairFactory.sol";
 import "../interfaces/IMargin.sol";
@@ -18,6 +19,7 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
     using SignedMath for int256;
     using FullMath for uint256;
 
+    address public immutable override config;
     address public immutable override pairFactory;
     address public immutable override WETH;
     address public orderBook;
@@ -33,8 +35,9 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         _;
     }
 
-    constructor(address pairFactory_, address _WETH) {
+    constructor(address config_, address pairFactory_, address _WETH) {
         owner = msg.sender;
+        config = config_;
         pairFactory = pairFactory_;
         WETH = _WETH;
     }
@@ -161,5 +164,9 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         address feeTreasury = IAmmFactory(IPairFactory(pairFactory).ammFactory()).feeTo();
         IMargin(margin).removeMargin(msg.sender, feeTreasury, fee);
         emit CollectFee(msg.sender, margin, fee);
+    }
+
+    function _collectGasForKeeper() internal {
+
     }
 }
