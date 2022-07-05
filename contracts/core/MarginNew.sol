@@ -15,7 +15,7 @@ import "../libraries/SignedMath.sol";
 import "../libraries/ChainAdapter.sol";
 import "../utils/Initializable.sol";
 
-contract Margin is IMargin, IVault, Reentrant, Initializable {
+contract MarginNew is IMargin, IVault, Reentrant, Initializable {
     using SignedMath for int256;
 
     address public  override factory;
@@ -508,8 +508,8 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
     }
 
     function netPosition() external view override returns (int256) {
-        require(totalQuoteShort < type(uint128).max, "Margin.netPosition: OVERFLOW");
-        return int256(totalQuoteShort).subU(totalQuoteLong);
+        
+        return 1000000;
     }
 
     function totalPosition() external view override returns (uint256 totalQuotePosition) {

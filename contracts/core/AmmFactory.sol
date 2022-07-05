@@ -5,6 +5,7 @@ import "./Amm.sol";
 import "../interfaces/IAmmFactory.sol";
 import "../interfaces/IPriceOracle.sol";
 
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 contract AmmFactory is IAmmFactory {
     address public immutable override upperFactory; // PairFactory
     address public immutable override config;
@@ -30,17 +31,19 @@ contract AmmFactory is IAmmFactory {
         feeToSetter = feeToSetter_;
     }
 
-    function createAmm(address baseToken, address quoteToken) external override onlyUpper returns (address amm) {
+    function createAmm(address baseToken, address quoteToken, bytes memory ammBytecode, address proxyAdmin) external override onlyUpper returns (address proxyContract) {
         require(baseToken != quoteToken, "AmmFactory.createAmm: IDENTICAL_ADDRESSES");
         require(baseToken != address(0) && quoteToken != address(0), "AmmFactory.createAmm: ZERO_ADDRESS");
         require(getAmm[baseToken][quoteToken] == address(0), "AmmFactory.createAmm: AMM_EXIST");
         bytes32 salt = keccak256(abi.encodePacked(baseToken, quoteToken));
-        bytes memory ammBytecode = type(Amm).creationCode;
+       //  bytes memory ammBytecode = type(Amm).creationCode;
+       address amm;
         assembly {
             amm := create2(0, add(ammBytecode, 32), mload(ammBytecode), salt)
         }
-        getAmm[baseToken][quoteToken] = amm;
-        emit AmmCreated(baseToken, quoteToken, amm);
+        proxyContract =  address(new TransparentUpgradeableProxy(amm, proxyAdmin, ""));
+        getAmm[baseToken][quoteToken] =  address(proxyContract);
+        emit AmmCreated(baseToken, quoteToken, amm,  address(proxyContract));
     }
 
     function initAmm(

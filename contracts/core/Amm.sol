@@ -17,13 +17,15 @@ import "../libraries/FullMath.sol";
 import "../libraries/ChainAdapter.sol";
 import "../libraries/SignedMath.sol";
 
-contract Amm is IAmm, LiquidityERC20, Reentrant {
+import "../utils/Initializable.sol";
+
+contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
     using UQ112x112 for uint224;
     using SignedMath for int256;
 
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
 
-    address public immutable override factory;
+    address public  override factory;
     address public override config;
     address public override baseToken;
     address public override quoteToken;
@@ -47,19 +49,20 @@ contract Amm is IAmm, LiquidityERC20, Reentrant {
         _;
     }
 
-    constructor() {
-        factory = msg.sender;
-    }
+    // constructor() {
+    //     factory = msg.sender;
+    // }
 
     function initialize(
         address baseToken_,
         address quoteToken_,
         address margin_
-    ) external override {
-        require(msg.sender == factory, "Amm.initialize: FORBIDDEN"); // sufficient check
+    ) public initializer override {
+    //    require(msg.sender == factory, "Amm.initialize: FORBIDDEN"); // sufficient check
         baseToken = baseToken_;
         quoteToken = quoteToken_;
         margin = margin_;
+        factory = msg.sender ; 
         config = IAmmFactory(factory).config();
     }
 

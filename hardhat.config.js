@@ -41,6 +41,10 @@ module.exports = {
       url: process.env.RINKEBY_RPC,
       accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
     },
+    kovan: {
+      url: process.env.KOVAN_RPC,
+      accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],
+    },
     arbitrumOne: {
       url: process.env.ARBITRUM_ONE_RPC,
       accounts: process.env.DEVNET_PRIVKEY !== undefined ? [process.env.DEVNET_PRIVKEY] : [],

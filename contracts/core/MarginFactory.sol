@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 import "./Margin.sol";
 import "../interfaces/IMarginFactory.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+
 
 //factory of margin, called by pairFactory
 contract MarginFactory is IMarginFactory {
@@ -24,17 +26,21 @@ contract MarginFactory is IMarginFactory {
         config = config_;
     }
 
-    function createMargin(address baseToken, address quoteToken) external override onlyUpper returns (address margin) {
+    function createMargin(address baseToken, address quoteToken, bytes memory marginBytecode, address proxyAdmin) external override onlyUpper returns (address proxyContract) {
         require(baseToken != quoteToken, "MarginFactory.createMargin: IDENTICAL_ADDRESSES");
         require(baseToken != address(0) && quoteToken != address(0), "MarginFactory.createMargin: ZERO_ADDRESS");
         require(getMargin[baseToken][quoteToken] == address(0), "MarginFactory.createMargin: MARGIN_EXIST");
         bytes32 salt = keccak256(abi.encodePacked(baseToken, quoteToken));
-        bytes memory marginBytecode = type(Margin).creationCode;
+       // bytes memory marginBytecode = type(Margin).creationCode;
+        address margin;
         assembly {
             margin := create2(0, add(marginBytecode, 32), mload(marginBytecode), salt)
         }
-        getMargin[baseToken][quoteToken] = margin;
-        emit MarginCreated(baseToken, quoteToken, margin);
+
+        proxyContract =   address (new TransparentUpgradeableProxy(margin, proxyAdmin, ""));
+    
+        getMargin[baseToken][quoteToken] = (proxyContract);
+        emit MarginCreated(baseToken, quoteToken, margin,  (proxyContract), marginBytecode);
     }
 
     function initMargin(
