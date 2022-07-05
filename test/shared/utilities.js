@@ -1,6 +1,7 @@
 const BN = require("bn.js");
 const { ethers } = require("hardhat");
 const { address } = require("hardhat/internal/core/config/config-validation");
+const { BigNumber } = require("@ethersproject/bignumber");
 
 const maxUint256 = ethers.constants.MaxUint256;
 
@@ -79,7 +80,8 @@ function getPriceBitArray(prices) {
       }
 
       const price = new BN(prices[index]);
-      if (price.gt(new BN("2147483648"))) { // 2^31
+      if (price.gt(new BN("2147483648"))) {
+        // 2^31
         throw new Error(`price exceeds bit limit ${price.toString()}`);
       }
       priceBits = priceBits.or(price.shln(j * 32));
@@ -109,7 +111,8 @@ function getPriceBits(prices) {
     }
 
     const price = new BN(prices[index]);
-    if (price.gt(new BN("2147483648"))) { // 2^31
+    if (price.gt(new BN("2147483648"))) {
+      // 2^31
       throw new Error(`price exceeds bit limit ${price.toString()}`);
     }
 
@@ -126,14 +129,19 @@ async function deployContract(name, args) {
 
 async function deploy(owner) {
   let weth = await deployContract("MockWETH", []);
-  let usdc = await deployContract("MockToken", ["mock usdc", "musdc"]);
+  let usdc = await deployContract("MyToken", ["mock usdc", "musdc", 6, BigNumber.from("100000000000000")]);
   let priceOracle = await deployContract("PriceOracleForTest", []);
   let config = await deployContract("Config", []);
   let pairFactory = await deployContract("PairFactory", []);
   let marginFactory = await deployContract("MarginFactory", [pairFactory.address, config.address]);
   let ammFactory = await deployContract("AmmFactory", [pairFactory.address, config.address, owner.address]);
   let router = await deployContract("Router", []);
-  let routerForKeeper = await deployContract("RouterForKeeper", [pairFactory.address, weth.address]);
+  let routerForKeeper = await deployContract("RouterForKeeper", [
+    config.address,
+    pairFactory.address,
+    weth.address,
+    usdc.address,
+  ]);
   let orderBook = await deployContract("OrderBook", [routerForKeeper.address, owner.address]);
 
   return {
@@ -146,11 +154,23 @@ async function deploy(owner) {
     ammFactory,
     router,
     routerForKeeper,
-    orderBook
+    orderBook,
   };
 }
 
-async function init(owner, treasury, weth, usdc, priceOracle, config, pairFactory, marginFactory, ammFactory, router, routerForKeeper) {
+async function init(
+  owner,
+  treasury,
+  weth,
+  usdc,
+  priceOracle,
+  config,
+  pairFactory,
+  marginFactory,
+  ammFactory,
+  router,
+  routerForKeeper
+) {
   await router.initialize(config.address, pairFactory.address, treasury.address, weth.address);
   await config.registerRouter(router.address);
   await config.registerRouter(routerForKeeper.address);
@@ -159,7 +179,12 @@ async function init(owner, treasury, weth, usdc, priceOracle, config, pairFactor
   await pairFactory.init(ammFactory.address, marginFactory.address);
 
   await pairFactory.createPair(weth.address, usdc.address);
-  await priceOracle.setReserve(weth.address, usdc.address, 10000, 20000);
+  await priceOracle.setReserve(
+    weth.address,
+    usdc.address,
+    BigNumber.from("100000000000000000000000000"),
+    BigNumber.from("200000000000000")
+  );
 }
 
 module.exports = {
@@ -179,5 +204,5 @@ module.exports = {
   getPriceBits,
   deployContract,
   deploy,
-  init
+  init,
 };

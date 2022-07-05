@@ -4,11 +4,13 @@ pragma solidity ^0.8.0;
 import "../interfaces/IAmmFactory.sol";
 import "../interfaces/IERC20.sol";
 import "../interfaces/IRouterForKeeper.sol";
+import "../interfaces/IConfig.sol";
 import "../interfaces/IOrderBook.sol";
 import "../interfaces/IPairFactory.sol";
 import "../interfaces/IMargin.sol";
 import "../interfaces/IAmm.sol";
 import "../interfaces/IWETH.sol";
+import "../interfaces/IPriceOracle.sol";
 import "../libraries/TransferHelper.sol";
 import "../libraries/SignedMath.sol";
 import "../libraries/FullMath.sol";
@@ -18,10 +20,12 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
     using SignedMath for int256;
     using FullMath for uint256;
 
+    address public immutable override config;
     address public immutable override pairFactory;
     address public immutable override WETH;
-    address public orderBook;
-    mapping(address => mapping(address => uint256)) public balanceOf;
+    address public immutable override USDC;
+    address public override orderBook;
+    address public override keeper;
 
     modifier ensure(uint256 deadline) {
         require(deadline >= block.timestamp, "RFK: EXPIRED");
@@ -33,10 +37,12 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         _;
     }
 
-    constructor(address pairFactory_, address _WETH) {
+    constructor(address config_, address pairFactory_, address WETH_, address USDC_) {
         owner = msg.sender;
+        config = config_;
         pairFactory = pairFactory_;
-        WETH = _WETH;
+        WETH = WETH_;
+        USDC = USDC_;
     }
 
     receive() external payable {
@@ -46,6 +52,11 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
     function setOrderBook(address newOrderBook) external override onlyOwner {
         require(newOrderBook != address(0), "RFK.SOB: ZERO_ADDRESS");
         orderBook = newOrderBook;
+    }
+
+    function setKeeper(address keeper_) external override onlyOwner {
+        require(keeper_ != address(0), "RFK.SK: ZERO_ADDRESS");
+        keeper = keeper_;
     }
 
     function openPositionWithWallet(IOrderBook.OpenPositionOrder memory order)
@@ -64,8 +75,9 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         IMargin(margin).addMargin(order.trader, order.baseAmount);
         baseAmount = IMargin(margin).openPosition(order.trader, order.side, order.quoteAmount);
         if (order.side == 0) {
-            _collectFee(baseAmount, margin);
+            _collectFee(baseAmount, margin, order.trader);
         }
+        _rewardForKeeper(margin, order.trader, order.baseToken);
     }
 
     function openPositionWithMargin(IOrderBook.OpenPositionOrder memory order)
@@ -80,8 +92,9 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         require(order.side == 0 || order.side == 1, "RFK.OPWM: INVALID_SIDE");
         baseAmount = IMargin(margin).openPosition(order.trader, order.side, order.quoteAmount);
         if (order.side == 0) {
-            _collectFee(baseAmount, margin);
+            _collectFee(baseAmount, margin, order.trader);
         }
+        _rewardForKeeper(margin, order.trader, order.baseToken);
     }
 
     function closePosition(IOrderBook.ClosePositionOrder memory order)
@@ -98,16 +111,17 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
             quoteSizeBefore > 0 ? order.side == 1 : order.side == 0,
             "RFK.CP: SIDE_NOT_MATCH"
         );
+        _rewardForKeeper(margin, order.trader, order.baseToken);
         if (!order.autoWithdraw) {
             baseAmount = IMargin(margin).closePosition(order.trader, order.quoteAmount);
             if (quoteSizeBefore > 0) {
-                _collectFee(baseAmount, margin);
+                _collectFee(baseAmount, margin, order.trader);
             }
         } else {
             {
                 baseAmount = IMargin(margin).closePosition(order.trader, order.quoteAmount);
                 if (quoteSizeBefore > 0) {
-                    _collectFee(baseAmount, margin);
+                    _collectFee(baseAmount, margin, order.trader);
                 }
                 (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(order.trader);
                 int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(order.trader);
@@ -156,10 +170,20 @@ contract RouterForKeeper is IRouterForKeeper, Ownable {
         return (exponent.mulDiv(reserveQuote, reserveBase), baseDecimals, quoteDecimals);
     }
 
-    function _collectFee(uint256 baseAmount, address margin) internal {
+    function _collectFee(uint256 baseAmount, address margin, address trader) internal {
         uint256 fee = baseAmount / 1000;
         address feeTreasury = IAmmFactory(IPairFactory(pairFactory).ammFactory()).feeTo();
-        IMargin(margin).removeMargin(msg.sender, feeTreasury, fee);
-        emit CollectFee(msg.sender, margin, fee);
+        IMargin(margin).removeMargin(trader, feeTreasury, fee);
+        emit CollectFee(trader, margin, fee);
+    }
+
+    function _rewardForKeeper(address margin, address trader, address baseToken) internal {
+        IPriceOracle oracle = IPriceOracle(IConfig(config).priceOracle());
+        uint8 baseDecimals = IERC20(baseToken).decimals();
+        uint8 usdcDecimals = IERC20(USDC).decimals();
+        (uint256 usdcAmount, ) = oracle.quote(baseToken, USDC, 10**(baseDecimals));
+        uint256 reward = 10**(baseDecimals + usdcDecimals) / usdcAmount;
+        IMargin(margin).removeMargin(trader, keeper, reward);
+        emit RewardForKeeper(trader, margin, reward);
     }
 }
