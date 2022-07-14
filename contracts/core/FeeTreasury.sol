@@ -107,7 +107,8 @@ contract FeeTreasury is Ownable {
     function batchRemoveLiquidity(address[] memory amms) external check {
         for (uint256 i = 0; i < amms.length; i++) {
             address amm = amms[i];
-            IAmm(amm).collectFee();
+            //todo
+         //   IAmm(amm).collectFee();
 
             uint256 liquidity = IERC20(amm).balanceOf(address(this));
             if (liquidity == 0) continue;

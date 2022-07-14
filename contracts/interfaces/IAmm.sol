@@ -52,7 +52,7 @@ interface IAmm {
 
     function rebase() external returns (uint256 quoteReserveAfter);
 
-    function collectFee() external returns (bool feeOn);
+ //   function collectFee() external returns (bool feeOn);
 
     function factory() external view returns (address);
 
@@ -88,7 +88,7 @@ interface IAmm {
 
     function MINIMUM_LIQUIDITY() external pure returns (uint256);
 
-    function getFeeLiquidity() external view returns (uint256);
+ //   function getFeeLiquidity() external view returns (uint256);
 
     function getTheMaxBurnLiquidity() external view returns (uint256 maxLiquidity);
 }
