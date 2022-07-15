@@ -23,13 +23,21 @@ contract Config is IConfig, Ownable {
     mapping(address => bool) public override routerMap;
     mapping(address => bool) public override inEmergency;
 
+    mapping(address => uint256) public override betaByMargin;
+    mapping(address => uint256) public override maxCPFBoostByMargin;
+    mapping(address => uint256) public override initMarginRatioByMargin;
+    mapping(address => uint256) public override liquidateThresholdByMargin;
+    mapping(address => uint256) public override liquidateFeeRatioByMargin;
+
+    mapping(address => uint256) public override rebasePriceGapByAmm;
+    mapping(address => uint256) public override rebaseIntervalByAmm;
+    mapping(address => uint256) public override tradingSlippageByAmm;
+    mapping(address => uint256) public override lpWithdrawThresholdForNetByAmm;
+    mapping(address => uint256) public override lpWithdrawThresholdForTotalByAmm;
+    mapping(address => uint256) public override feeParameterByAmm;
+
     constructor() {
         owner = msg.sender;
-    }
-
-    function setMaxCPFBoost(uint256 newMaxCPFBoost) external override onlyOwner {
-        emit SetMaxCPFBoost(maxCPFBoost, newMaxCPFBoost);
-        maxCPFBoost = newMaxCPFBoost;
     }
 
     function setPriceOracle(address newOracle) external override onlyOwner {
@@ -38,61 +46,66 @@ contract Config is IConfig, Ownable {
         priceOracle = newOracle;
     }
 
+    function setMaxCPFBoost(uint256 newMaxCPFBoost) external override onlyOwner {
+        emit SetMaxCPFBoostDefault(maxCPFBoost, newMaxCPFBoost);
+        maxCPFBoost = newMaxCPFBoost;
+    }
+
     function setRebasePriceGap(uint256 newGap) external override onlyOwner {
         require(newGap > 0 && newGap < 100, "Config: ZERO_GAP");
-        emit RebasePriceGapChanged(rebasePriceGap, newGap);
+        emit SetRebasePriceGapDefault(rebasePriceGap, newGap);
         rebasePriceGap = newGap;
     }
 
     function setRebaseInterval(uint256 interval) external override onlyOwner {
-        emit RebaseIntervalChanged(rebaseInterval, interval);
+        emit SetRebaseIntervalDefault(rebaseInterval, interval);
         rebaseInterval = interval;
     }
 
     function setTradingSlippage(uint256 newTradingSlippage) external override onlyOwner {
         require(newTradingSlippage > 0 && newTradingSlippage < 100, "Config: TRADING_SLIPPAGE_RANGE_ERROR");
-        emit TradingSlippageChanged(tradingSlippage, newTradingSlippage);
+        emit SetTradingSlippageDefault(tradingSlippage, newTradingSlippage);
         tradingSlippage = newTradingSlippage;
     }
 
     function setInitMarginRatio(uint256 marginRatio) external override onlyOwner {
         require(marginRatio >= 100, "Config: INVALID_MARGIN_RATIO");
-        emit SetInitMarginRatio(initMarginRatio, marginRatio);
+        emit SetInitMarginRatioDefault(initMarginRatio, marginRatio);
         initMarginRatio = marginRatio;
     }
 
     function setLiquidateThreshold(uint256 threshold) external override onlyOwner {
         require(threshold > 9000 && threshold <= 10000, "Config: INVALID_LIQUIDATE_THRESHOLD");
-        emit SetLiquidateThreshold(liquidateThreshold, threshold);
+        emit SetLiquidateThresholdDefault(liquidateThreshold, threshold);
         liquidateThreshold = threshold;
     } 
 
     function setLiquidateFeeRatio(uint256 feeRatio) external override onlyOwner {
         require(feeRatio > 0 && feeRatio <= 2000, "Config: INVALID_LIQUIDATE_FEE_RATIO");
-        emit SetLiquidateFeeRatio(liquidateFeeRatio, feeRatio);
+        emit SetLiquidateFeeRatioDefault(liquidateFeeRatio, feeRatio);
         liquidateFeeRatio = feeRatio;
     }
 
     function setFeeParameter(uint256 newFeeParameter) external override onlyOwner {
-        emit SetFeeParameter(feeParameter, newFeeParameter);
+        emit SetFeeParameterDefault(feeParameter, newFeeParameter);
         feeParameter = newFeeParameter;
     }
    
     function setLpWithdrawThresholdForNet(uint256 newLpWithdrawThresholdForNet) external override onlyOwner {
         require(lpWithdrawThresholdForNet >= 1 && lpWithdrawThresholdForNet <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD_FOR_NET");
-        emit SetLpWithdrawThresholdForNet(lpWithdrawThresholdForNet, newLpWithdrawThresholdForNet);
+        emit SetLpWithdrawThresholdForNetDefault(lpWithdrawThresholdForNet, newLpWithdrawThresholdForNet);
         lpWithdrawThresholdForNet = newLpWithdrawThresholdForNet;
     }
     
       function setLpWithdrawThresholdForTotal(uint256 newLpWithdrawThresholdForTotal) external override onlyOwner {
        // require(lpWithdrawThresholdForTotal >= 1 && lpWithdrawThresholdForTotal <= 100, "Config: INVALID_LIQUIDATE_THRESHOLD_FOR_TOTAL");
-        emit SetLpWithdrawThresholdForTotal(lpWithdrawThresholdForTotal, newLpWithdrawThresholdForTotal);
+        emit SetLpWithdrawThresholdForTotalDefault(lpWithdrawThresholdForTotal, newLpWithdrawThresholdForTotal);
         lpWithdrawThresholdForTotal = newLpWithdrawThresholdForTotal;
     }
     
     function setBeta(uint8 newBeta) external override onlyOwner {
         require(newBeta >= 50 && newBeta <= 200, "Config: INVALID_BETA");
-        emit SetBeta(beta, newBeta);
+        emit SetBetaDefault(beta, newBeta);
         beta = newBeta;
     }
 
@@ -116,5 +129,82 @@ contract Config is IConfig, Ownable {
         require(routerMap[router], "Config: UNREGISTERED");
         inEmergency[router] = true;
         emit SetEmergency(router);
+    }
+
+    function setMaxCPFBoostByMargin(address margin, uint256 newMaxCPFBoost) external override onlyOwner {
+        require(margin != address(0), "ZERO_ADDRESS");
+        uint256 oldMaxCPFBoost = maxCPFBoostByMargin[margin];
+        maxCPFBoostByMargin[margin] = newMaxCPFBoost;
+        emit SetMaxCPFBoostByMargin(margin, oldMaxCPFBoost, newMaxCPFBoost);
+    }
+
+    function setBetaByMargin(address margin, uint256 newBeta) external override onlyOwner {
+        require(margin != address(0), "ZERO_ADDRESS");
+        uint256 oldBeta = betaByMargin[margin];
+        betaByMargin[margin] = newBeta;
+        emit SetBetaByMargin(margin, oldBeta, newBeta);
+    }
+
+    function setInitMarginRatioByMargin(address margin, uint256 newInitMarginRatio) external override onlyOwner {
+        require(margin != address(0), "ZERO_ADDRESS");
+        uint256 oldInitMarginRatio = initMarginRatioByMargin[margin];
+        initMarginRatioByMargin[margin] = newInitMarginRatio;
+        emit SetInitMarginRatioByMargin(margin, oldInitMarginRatio, newInitMarginRatio);
+    }
+
+    function setLiquidateFeeRatioByMargin(address margin, uint256 newLiquidateFeeRatio) external override onlyOwner {
+        require(margin != address(0), "ZERO_ADDRESS");
+        uint256 oldLiquidateFeeRatio = liquidateFeeRatioByMargin[margin];
+        liquidateFeeRatioByMargin[margin] = newLiquidateFeeRatio;
+        emit SetLiquidateFeeRatioByMargin(margin, oldLiquidateFeeRatio, newLiquidateFeeRatio);
+    }
+
+    function setLiquidateThresholdByMargin(address margin, uint256 newLiquidateThreshold) external override onlyOwner {
+        require(margin != address(0), "ZERO_ADDRESS");
+        uint256 oldLiquidateThreshold = liquidateFeeRatioByMargin[margin];
+        liquidateFeeRatioByMargin[margin] = newLiquidateThreshold;
+        emit SetLiquidateThresholdByMargin(margin, oldLiquidateThreshold, newLiquidateThreshold);
+    }
+
+    function setFeeParameterByAmm(address amm, uint256 newFeeParameter) external override onlyOwner {
+        require(amm != address(0), "ZERO_ADDRESS");
+        uint256 oldFeeParameter = feeParameterByAmm[amm];
+        feeParameterByAmm[amm] = newFeeParameter;
+        emit SetFeeParameterByAmm(amm, oldFeeParameter, newFeeParameter);
+    }
+
+    function setLpWithdrawThresholdForNetByAmm(address amm, uint256 newLpWithdrawThresholdForNet) external override onlyOwner {
+        require(amm != address(0), "ZERO_ADDRESS");
+        uint256 oldLpWithdrawThresholdForNet = lpWithdrawThresholdForNetByAmm[amm];
+        lpWithdrawThresholdForNetByAmm[amm] = newLpWithdrawThresholdForNet;
+        emit SetLpWithdrawThresholdForNetByAmm(amm, oldLpWithdrawThresholdForNet, newLpWithdrawThresholdForNet);
+    }
+
+    function setLpWithdrawThresholdForTotalByAmm(address amm, uint256 newLpWithdrawThresholdForTotal) external override onlyOwner {
+        require(amm != address(0), "ZERO_ADDRESS");
+        uint256 oldLpWithdrawThresholdForTotal = lpWithdrawThresholdForTotalByAmm[amm];
+        lpWithdrawThresholdForTotalByAmm[amm] = newLpWithdrawThresholdForTotal;
+        emit SetLpWithdrawThresholdForTotalByAmm(amm, oldLpWithdrawThresholdForTotal, newLpWithdrawThresholdForTotal);
+    }
+
+    function setRebasePriceGapByAmm(address amm, uint256 newGap) external override onlyOwner {
+        require(amm != address(0), "ZERO_ADDRESS");
+        uint256 oldGap = rebasePriceGapByAmm[amm];
+        rebasePriceGapByAmm[amm] = newGap;
+        emit SetRebasePriceGapByAmm(amm, oldGap, newGap);
+    }
+
+    function setRebaseIntervalByAmm(address amm, uint256 newInterval) external override onlyOwner {
+        require(amm != address(0), "ZERO_ADDRESS");
+        uint256 oldInterval = rebaseIntervalByAmm[amm];
+        rebaseIntervalByAmm[amm] = newInterval;
+        emit SetRebaseIntervalByAmm(amm, oldInterval, newInterval);
+    }
+    
+    function setTradingSlippageByAmm(address amm, uint256 newTradingSlippage) external override onlyOwner {
+        require(amm != address(0), "ZERO_ADDRESS");
+        uint256 oldTradingSlippage = tradingSlippageByAmm[amm];
+        tradingSlippageByAmm[amm] = newTradingSlippage;
+        emit SetTradingSlippageByAmm(amm, oldTradingSlippage, newTradingSlippage);
     }
 }

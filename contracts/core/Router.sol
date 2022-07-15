@@ -168,7 +168,7 @@ contract Router is IRouter, Initializable {
     ) external override {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         require(margin != address(0), "Router.withdraw: NOT_FOUND_MARGIN");
-        (uint256 withdrawable, ) = _getWithdrawable(baseToken, quoteToken, msg.sender);
+        uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
         require(amount <= withdrawable, "Router.withdraw: NOT_ENOUGH_WITHDRAWABLE");
         IMargin(margin).removeMargin(msg.sender, msg.sender, amount);
         uint256 debtRatio = IMargin(margin).calDebtRatio(msg.sender);
@@ -178,7 +178,7 @@ contract Router is IRouter, Initializable {
     function withdrawETH(address quoteToken, uint256 amount) external override {
         address margin = IPairFactory(pairFactory).getMargin(WETH, quoteToken);
         require(margin != address(0), "Router.withdrawETH: NOT_FOUND_MARGIN");
-        (uint256 withdrawable, ) = _getWithdrawable(WETH, quoteToken, msg.sender);
+        uint256 withdrawable = IMargin(margin).getWithdrawable(msg.sender);
         require(amount <= withdrawable, "Router.withdrawETH: NOT_ENOUGH_WITHDRAWABLE");
         IMargin(margin).removeMargin(msg.sender, address(this), amount);
         IWETH(WETH).withdraw(amount);
@@ -204,7 +204,6 @@ contract Router is IRouter, Initializable {
         baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
             require(baseAmount >= baseAmountLimit, "Router.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
-            _collectFee(baseAmount, margin);
         } else {
             require(baseAmount <= baseAmountLimit, "Router.openPositionWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
         }
@@ -227,7 +226,6 @@ contract Router is IRouter, Initializable {
         baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
             require(baseAmount >= baseAmountLimit, "Router.openPositionETHWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
-            _collectFee(baseAmount, margin);
         } else {
             require(baseAmount <= baseAmountLimit, "Router.openPositionETHWithWallet: INSUFFICIENT_QUOTE_AMOUNT");
         }
@@ -247,7 +245,6 @@ contract Router is IRouter, Initializable {
         baseAmount = IMargin(margin).openPosition(msg.sender, side, quoteAmount);
         if (side == 0) {
             require(baseAmount >= baseAmountLimit, "Router.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT");
-            _collectFee(baseAmount, margin);
         } else {
             require(baseAmount <= baseAmountLimit, "Router.openPositionWithMargin: INSUFFICIENT_QUOTE_AMOUNT");
         }
@@ -265,14 +262,8 @@ contract Router is IRouter, Initializable {
         (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
         if (!autoWithdraw) {
             baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
-            if (quoteSizeBefore > 0) {
-                _collectFee(baseAmount, margin);
-            }
         } else {
             baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
-            if (quoteSizeBefore > 0) {
-                _collectFee(baseAmount, margin);
-            }
 
             (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(msg.sender);
             int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(msg.sender);
@@ -304,9 +295,6 @@ contract Router is IRouter, Initializable {
         
         (, int256 quoteSizeBefore, ) = IMargin(margin).getPosition(msg.sender);
         baseAmount = IMargin(margin).closePosition(msg.sender, quoteAmount);
-        if (quoteSizeBefore > 0) {
-            _collectFee(baseAmount, margin);
-        }
         
         (int256 baseSize, int256 quoteSizeAfter, uint256 tradeSize) = IMargin(margin).getPosition(msg.sender);
         int256 unrealizedPnl = IMargin(margin).calUnrealizedPnl(msg.sender);
@@ -369,7 +357,8 @@ contract Router is IRouter, Initializable {
         address quoteToken,
         address holder
     ) external view override returns (uint256 amount) {
-        (amount, ) = _getWithdrawable(baseToken, quoteToken, holder);
+        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
+        amount = IMargin(margin).getWithdrawable(holder);
     }
 
     function getPosition(
@@ -388,13 +377,6 @@ contract Router is IRouter, Initializable {
     {
         address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
         (baseSize, quoteSize, tradeSize) = IMargin(margin).getPosition(holder);
-    }
-
-    function _collectFee(uint256 baseAmount, address margin) internal {
-        uint256 fee = baseAmount / 1000;
-        address feeTreasury = IAmmFactory(IPairFactory(pairFactory).ammFactory()).feeTo();
-        IMargin(margin).removeMargin(msg.sender, feeTreasury, fee);
-        emit CollectFee(msg.sender, margin, fee);
     }
 
     // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
@@ -422,52 +404,5 @@ contract Router is IRouter, Initializable {
         uint256 numerator = reserveIn * amountOut * 1000;
         uint256 denominator = (reserveOut - amountOut) * 999;
         amountIn = numerator / denominator + 1;
-    }
-
-    //@notice withdrawable from fundingFee, unrealizedPnl and margin
-    function _getWithdrawable(
-        address baseToken,
-        address quoteToken,
-        address holder
-    ) internal view returns (uint256 amount, int256 unrealizedPnl) {
-        address amm = IPairFactory(pairFactory).getAmm(baseToken, quoteToken);
-        address margin = IPairFactory(pairFactory).getMargin(baseToken, quoteToken);
-        (int256 baseSize, int256 quoteSize, uint256 tradeSize) = IMargin(margin).getPosition(holder);
-        int256 fundingFee = IMargin(margin).calFundingFee(holder);
-        baseSize = baseSize + fundingFee;
-        if (quoteSize == 0) {
-            amount = baseSize <= 0 ? 0 : baseSize.abs();
-        } else if (quoteSize < 0) {
-            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
-                amm,
-                IConfig(config).beta(),
-                quoteSize.abs(),
-                true
-            );
-
-            uint256 a = baseAmount * 10000;
-            uint256 b = (10000 - IConfig(config).initMarginRatio());
-            //calculate how many base needed to maintain current position
-            uint256 baseNeeded = a / b;
-            if (a % b != 0) {
-                baseNeeded += 1;
-            }
-            //borrowed - repay, earn when borrow more and repay less
-            unrealizedPnl = int256(1).mulU(tradeSize).subU(baseAmount);
-            amount = baseSize.abs() <= baseNeeded ? 0 : baseSize.abs() - baseNeeded;
-        } else {
-            uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
-                amm,
-                IConfig(config).beta(),
-                quoteSize.abs(),
-                false
-            );
-
-            uint256 baseNeeded = (baseAmount * (10000 - IConfig(config).initMarginRatio())) / 10000;
-            //repay - lent, earn when lent less and repay more
-            unrealizedPnl = int256(1).mulU(baseAmount).subU(tradeSize);
-            int256 remainBase = baseSize.addU(baseNeeded);
-            amount = remainBase <= 0 ? 0 : remainBase.abs();
-        }
     }
 }
