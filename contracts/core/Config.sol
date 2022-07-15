@@ -8,9 +8,9 @@ import "../utils/Ownable.sol";
 contract Config is IConfig, Ownable {
     address public override priceOracle;
 
-    uint8 public override beta = 120; // 50-200，50 means 0.5
+    uint256 public override beta = 120; // 50-200，50 means 0.5
     uint256 public override maxCPFBoost = 10; // default 10
-    uint256 public override rebasePriceGap = 3; //0-100 , if 5 means 5%
+    uint256 public override rebasePriceGap = 300; //0-10000 , if 5 means 5%
     uint256 public override rebaseInterval = 900; // in seconds
     uint256 public override tradingSlippage = 5; //0-100, if 5 means 5%
     uint256 public override initMarginRatio = 800; //if 1000, means margin ratio >= 10%
@@ -52,7 +52,7 @@ contract Config is IConfig, Ownable {
     }
 
     function setRebasePriceGap(uint256 newGap) external override onlyOwner {
-        require(newGap > 0 && newGap < 100, "Config: ZERO_GAP");
+        require(newGap > 0 && newGap < 10000, "Config: ZERO_GAP");
         emit SetRebasePriceGapDefault(rebasePriceGap, newGap);
         rebasePriceGap = newGap;
     }
@@ -103,8 +103,8 @@ contract Config is IConfig, Ownable {
         lpWithdrawThresholdForTotal = newLpWithdrawThresholdForTotal;
     }
     
-    function setBeta(uint8 newBeta) external override onlyOwner {
-        require(newBeta >= 50 && newBeta <= 200, "Config: INVALID_BETA");
+    function setBeta(uint256 newBeta) external override onlyOwner {
+        // require(newBeta >= 50 && newBeta <= 200, "Config: INVALID_BETA");
         emit SetBetaDefault(beta, newBeta);
         beta = newBeta;
     }

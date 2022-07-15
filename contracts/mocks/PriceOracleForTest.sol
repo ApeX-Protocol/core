@@ -90,7 +90,7 @@ contract PriceOracleForTest is IPriceOracle {
 
     function getMarkPriceAcc(
         address amm,
-        uint8 beta,
+        uint256 beta,
         uint256 quoteAmount,
         bool negative
     ) public view override returns (uint256 baseAmount) {

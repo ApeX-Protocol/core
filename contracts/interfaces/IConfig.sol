@@ -36,7 +36,7 @@ interface IConfig {
     function priceOracle() external view returns (address);
 
     /// @notice get beta of amm.
-    function beta() external view returns (uint8);
+    function beta() external view returns (uint256);
 
     /// @notice get feeParameter of amm.
     function feeParameter() external view returns (uint256);
@@ -92,7 +92,7 @@ interface IConfig {
 
     /// @notice Set a new beta of amm
     /// @param newBeta new beta.
-    function setBeta(uint8 newBeta) external;
+    function setBeta(uint256 newBeta) external;
 
     /// @notice Set a new rebase gap of amm
     /// @param newGap new gap.
