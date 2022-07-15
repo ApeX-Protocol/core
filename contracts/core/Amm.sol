@@ -37,6 +37,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
     uint256 public kLast;
     uint256 public override lastPrice;
     uint256 public lpFund;
+   
 
     bytes4 private constant SELECTOR = bytes4(keccak256(bytes("transfer(address,uint256)")));
     uint112 private baseReserve; // uses single storage slot, accessible via getReserves
@@ -86,7 +87,9 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
 
         // get real baseReserve
         uint256 realBaseReserve = getRealBaseReserve();
-
+        //todo 
+        //realBaseReserve + feeFund;
+        // feeFund = feeFund - feeWithdraw;  
         baseAmount = IERC20(baseToken).balanceOf(address(this));
         require(baseAmount > 0, "Amm.mint: ZERO_BASE_AMOUNT");
 
