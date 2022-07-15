@@ -272,7 +272,7 @@ contract PriceOracle is IPriceOracle, Initializable, Ownable {
     // price = ( sqrt(markPrice) +/- beta * quoteAmount / sqrt(x*y) )**2
     function getMarkPriceAcc(
         address amm,
-        uint8 beta,
+        uint256 beta,
         uint256 quoteAmount,
         bool negative
     ) external view override returns (uint256 baseAmount) {

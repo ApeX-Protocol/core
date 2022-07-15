@@ -43,7 +43,7 @@ interface IPriceOracle {
 
     function getMarkPriceAcc(
         address amm,
-        uint8 beta,
+        uint256 beta,
         uint256 quoteAmount,
         bool negative
     ) external view returns (uint256 baseAmount);
