@@ -25,7 +25,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
 
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
 
-    address public  override factory;
+    address public override factory;
     address public override config;
     address public override baseToken;
     address public override quoteToken;
@@ -183,8 +183,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
     function maxWithdrawCheck(uint256 quoteReserve_, uint256 quoteAmount) public view {
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
         uint256 quoteTokenOfTotalPosition = IMargin(margin).totalPosition();
-        uint256 lpWithdrawThresholdForNet = IConfig(config).lpWithdrawThresholdForNet();
-        uint256 lpWithdrawThresholdForTotal = IConfig(config).lpWithdrawThresholdForTotal();
+        uint256 lpWithdrawThresholdForNet = IConfig(config).getLpWithdrawThresholdForNet(address(this));
+        uint256 lpWithdrawThresholdForTotal = IConfig(config).getLpWithdrawThresholdForTotal(address(this));
 
         require(
             quoteTokenOfNetPosition.abs() * 100 <= (quoteReserve_ - quoteAmount) * lpWithdrawThresholdForNet,
@@ -276,7 +276,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
     /// @notice gap is in config contract
     function rebase() external override nonReentrant returns (uint256 quoteReserveAfter) {
         require(msg.sender == tx.origin, "Amm.rebase: ONLY_EOA");
-        uint256 interval = IConfig(config).rebaseInterval();
+        uint256 interval = IConfig(config).getRebaseInterval(address(this));
         require(block.timestamp - rebaseTimestampLast >= interval, "Amm.rebase: NOT_REACH_NEXT_REBASE_TIME");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -299,7 +299,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
             quoteReserveFromInternal = (lastPrice * _baseReserve) / 2**112;
         }
 
-        uint256 gap = IConfig(config).rebasePriceGap();
+        uint256 gap = IConfig(config).getRebasePriceGap(address(this));
         require(
             quoteReserveFromExternal * 10000 >= quoteReserveFromInternal * (10000 + gap) ||
                 quoteReserveFromExternal * 10000 <= quoteReserveFromInternal * (10000 - gap),
@@ -342,8 +342,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         uint256 quoteTokenOfTotalPosition = IMargin(margin).totalPosition();
         uint256 _totalSupply = totalSupply;
 
-        uint256 lpWithdrawThresholdForNet = IConfig(config).lpWithdrawThresholdForNet();
-        uint256 lpWithdrawThresholdForTotal = IConfig(config).lpWithdrawThresholdForTotal();
+        uint256 lpWithdrawThresholdForNet = IConfig(config).getLpWithdrawThresholdForNet(address(this));
+        uint256 lpWithdrawThresholdForTotal = IConfig(config).getLpWithdrawThresholdForTotal(address(this));
 
         //  for net position  case
         uint256 maxQuoteLeftForNet = (quoteTokenOfNetPosition.abs() * 100) / lpWithdrawThresholdForNet;
@@ -415,7 +415,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         // check trade slippage for every transaction
         uint256 numerator = quoteReserveNew * baseReserveOld * 100;
         uint256 demominator = baseReserveNew * quoteReserveOld;
-        uint256 tradingSlippage = IConfig(config).tradingSlippage();
+        uint256 tradingSlippage = IConfig(config).getTradingSlippage(address(this));
         require(
             (numerator < (100 + tradingSlippage) * demominator) && (numerator > (100 - tradingSlippage) * demominator),
             "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_TRANSACTION"

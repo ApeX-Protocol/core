@@ -20,7 +20,7 @@ import "../libraries/TransferHelper.sol";
 contract Margin is IMargin, IVault, Reentrant, Initializable {
     using SignedMath for int256;
 
-    address public  override factory;
+    address public override factory;
     address public override config;
     address public override amm;
     address public override baseToken;
@@ -168,7 +168,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
 
             quoteAmountMax =
                 (quoteReserve * 10000 * _quoteAmount) /
-                ((IConfig(config).initMarginRatio() * quoteReserve) + (200 * _quoteAmount * IConfig(config).beta()));
+                ((IConfig(config).getInitMarginRatio(address(this)) * quoteReserve) + (200 * _quoteAmount * IConfig(config).getBeta(address(this))));
         }
 
         bool isLong = side == 0;
@@ -206,7 +206,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
         }
         require(traderPosition.quoteSize.abs() <= quoteAmountMax, "Margin.openPosition: INIT_MARGIN_RATIO");
         require(
-            _calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize) < IConfig(config).liquidateThreshold(),
+            _calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize) < IConfig(config).getLiquidateThreshold(address(this)),
             "Margin.openPosition: WILL_BE_LIQUIDATED"
         );
 
@@ -233,7 +233,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
         int256 fundingFee = _calFundingFee(trader, _latestCPF);
         require(
             _calDebtRatio(traderPosition.quoteSize, traderPosition.baseSize + fundingFee) <
-                IConfig(config).liquidateThreshold(),
+                IConfig(config).getLiquidateThreshold(address(this)),
             "Margin.closePosition: DEBT_RATIO_OVER"
         );
 
@@ -281,7 +281,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
         bool isLong = quoteSize < 0;
         int256 fundingFee = _calFundingFee(trader, _latestCPF);
         require(
-            _calDebtRatio(quoteSize, baseSize + fundingFee) >= IConfig(config).liquidateThreshold(),
+            _calDebtRatio(quoteSize, baseSize + fundingFee) >= IConfig(config).getLiquidateThreshold(address(this)),
             "Margin.liquidate: NOT_LIQUIDATABLE"
         );
 
@@ -323,7 +323,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             : baseSize.addU(baseAmount) + fundingFee;
 
         if (remainBaseAmountAfterLiquidate >= 0) {
-            bonus = (remainBaseAmountAfterLiquidate.abs() * IConfig(config).liquidateFeeRatio()) / 10000;
+            bonus = (remainBaseAmountAfterLiquidate.abs() * IConfig(config).getLiquidateFeeRatio(address(this))) / 10000;
             if (!isIndexPrice) {
                 if (isLong) {
                     IAmm(amm).forceSwap(_trader, baseToken, quoteToken, baseAmount, quoteAmount);
@@ -366,6 +366,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             if (treasury != address(0)) {
                 //if  treasure exists, transfer the left to treasure, amm needs not change
                  _withdraw(_trader, treasury, remainBaseAmountAfterLiquidate.abs() - bonus);
+
             } else {
                 // if treasure no exists, transfer the left to amm
                     IAmm(amm).forceSwap(
@@ -490,7 +491,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
         int256 fundingFee = _calFundingFee(trader, _getNewLatestCPF());
 
         return
-            _calDebtRatio(position.quoteSize, position.baseSize + fundingFee) >= IConfig(config).liquidateThreshold();
+            _calDebtRatio(position.quoteSize, position.baseSize + fundingFee) >= IConfig(config).getLiquidateThreshold(address(this));
     }
 
     function calFundingFee(address trader) public view override returns (int256) {
@@ -547,7 +548,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
     //@notice returns newLatestCPF with 1e18 multiplied
     function _getNewLatestCPF() internal view returns (int256 newLatestCPF) {
         int256 premiumFraction = IPriceOracle(IConfig(config).priceOracle()).getPremiumFraction(amm);
-        uint256 maxCPFBoost = IConfig(config).maxCPFBoost();
+        uint256 maxCPFBoost = IConfig(config).getMaxCPFBoost(address(this));
         int256 delta;
         if (
             totalQuoteLong <= maxCPFBoost * totalQuoteShort &&
@@ -586,6 +587,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
 
             uint256 a = baseAmount * 10000;
             uint256 b = (10000 - IConfig(config).initMarginRatio());
+
             //calculate how many base needed to maintain current position
             uint256 baseNeeded = a / b;
             if (a % b != 0) {
@@ -602,8 +604,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
                 false
             );
 
-
-            uint256 baseNeeded = (baseAmount * (10000 - IConfig(config).initMarginRatio())) / 10000;
+            uint256 baseNeeded = (baseAmount * (10000 - IConfig(config).getInitMarginRatio(address(this)))) / 10000;
             //repay - lent, earn when lent less and repay more
             unrealizedPnl = int256(1).mulU(baseAmount).subU(tradeSize);
             int256 remainBase = baseSize.addU(baseNeeded);
@@ -636,7 +637,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             //simulate to close short, markPriceAcc bigger, asset undervalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
-                IConfig(config).beta(),
+                IConfig(config).getBeta(address(this)),
                 quoteAmount,
                 false
             );
@@ -647,7 +648,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             //simulate to close long, markPriceAcc smaller, debt overvalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
-                IConfig(config).beta(),
+                IConfig(config).getBeta(address(this)),
                 quoteAmount,
                 true
             );
