@@ -17,6 +17,7 @@ contract Config is IConfig, Ownable {
     uint256 public override liquidateThreshold = 10000; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio = 100; //if 100, means liquidator bot get 1% as fee
     uint256 public override feeParameter = 11; // 100 * (1/fee-1)
+    uint256 public override swapFeeParameter = 998;
     uint256 public override lpWithdrawThresholdForNet = 10; // 1-100
     uint256 public override lpWithdrawThresholdForTotal = 50; // 
 
@@ -35,6 +36,7 @@ contract Config is IConfig, Ownable {
     mapping(address => uint256) public override lpWithdrawThresholdForNetByAmm;
     mapping(address => uint256) public override lpWithdrawThresholdForTotalByAmm;
     mapping(address => uint256) public override feeParameterByAmm;
+    mapping(address => uint256) public override swapFeeParameterByAmm;
 
     constructor() {
         owner = msg.sender;
@@ -89,6 +91,11 @@ contract Config is IConfig, Ownable {
     function setFeeParameter(uint256 newFeeParameter) external override onlyOwner {
         emit SetFeeParameterDefault(feeParameter, newFeeParameter);
         feeParameter = newFeeParameter;
+    } 
+    
+     function setSwapFeeParameter(uint256 newSwapFeeParameter) external override onlyOwner {
+        emit SetFeeParameterDefault(swapFeeParameter, newSwapFeeParameter);
+        swapFeeParameter = newSwapFeeParameter;
     }
    
     function setLpWithdrawThresholdForNet(uint256 newLpWithdrawThresholdForNet) external override onlyOwner {
@@ -171,6 +178,13 @@ contract Config is IConfig, Ownable {
         uint256 oldFeeParameter = feeParameterByAmm[amm];
         feeParameterByAmm[amm] = newFeeParameter;
         emit SetFeeParameterByAmm(amm, oldFeeParameter, newFeeParameter);
+    }  
+    
+     function setSwapFeeParameterByAmm(address amm, uint256 newSwapFeeParameter) external override onlyOwner {
+        require(amm != address(0), "ZERO_ADDRESS");
+        uint256 oldSwapFeeParameter = swapFeeParameterByAmm[amm];
+        swapFeeParameterByAmm[amm] = newSwapFeeParameter;
+        emit SetFeeParameterByAmm(amm, oldSwapFeeParameter, newSwapFeeParameter);
     }
 
     function setLpWithdrawThresholdForNetByAmm(address amm, uint256 newLpWithdrawThresholdForNet) external override onlyOwner {
@@ -292,6 +306,14 @@ contract Config is IConfig, Ownable {
         uint256 value = feeParameterByAmm[amm];
         if (value == 0) {
             value = feeParameter;
+        }
+        return value;
+    }  
+    
+    function getSwapFeeParameter(address amm) external view override returns (uint256) {
+        uint256 value = swapFeeParameterByAmm[amm];
+        if (value == 0) {
+            value = swapFeeParameter;
         }
         return value;
     }

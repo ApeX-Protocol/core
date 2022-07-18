@@ -17,6 +17,7 @@ interface IConfig {
     event SetInitMarginRatioDefault(uint256 oldInitMarginRatio, uint256 newInitMarginRatio);
     event SetBetaDefault(uint256 oldBeta, uint256 newBeta);
     event SetFeeParameterDefault(uint256 oldFeeParameter, uint256 newFeeParameter);
+    event SetSwapFeeParameterDefault(uint256 oldSwapFeeParameter, uint256 newSwapeeParameter);
     event SetMaxCPFBoostDefault(uint256 oldMaxCPFBoost, uint256 newMaxCPFBoost);
 
     event SetMaxCPFBoostByMargin(address indexed margin, uint256 oldMaxCPFBoost, uint256 newMaxCPFBoost);
@@ -26,6 +27,7 @@ interface IConfig {
     event SetLiquidateThresholdByMargin(address indexed margin, uint256 oldLiquidateThreshold, uint256 newLiquidateThreshold);
 
     event SetFeeParameterByAmm(address indexed amm, uint256 oldFeeParameter, uint256 newFeeParameter);
+    event SetSwapFeeParameterByAmm(address indexed amm, uint256 oldSwapFeeParameter, uint256 newSwapFeeParameter);
     event SetLpWithdrawThresholdForNetByAmm(address indexed amm, uint256 oldLpWithdrawThresholdForNet, uint256 newLpWithdrawThresholdForNet);
     event SetLpWithdrawThresholdForTotalByAmm(address indexed amm, uint256 oldLpWithdrawThresholdForTotal, uint256 newLpWithdrawThresholdForTotal);
     event SetRebasePriceGapByAmm(address indexed amm, uint256 oldGap, uint256 newGap);
@@ -40,6 +42,8 @@ interface IConfig {
 
     /// @notice get feeParameter of amm.
     function feeParameter() external view returns (uint256);
+    
+    function swapFeeParameter() external view returns (uint256);
 
     /// @notice get init margin ratio of margin.
     function initMarginRatio() external view returns (uint256);
@@ -82,6 +86,7 @@ interface IConfig {
     function lpWithdrawThresholdForNetByAmm(address amm) external view returns (uint256);
     function lpWithdrawThresholdForTotalByAmm(address amm) external view returns (uint256);
     function feeParameterByAmm(address amm) external view returns (uint256);
+    function swapFeeParameterByAmm(address amm) external view returns (uint256);
 
     function getBeta(address margin) external view returns (uint256);
     function getMaxCPFBoost(address margin) external view returns (uint256);
@@ -95,6 +100,7 @@ interface IConfig {
     function getLpWithdrawThresholdForNet(address amm) external view returns (uint256);
     function getLpWithdrawThresholdForTotal(address amm) external view returns (uint256);
     function getFeeParameter(address amm) external view returns (uint256); 
+    function getSwapFeeParameter(address amm) external view returns (uint256); 
 
     function registerRouter(address router) external;
     function unregisterRouter(address router) external;
@@ -142,6 +148,8 @@ interface IConfig {
     /// @dev feeParameter = (1/fee -1 ) *100 where fee set by owner.
     function setFeeParameter(uint256 newFeeParameter) external;
 
+    function setSwapFeeParameter(uint256 newSwapFeeParameter) external;
+
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
 
     function setEmergency(address router) external;
@@ -157,6 +165,8 @@ interface IConfig {
     function setLiquidateThresholdByMargin(address margin, uint256 newLiquidateThreshold) external;
 
     function setFeeParameterByAmm(address amm, uint256 newFeeParameter) external;
+    
+    function setSwapFeeParameterByAmm(address amm, uint256 newSwapFeeParameter) external;
 
     function setLpWithdrawThresholdForNetByAmm(address amm, uint256 newLpWithdrawThresholdForNet) external;
 
