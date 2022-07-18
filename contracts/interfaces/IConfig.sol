@@ -83,6 +83,19 @@ interface IConfig {
     function lpWithdrawThresholdForTotalByAmm(address amm) external view returns (uint256);
     function feeParameterByAmm(address amm) external view returns (uint256);
 
+    function getBeta(address margin) external view returns (uint256);
+    function getMaxCPFBoost(address margin) external view returns (uint256);
+    function getInitMarginRatio(address margin) external view returns (uint256);
+    function getLiquidateThreshold(address margin) external view returns (uint256);
+    function getLiquidateFeeRatio(address margin) external view returns (uint256);
+
+    function getRebasePriceGap(address amm) external view returns (uint256);
+    function getRebaseInterval(address amm) external view returns (uint256);
+    function getTradingSlippage(address amm) external view returns (uint256);
+    function getLpWithdrawThresholdForNet(address amm) external view returns (uint256);
+    function getLpWithdrawThresholdForTotal(address amm) external view returns (uint256);
+    function getFeeParameter(address amm) external view returns (uint256); 
+
     function registerRouter(address router) external;
     function unregisterRouter(address router) external;
 

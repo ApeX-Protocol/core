@@ -207,4 +207,92 @@ contract Config is IConfig, Ownable {
         tradingSlippageByAmm[amm] = newTradingSlippage;
         emit SetTradingSlippageByAmm(amm, oldTradingSlippage, newTradingSlippage);
     }
+
+    function getBeta(address margin) external view override returns (uint256) {
+        uint256 value = betaByMargin[margin];
+        if (value == 0) {
+            value = beta;
+        }
+        return value;
+    }
+
+    function getMaxCPFBoost(address margin) external view override returns (uint256) {
+        uint256 value = maxCPFBoostByMargin[margin];
+        if (value == 0) {
+            value = maxCPFBoost;
+        }
+        return value;
+    }
+
+    function getInitMarginRatio(address margin) external view override returns (uint256) {
+        uint256 value = initMarginRatioByMargin[margin];
+        if (value == 0) {
+            value = initMarginRatio;
+        }
+        return value;
+    }
+
+    function getLiquidateThreshold(address margin) external view override returns (uint256) {
+        uint256 value = liquidateThresholdByMargin[margin];
+        if (value == 0) {
+            value = liquidateThreshold;
+        }
+        return value;
+    }
+
+    function getLiquidateFeeRatio(address margin) external view override returns (uint256) {
+        uint256 value = liquidateFeeRatioByMargin[margin];
+        if (value == 0) {
+            value = liquidateFeeRatio;
+        }
+        return value;
+    }
+
+    function getRebasePriceGap(address amm) external view override returns (uint256) {
+        uint256 value = rebasePriceGapByAmm[amm];
+        if (value == 0) {
+            value = rebasePriceGap;
+        }
+        return value;
+    }
+
+    function getRebaseInterval(address amm) external view override returns (uint256) {
+        uint256 value = rebaseIntervalByAmm[amm];
+        if (value == 0) {
+            value = rebaseInterval;
+        }
+        return value;
+    }
+
+    function getTradingSlippage(address amm) external view override returns (uint256) {
+        uint256 value = tradingSlippageByAmm[amm];
+        if (value == 0) {
+            value = tradingSlippage;
+        }
+        return value;
+    }
+
+    function getLpWithdrawThresholdForNet(address amm) external view override returns (uint256) {
+        uint256 value = lpWithdrawThresholdForNetByAmm[amm];
+        if (value == 0) {
+            value = lpWithdrawThresholdForNet;
+        }
+        return value;
+    }
+
+    function getLpWithdrawThresholdForTotal(address amm) external view override returns (uint256) {
+        uint256 value = lpWithdrawThresholdForTotalByAmm[amm];
+        if (value == 0) {
+            value = lpWithdrawThresholdForTotal;
+        }
+        return value;
+    }
+
+    function getFeeParameter(address amm) external view override returns (uint256) {
+        uint256 value = feeParameterByAmm[amm];
+        if (value == 0) {
+            value = feeParameter;
+        }
+        return value;
+    }
 }

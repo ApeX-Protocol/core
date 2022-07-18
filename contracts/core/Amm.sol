@@ -25,7 +25,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
 
     uint256 public constant override MINIMUM_LIQUIDITY = 10**3;
 
-    address public  override factory;
+    address public override factory;
     address public override config;
     address public override baseToken;
     address public override quoteToken;
