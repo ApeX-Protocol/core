@@ -15,6 +15,8 @@ import "../libraries/SignedMath.sol";
 import "../libraries/ChainAdapter.sol";
 import "../utils/Initializable.sol";
 
+import "../libraries/TransferHelper.sol";
+
 contract Margin is IMargin, IVault, Reentrant, Initializable {
     using SignedMath for int256;
 
@@ -51,6 +53,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
 
     //@notice before add margin, ensure contract's baseToken balance larger than depositAmount
     function addMargin(address trader, uint256 depositAmount) external override nonReentrant {
+        require(IConfig(config).routerMap(msg.sender), "Margin.removeMargin: FORBIDDEN");
         uint256 balance = IERC20(baseToken).balanceOf(address(this));
         uint256 _reserve = reserve;
         require(depositAmount <= balance - _reserve, "Margin.addMargin: WRONG_DEPOSIT_AMOUNT");
@@ -325,20 +328,9 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
                 }
             }
 
-            if (remainBaseAmountAfterLiquidate.abs() > bonus) {
-                address treasury = IAmmFactory(IAmm(amm).factory()).feeTo();
-                if (treasury != address(0)) {
-                    IERC20(baseToken).transfer(treasury, remainBaseAmountAfterLiquidate.abs() - bonus);
-                } else {
-                    IAmm(amm).forceSwap(
-                        _trader,
-                        baseToken,
-                        quoteToken,
-                        remainBaseAmountAfterLiquidate.abs() - bonus,
-                        0
-                    );
-                }
-            }
+            // if use index price ,  the amm bear get benefit
+            _distributeLiqudatationProfit(_trader, remainBaseAmountAfterLiquidate, bonus);
+
         } else {
             if (!isIndexPrice) {
                 if (isLong) {
@@ -362,6 +354,26 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
                 IAmm(amm).forceSwap(_trader, quoteToken, baseToken, 0, remainBaseAmountAfterLiquidate.abs());
             }
         }
+    }
+
+
+     function  _distributeLiqudatationProfit(address _trader, int256 remainBaseAmountAfterLiquidate, uint256 bonus) internal  {
+          address treasury = IAmmFactory(IAmm(amm).factory()).feeTo();
+            if (treasury != address(0)) {
+                //if  treasure exists, transfer the left to treasure, amm needs not change
+                 TransferHelper.safeTransfer(baseToken,treasury, remainBaseAmountAfterLiquidate.abs() - bonus);
+                 reserve = reserve - (remainBaseAmountAfterLiquidate.abs() - bonus);
+            } else {
+                // if treasure no exists, transfer the left to amm
+                    IAmm(amm).forceSwap(
+                        _trader,
+                        baseToken,
+                        quoteToken,
+                        remainBaseAmountAfterLiquidate.abs() - bonus,
+                        0
+                    );
+                }
+
     }
 
     function deposit(address user, uint256 amount) external override nonReentrant {
@@ -393,7 +405,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
         require(amount > 0, "Margin._withdraw: AMOUNT_IS_ZERO");
         require(amount <= reserve, "Margin._withdraw: NOT_ENOUGH_RESERVE");
         reserve = reserve - amount;
-        IERC20(baseToken).transfer(receiver, amount);
+        TransferHelper.safeTransfer(baseToken,receiver, amount);
 
         emit Withdraw(user, receiver, amount);
     }
@@ -438,6 +450,8 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
 
         emit UpdateCPF(currentTimeStamp, newLatestCPF);
     }
+
+
 
     function querySwapBaseWithAmm(bool isLong, uint256 quoteAmount) external view override returns (uint256) {
         return _querySwapBaseWithAmm(isLong, quoteAmount);
