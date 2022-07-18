@@ -637,7 +637,6 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             //simulate to close short, markPriceAcc bigger, asset undervalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
-                //todo
                 IConfig(config).getBeta(address(this)),
                 quoteAmount,
                 false
@@ -649,7 +648,6 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             //simulate to close long, markPriceAcc smaller, debt overvalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
-                //todo
                 IConfig(config).getBeta(address(this)),
                 quoteAmount,
                 true
