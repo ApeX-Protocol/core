@@ -586,7 +586,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             );
 
             uint256 a = baseAmount * 10000;
-            uint256 b = (10000 - IConfig(config).initMarginRatio());
+            uint256 b = (10000 - IConfig(config).getInitMarginRatio(address(this)));
 
             //calculate how many base needed to maintain current position
             uint256 baseNeeded = a / b;
@@ -637,6 +637,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             //simulate to close short, markPriceAcc bigger, asset undervalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
+                //todo
                 IConfig(config).getBeta(address(this)),
                 quoteAmount,
                 false
@@ -648,6 +649,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             //simulate to close long, markPriceAcc smaller, debt overvalue
             uint256 baseAmount = IPriceOracle(IConfig(config).priceOracle()).getMarkPriceAcc(
                 amm,
+                //todo
                 IConfig(config).getBeta(address(this)),
                 quoteAmount,
                 true
