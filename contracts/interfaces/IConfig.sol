@@ -3,20 +3,34 @@ pragma solidity ^0.8.0;
 
 interface IConfig {
     event PriceOracleChanged(address indexed oldOracle, address indexed newOracle);
-    event RebasePriceGapChanged(uint256 oldGap, uint256 newGap);
-    event RebaseIntervalChanged(uint256 oldInterval, uint256 newInterval);
-    event TradingSlippageChanged(uint256 oldTradingSlippage, uint256 newTradingSlippage);
     event RouterRegistered(address indexed router);
     event RouterUnregistered(address indexed router);
-    event SetLiquidateFeeRatio(uint256 oldLiquidateFeeRatio, uint256 liquidateFeeRatio);
-    event SetLiquidateThreshold(uint256 oldLiquidateThreshold, uint256 liquidateThreshold);
-    event SetLpWithdrawThresholdForNet(uint256 oldLpWithdrawThresholdForNet, uint256 lpWithdrawThresholdForNet);
-    event SetLpWithdrawThresholdForTotal(uint256 oldLpWithdrawThresholdForTotal, uint256 lpWithdrawThresholdForTotal);
-    event SetInitMarginRatio(uint256 oldInitMarginRatio, uint256 initMarginRatio);
-    event SetBeta(uint256 oldBeta, uint256 beta);
-    event SetFeeParameter(uint256 oldFeeParameter, uint256 feeParameter);
-    event SetMaxCPFBoost(uint256 oldMaxCPFBoost, uint256 maxCPFBoost);
     event SetEmergency(address indexed router);
+
+    event SetRebasePriceGapDefault(uint256 oldGap, uint256 newGap);
+    event SetRebaseIntervalDefault(uint256 oldInterval, uint256 newInterval);
+    event SetTradingSlippageDefault(uint256 oldTradingSlippage, uint256 newTradingSlippage);
+    event SetLiquidateFeeRatioDefault(uint256 oldLiquidateFeeRatio, uint256 newLiquidateFeeRatio);
+    event SetLiquidateThresholdDefault(uint256 oldLiquidateThreshold, uint256 newLiquidateThreshold);
+    event SetLpWithdrawThresholdForNetDefault(uint256 oldLpWithdrawThresholdForNet, uint256 newLpWithdrawThresholdForNet);
+    event SetLpWithdrawThresholdForTotalDefault(uint256 oldLpWithdrawThresholdForTotal, uint256 newLpWithdrawThresholdForTotal);
+    event SetInitMarginRatioDefault(uint256 oldInitMarginRatio, uint256 newInitMarginRatio);
+    event SetBetaDefault(uint256 oldBeta, uint256 newBeta);
+    event SetFeeParameterDefault(uint256 oldFeeParameter, uint256 newFeeParameter);
+    event SetMaxCPFBoostDefault(uint256 oldMaxCPFBoost, uint256 newMaxCPFBoost);
+
+    event SetMaxCPFBoostByMargin(address indexed margin, uint256 oldMaxCPFBoost, uint256 newMaxCPFBoost);
+    event SetBetaByMargin(address indexed margin, uint256 oldBeta, uint256 newBeta);
+    event SetInitMarginRatioByMargin(address indexed margin, uint256 oldInitMarginRatio, uint256 newInitMarginRatio);
+    event SetLiquidateFeeRatioByMargin(address indexed margin, uint256 oldLiquidateFeeRatio, uint256 newLiquidateFeeRatio);
+    event SetLiquidateThresholdByMargin(address indexed margin, uint256 oldLiquidateThreshold, uint256 newLiquidateThreshold);
+
+    event SetFeeParameterByAmm(address indexed amm, uint256 oldFeeParameter, uint256 newFeeParameter);
+    event SetLpWithdrawThresholdForNetByAmm(address indexed amm, uint256 oldLpWithdrawThresholdForNet, uint256 newLpWithdrawThresholdForNet);
+    event SetLpWithdrawThresholdForTotalByAmm(address indexed amm, uint256 oldLpWithdrawThresholdForTotal, uint256 newLpWithdrawThresholdForTotal);
+    event SetRebasePriceGapByAmm(address indexed amm, uint256 oldGap, uint256 newGap);
+    event SetRebaseIntervalByAmm(address indexed amm, uint256 oldInterval, uint256 newInterval);
+    event SetTradingSlippageByAmm(address indexed amm, uint256 oldTradingSlippage, uint256 newTradingSlippage);
 
     /// @notice get price oracle address.
     function priceOracle() external view returns (address);
@@ -56,8 +70,33 @@ interface IConfig {
 
     function inEmergency(address router) external view returns (bool);
 
-    function registerRouter(address router) external;
+    function betaByMargin(address margin) external view returns (uint256);
+    function maxCPFBoostByMargin(address margin) external view returns (uint256);
+    function initMarginRatioByMargin(address margin) external view returns (uint256);
+    function liquidateThresholdByMargin(address margin) external view returns (uint256);
+    function liquidateFeeRatioByMargin(address margin) external view returns (uint256);
 
+    function rebasePriceGapByAmm(address amm) external view returns (uint256);
+    function rebaseIntervalByAmm(address amm) external view returns (uint256);
+    function tradingSlippageByAmm(address amm) external view returns (uint256);
+    function lpWithdrawThresholdForNetByAmm(address amm) external view returns (uint256);
+    function lpWithdrawThresholdForTotalByAmm(address amm) external view returns (uint256);
+    function feeParameterByAmm(address amm) external view returns (uint256);
+
+    function getBeta(address margin) external view returns (uint256);
+    function getMaxCPFBoost(address margin) external view returns (uint256);
+    function getInitMarginRatio(address margin) external view returns (uint256);
+    function getLiquidateThreshold(address margin) external view returns (uint256);
+    function getLiquidateFeeRatio(address margin) external view returns (uint256);
+
+    function getRebasePriceGap(address amm) external view returns (uint256);
+    function getRebaseInterval(address amm) external view returns (uint256);
+    function getTradingSlippage(address amm) external view returns (uint256);
+    function getLpWithdrawThresholdForNet(address amm) external view returns (uint256);
+    function getLpWithdrawThresholdForTotal(address amm) external view returns (uint256);
+    function getFeeParameter(address amm) external view returns (uint256); 
+
+    function registerRouter(address router) external;
     function unregisterRouter(address router) external;
 
     /// @notice Set a new oracle
@@ -106,4 +145,26 @@ interface IConfig {
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external;
 
     function setEmergency(address router) external;
+
+    function setMaxCPFBoostByMargin(address margin, uint256 newMaxCPFBoost) external;
+
+    function setBetaByMargin(address margin, uint256 newBeta) external;
+
+    function setInitMarginRatioByMargin(address margin, uint256 newInitMarginRatio) external;
+
+    function setLiquidateFeeRatioByMargin(address margin, uint256 newLiquidateFeeRatio) external;
+
+    function setLiquidateThresholdByMargin(address margin, uint256 newLiquidateThreshold) external;
+
+    function setFeeParameterByAmm(address amm, uint256 newFeeParameter) external;
+
+    function setLpWithdrawThresholdForNetByAmm(address amm, uint256 newLpWithdrawThresholdForNet) external;
+
+    function setLpWithdrawThresholdForTotalByAmm(address amm, uint256 newLpWithdrawThresholdForTotal) external;
+
+    function setRebasePriceGapByAmm(address amm, uint256 newGap) external;
+
+    function setRebaseIntervalByAmm(address amm, uint256 newInterval) external;
+
+    function setTradingSlippageByAmm(address amm, uint256 newTradingSlippage) external;
 }
