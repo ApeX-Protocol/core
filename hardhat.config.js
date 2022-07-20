@@ -28,7 +28,7 @@ module.exports = {
 
   networks: {
     hardhat: {
-      allowUnlimitedContractSize: true,
+      allowUnlimitedContractSize: true
     },
     localhost: {
       url: "http://localhost:8545",

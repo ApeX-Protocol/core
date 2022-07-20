@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 pragma solidity ^0.8.0;
 
-import "./LiquidityERC20.sol";
+import "../core/LiquidityERC20.sol";
 import "../interfaces/IAmmFactory.sol";
 import "../interfaces/IConfig.sol";
 import "../interfaces/IPriceOracle.sol";
@@ -19,7 +19,7 @@ import "../libraries/SignedMath.sol";
 
 import "../utils/Initializable.sol";
 
-contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
+contract MockAmmNew is IAmm, LiquidityERC20, Reentrant, Initializable {
     using UQ112x112 for uint224;
     using SignedMath for int256;
 
@@ -46,10 +46,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
     uint256 private lastBlockNumber;
     uint256 private rebaseTimestampLast;
 
-    modifier onlyMargin() {
-        require(margin == msg.sender, "Amm: ONLY_MARGIN");
-        _;
-    }
+    // modifier onlyMargin() {
+    //     require(margin == msg.sender, "Amm: ONLY_MARGIN");
+    //     _;
+    // }
 
     // constructor() {
     //     factory = msg.sender;
@@ -64,8 +64,22 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         baseToken = baseToken_;
         quoteToken = quoteToken_;
         margin = margin_;
-        factory = msg.sender ; 
-        config = IAmmFactory(factory).config();
+       
+    }
+
+
+    function init(
+        address baseToken_,
+        address quoteToken_,
+        address margin_,
+        address config_
+    ) public initializer  {
+    //    require(msg.sender == factory, "Amm.initialize: FORBIDDEN"); // sufficient check
+        baseToken = baseToken_;
+        quoteToken = quoteToken_;
+        margin = margin_;
+       
+        config = config_;
     }
 
     /// @notice add liquidity
@@ -81,7 +95,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         )
     {
         // only router can add liquidity
-        require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
+    //    require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
 
@@ -142,7 +156,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         )
     {
         // only router can burn liquidity
-        require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
+    //    require(IConfig(config).routerMap(msg.sender), "Amm.mint: FORBIDDEN");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves(); // gas savings
         liquidity = balanceOf[address(this)];
 
@@ -183,8 +197,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
     function maxWithdrawCheck(uint256 quoteReserve_, uint256 quoteAmount) public view {
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
         uint256 quoteTokenOfTotalPosition = IMargin(margin).totalPosition();
-        uint256 lpWithdrawThresholdForNet = IConfig(config).getLpWithdrawThresholdForNet(address(this));
-        uint256 lpWithdrawThresholdForTotal = IConfig(config).getLpWithdrawThresholdForTotal(address(this));
+        uint256 lpWithdrawThresholdForNet = IConfig(config).lpWithdrawThresholdForNet();
+        uint256 lpWithdrawThresholdForTotal = IConfig(config).lpWithdrawThresholdForTotal();
 
         require(
             quoteTokenOfNetPosition.abs() * 100 <= (quoteReserve_ - quoteAmount) * lpWithdrawThresholdForNet,
@@ -232,7 +246,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external override nonReentrant onlyMargin returns (uint256[2] memory amounts) {
+    ) external override nonReentrant  returns (uint256[2] memory amounts) {
         uint256[2] memory reserves;
         (reserves, amounts) = _estimateSwap(inputToken, outputToken, inputAmount, outputAmount);
         //check trade slippage
@@ -249,7 +263,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         address outputToken,
         uint256 inputAmount,
         uint256 outputAmount
-    ) external override nonReentrant onlyMargin {
+    ) external override nonReentrant  {
         require(inputToken == baseToken || inputToken == quoteToken, "Amm.forceSwap: WRONG_INPUT_TOKEN");
         require(outputToken == baseToken || outputToken == quoteToken, "Amm.forceSwap: WRONG_OUTPUT_TOKEN");
         require(inputToken != outputToken, "Amm.forceSwap: SAME_TOKENS");
@@ -276,7 +290,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
     /// @notice gap is in config contract
     function rebase() external override nonReentrant returns (uint256 quoteReserveAfter) {
         require(msg.sender == tx.origin, "Amm.rebase: ONLY_EOA");
-        uint256 interval = IConfig(config).getRebaseInterval(address(this));
+        uint256 interval = IConfig(config).rebaseInterval();
         require(block.timestamp - rebaseTimestampLast >= interval, "Amm.rebase: NOT_REACH_NEXT_REBASE_TIME");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
@@ -342,8 +356,8 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         uint256 quoteTokenOfTotalPosition = IMargin(margin).totalPosition();
         uint256 _totalSupply = totalSupply + getFeeLiquidity();
 
-        uint256 lpWithdrawThresholdForNet = IConfig(config).getLpWithdrawThresholdForNet(address(this));
-        uint256 lpWithdrawThresholdForTotal = IConfig(config).getLpWithdrawThresholdForTotal(address(this));
+        uint256 lpWithdrawThresholdForNet = IConfig(config).lpWithdrawThresholdForNet();
+        uint256 lpWithdrawThresholdForTotal = IConfig(config).lpWithdrawThresholdForTotal();
 
         //  for net position  case
         uint256 maxQuoteLeftForNet = (quoteTokenOfNetPosition.abs() * 100) / lpWithdrawThresholdForNet;
@@ -371,7 +385,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
     }
 
     function getFeeLiquidity() public view override returns (uint256) {
-        address feeTo = IAmmFactory(factory).feeTo();
+        address feeTo = config;
         bool feeOn = feeTo != address(0);
         uint256 _kLast = kLast; // gas savings
         uint256 liquidity;
@@ -415,7 +429,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         // check trade slippage for every transaction
         uint256 numerator = quoteReserveNew * baseReserveOld * 100;
         uint256 demominator = baseReserveNew * quoteReserveOld;
-        uint256 tradingSlippage = IConfig(config).getTradingSlippage(address(this));
+        uint256 tradingSlippage = IConfig(config).tradingSlippage();
         require(
             (numerator < (100 + tradingSlippage) * demominator) && (numerator > (100 - tradingSlippage) * demominator),
             "AMM._update: TRADINGSLIPPAGE_TOO_LARGE_THAN_LAST_TRANSACTION"
@@ -478,7 +492,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
     ) internal view returns (uint256 amountOut) {
         require(amountIn > 0, "Amm._getAmountOut: INSUFFICIENT_INPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "Amm._getAmountOut: INSUFFICIENT_LIQUIDITY");
-        uint256 amountInWithFee = amountIn * IConfig(config).getSwapFeeParameter(address(this));
+        uint256 amountInWithFee = amountIn * IConfig(config).swapFeeParameter();
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = reserveIn * 1000 + amountInWithFee;
         amountOut = numerator / denominator;
@@ -493,13 +507,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         require(amountOut > 0, "Amm._getAmountIn: INSUFFICIENT_OUTPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "Amm._getAmountIn: INSUFFICIENT_LIQUIDITY");
         uint256 numerator = reserveIn * amountOut * 1000;
-        uint256 denominator = (reserveOut - amountOut) * IConfig(config).getSwapFeeParameter(address(this));
+        uint256 denominator = (reserveOut - amountOut) * IConfig(config).swapFeeParameter();
         amountIn = (numerator / denominator) + 1;
     }
 
     // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
     function _mintFee(uint112 reserve0, uint112 reserve1) private returns (bool feeOn) {
-        address feeTo = IAmmFactory(factory).feeTo();
+        address feeTo = config;
         feeOn = feeTo != address(0);
         uint256 _kLast = kLast; // gas savings
         if (feeOn) {

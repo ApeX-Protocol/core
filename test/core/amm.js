@@ -16,17 +16,26 @@ describe("Amm", function () {
   let exp1 = ethers.BigNumber.from("10").pow(18);
   let exp2 = ethers.BigNumber.from("10").pow(6);
   let feeToSetter;
+  let proxyAdminContract;
+  let ammbytecode ;
+  let pairFactoryContract;
+  let bytecode = ""
+ 
+ 
   // amm is only invoked by margin, if run test, please delete  the onlyMargin modifier of the swap method in amm
   beforeEach(async function () {
     [owner, alice, bob, feeToSetter] = await ethers.getSigners();
     console.log("owner:", owner.address);
     console.log("feeToSetter:", feeToSetter.address);
-    const AMMContract = await ethers.getContractFactory("Amm");
+    const AMMContract = await ethers.getContractFactory("MockAmmNew");
     const AMMFactoryContract = await ethers.getContractFactory("AmmFactory");
     const MyToken = await ethers.getContractFactory("MyToken");
     const PriceOracle = await ethers.getContractFactory("MockPriceOracle");
     const MockConfig = await ethers.getContractFactory("MockConfig");
     const MockMargin = await ethers.getContractFactory("MockMargin");
+    const PairFactory = await ethers.getContractFactory("PairFactory");
+    const proxyAdminContractFactory = await ethers.getContractFactory('ProxyAdmin');
+  
 
     config = await MockConfig.deploy();
     console.log("config: ", config.address);
@@ -38,6 +47,7 @@ describe("Amm", function () {
     // ( upperFactory_, address config_, address feeToSetter_)
     ammFactory = await AMMFactoryContract.deploy(owner.address, config.address, feeToSetter.address);
     console.log("amm factory: ", ammFactory.address);
+
 
     // oracle
     priceOracle = await PriceOracle.deploy();
@@ -67,21 +77,31 @@ describe("Amm", function () {
       "function selector was not recognized and there's no fallback nor receive function"
     );
 
-    // amm initialize
-    // await amm.initialize(AAAToken.address, USDT.address, config.address);
+   
 
-    let tx = await ammFactory.createAmm(AAAToken.address, USDT.address);
-    let txReceipt = await tx.wait();
-    console.log("amm: ", txReceipt["events"][0].args[2]);
-    let ammAddress = txReceipt["events"][0].args[2];
+   // proxyadmin
+    proxyAdminContract = await proxyAdminContractFactory.deploy();
+    pairFactoryContract = await PairFactory.deploy();
+    console.log("proxyAdminContract: ", proxyAdminContract.address)
+    ammbytecode = await pairFactoryContract.ammBytecode();
 
-    amm = AMMContract.attach(ammAddress);
+//    let tx = await ammFactory.createAmm(AAAToken.address, USDT.address, ammbytecode ,  proxyAdminContract.address);
+    // let txReceipt = await tx.wait();
+    // console.log("amm: ", txReceipt["events"][0].args[3]);
+    // let ammAddress = txReceipt["events"][0].args[3];
+    amm =  await AMMContract.deploy();
+    console.log("amm: ", amm.address);
+    // amm = AMMContract.attach(ammAddress);
+
 
     // mock margin
     margin = await MockMargin.deploy();
     console.log("margin: ", margin.address);
     await margin.initialize(AAAToken.address, USDT.address, amm.address, config.address);
-    await ammFactory.initAmm(AAAToken.address, USDT.address, margin.address);
+    console.log("margin init  ");
+    await amm.init(AAAToken.address, USDT.address, margin.address,config.address);
+    console.log("amm init  ");
+   
     expect(await amm.totalSupply()).to.equal(0);
     expect(await USDT.balanceOf(alice.address)).to.equal(ethers.BigNumber.from("10000").mul(exp2));
     expect(await AAAToken.balanceOf(alice.address)).to.equal(ethers.BigNumber.from("10000").mul(exp1));
@@ -382,7 +402,7 @@ describe("Amm", function () {
       let maxLiquidity1 = await amm.getTheMaxBurnLiquidity(); // 150026581965016363
   
       console.log("maxLiquidity1: ", maxLiquidity1);
-      expect(maxLiquidity1).to.equal(ethers.BigNumber.from("89883647953223639"));
+      expect(maxLiquidity1).to.equal(ethers.BigNumber.from("89883692534368664"));
       await amm.transfer(amm.address, maxLiquidity1);
       await amm.burn(owner.address);
     });
