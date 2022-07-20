@@ -25,6 +25,8 @@ contract PairFactory is IPairFactory, Ownable {
     constructor() {
         owner = msg.sender;
         proxyAdmin = owner;
+        marginBytecode = type(Margin).creationCode;
+        ammBytecode = type(Amm).creationCode;
     }
 
     function init(address ammFactory_, address marginFactory_) external onlyOwner {
@@ -32,9 +34,6 @@ contract PairFactory is IPairFactory, Ownable {
         require(ammFactory_ != address(0) && marginFactory_ != address(0), "PairFactory: ZERO_ADDRESS");
         ammFactory = ammFactory_;
         marginFactory = marginFactory_;
-        // init value
-        marginBytecode = type(Margin).creationCode;
-        ammBytecode = type(Amm).creationCode;
 
     }
 

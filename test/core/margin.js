@@ -47,8 +47,9 @@ describe("Margin contract", function () {
     const MockRouter = await ethers.getContractFactory("MockRouter");
     mockRouter = await MockRouter.deploy(mockBaseToken.address, mockWeth.address);
 
-    const MockConfig = await ethers.getContractFactory("MockConfig");
+    const MockConfig = await ethers.getContractFactory("Config");
     mockConfig = await MockConfig.deploy();
+   // console.log("config: ", mockConfig.address);
 
     const MockFactory = await ethers.getContractFactory("MockFactory");
     mockFactory = await MockFactory.deploy(mockConfig.address);
@@ -56,13 +57,17 @@ describe("Margin contract", function () {
 
     const MockPriceOracle = await ethers.getContractFactory("MockPriceOracleOfMargin");
     mockPriceOracle = await MockPriceOracle.deploy();
+    await mockConfig.setPriceOracle(mockPriceOracle.address);
 
     let marginAddress = await mockFactory.margin();
     const Margin = await ethers.getContractFactory("Margin");
     margin = Margin.attach(marginAddress);
 
+
     await mockPriceOracle.setMarkPriceInRatio(2000 * 1e6); //2000*(1e-12)*1e18
     await mockFactory.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address);
+    let config1 = await margin.config();
+    //console.log("config1: ", config1);
     await mockRouter.setMarginContract(margin.address);
     await mockAmm.initialize(mockBaseToken.address, mockQuoteToken.address);
     await mockAmm.setReserves(initBaseLiquidity, initQuoteLiquidity); //1_000eth and 2_000_000usdt
@@ -82,7 +87,7 @@ describe("Margin contract", function () {
     await mockConfig.setInitMarginRatio(909);
     await mockConfig.setLiquidateThreshold(10000);
     await mockConfig.setLiquidateFeeRatio(2000);
-    await mockConfig.setPriceOracle(mockPriceOracle.address);
+
     await mockConfig.setMaxCPFBoost(10);
   });
 
@@ -90,7 +95,7 @@ describe("Margin contract", function () {
     it("revert when other address to initialize", async function () {
       await expect(
         margin.initialize(mockBaseToken.address, mockQuoteToken.address, mockAmm.address)
-      ).to.be.revertedWith("Margin.initialize: FORBIDDEN");
+      ).to.be.revertedWith("Initializable: contract is already initialized");
     });
   });
 
@@ -274,7 +279,7 @@ describe("Margin contract", function () {
         await margin.removeMargin(owner.address, owner.address, unrealizedPnl);
         let newResult = await getPosition(margin, owner.address);
         expect(BigNumber.from(oldResult[1]).sub(newResult[1])).to.be.equal(unrealizedPnl);
-        expect(BigNumber.from(oldResult[2]).sub(newResult[2])).to.be.equal(unrealizedPnl);
+        expect(BigNumber.from(oldResult[2]).sub(newResult[2])).to.be.equal(0);
       });
 
       it("withdraw from an old position's margin while unrealizedPnl is 0", async function () {
@@ -303,7 +308,7 @@ describe("Margin contract", function () {
         await margin.removeMargin(owner.address, owner.address, 10000);
         let newResult = await getPosition(margin, owner.address);
         expect(BigNumber.from(oldResult[1]).sub(newResult[1])).to.be.equal(10000);
-        expect(BigNumber.from(oldResult[2]).sub(newResult[2])).to.be.equal(10000);
+        expect(BigNumber.from(oldResult[2]).sub(newResult[2])).to.be.equal(0);
       });
     });
   });
