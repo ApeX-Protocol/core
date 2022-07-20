@@ -35,6 +35,7 @@ contract MockConfig {
     //     owner = msg.sender;
     // }
 
+
     function setMaxCPFBoost(uint256 newMaxCPFBoost) external {
         emit SetMaxCPFBoost(maxCPFBoost, newMaxCPFBoost);
         maxCPFBoost = newMaxCPFBoost;
@@ -115,4 +116,43 @@ contract MockConfig {
         emit SetLpWithdrawThreshold(lpWithdrawThresholdForTotal, newLpWithdrawThresholdForTotal);
         lpWithdrawThresholdForTotal = newLpWithdrawThresholdForTotal;
     }
+
+      function getMaxCPFBoost(address margin) external view  returns (uint256) {
+        
+        return maxCPFBoost;
+    }
+
+    function getInitMarginRatio(address margin) external view  returns (uint256) {
+       
+        return initMarginRatio;
+    }
+
+    function getLiquidateThreshold(address margin) external view  returns (uint256) {
+      
+        return liquidateThreshold;
+    }
+
+    function getLiquidateFeeRatio(address margin) external view  returns (uint256) {
+       
+        return liquidateFeeRatio;
+    }
+
+    function getRebasePriceGap(address amm) external view  returns (uint256) {
+       
+        return rebasePriceGap;
+    
+    }
+
+    function getTradingSlippage(address amm) external view  returns (uint256) {
+     
+        return tradingSlippage;
+    }
+
+
+    function getBeta(address margin) external view  returns (uint256) {
+        
+        return beta;
+    }
+
+   
 }
