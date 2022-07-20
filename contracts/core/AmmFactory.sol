@@ -42,8 +42,8 @@ contract AmmFactory is IAmmFactory {
             amm := create2(0, add(ammBytecode, 32), mload(ammBytecode), salt)
         }
         proxyContract = address(new TransparentUpgradeableProxy(amm, proxyAdmin, ""));
-        getAmm[baseToken][quoteToken] =  proxyContract;
-        emit AmmCreated(baseToken, quoteToken, amm,  proxyContract);
+        getAmm[baseToken][quoteToken] = proxyContract;
+        emit AmmCreated(baseToken, quoteToken, amm, proxyContract);
     }
 
     function initAmm(
