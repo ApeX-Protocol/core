@@ -17,7 +17,7 @@ contract Config is IConfig, Ownable {
     uint256 public override liquidateThreshold = 10000; //if 10000, means debt ratio < 100%
     uint256 public override liquidateFeeRatio = 100; //if 100, means liquidator bot get 1% as fee
     uint256 public override feeParameter = 11; // 100 * (1/fee-1)
-    uint256 public override swapFeeParameter = 999;
+    uint256 public override swapFeeParameter = 998;
     uint256 public override lpWithdrawThresholdForNet = 10; // 1-100
     uint256 public override lpWithdrawThresholdForTotal = 50; // 
 
