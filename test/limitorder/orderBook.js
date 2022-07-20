@@ -8,8 +8,7 @@ use(solidity);
 
 let weth, usdc, priceOracle, config, pairFactory, marginFactory, ammFactory, router, routerForKeeper, orderBook;
 
-describe("OrderBook UT", function() {
-
+describe("OrderBook UT", function () {
   const provider = waffle.provider;
   let [owner, treasury, addr1] = provider.getWallets();
 
@@ -20,10 +19,14 @@ describe("OrderBook UT", function() {
     "tuple(address routerToExecute, address trader, address baseToken, address quoteToken, uint8 side, uint256 quoteAmount, uint256 limitPrice, uint256 deadline, bool autoWithdraw, bytes nonce)";
   let order, order1, wrongOrder, orderShort, closeOrder, wrongCloseOrder, closeOrderShort;
 
-  beforeEach(async function() {
+  beforeEach(async function () {
     abiCoder = await ethers.utils.defaultAbiCoder;
 
-    ({
+    ({ weth, usdc, priceOracle, config, pairFactory, marginFactory, ammFactory, router, routerForKeeper, orderBook } =
+      await deploy(owner));
+    await init(
+      owner,
+      treasury,
       weth,
       usdc,
       priceOracle,
@@ -32,10 +35,8 @@ describe("OrderBook UT", function() {
       marginFactory,
       ammFactory,
       router,
-      routerForKeeper,
-      orderBook
-    } = await deploy(owner));
-    await init(owner, treasury, weth, usdc, priceOracle, config, pairFactory, marginFactory, ammFactory, router, routerForKeeper);
+      routerForKeeper
+    );
 
     await weth.approve(router.address, expandDecimals(1, 14));
     await router.addLiquidity(weth.address, usdc.address, expandDecimals(1, 14), 0, 9999999999, false);
@@ -56,7 +57,7 @@ describe("OrderBook UT", function() {
       limitPrice: "2100000000000000000", //2.1
       deadline: 999999999999,
       withWallet: true,
-      nonce: utils.formatBytes32String("this is open long nonce")
+      nonce: utils.formatBytes32String("this is open long nonce"),
     };
 
     order1 = {
@@ -71,7 +72,7 @@ describe("OrderBook UT", function() {
       limitPrice: "1900000000000000000", //2.1
       deadline: 999999999999,
       withWallet: true,
-      nonce: utils.formatBytes32String("this is open short nonce")
+      nonce: utils.formatBytes32String("this is open short nonce"),
     };
 
     orderShort = {
@@ -86,7 +87,7 @@ describe("OrderBook UT", function() {
       limitPrice: "1900000000000000000", //1.9
       deadline: 999999999999,
       withWallet: true,
-      nonce: utils.formatBytes32String("this is open short nonce")
+      nonce: utils.formatBytes32String("this is open short nonce"),
     };
 
     wrongOrder = {
@@ -101,7 +102,7 @@ describe("OrderBook UT", function() {
       limitPrice: "2100000000000000000",
       deadline: 999999999999,
       withWallet: true,
-      nonce: utils.formatBytes32String("this is wrong open long nonce")
+      nonce: utils.formatBytes32String("this is wrong open long nonce"),
     };
 
     closeOrder = {
@@ -114,7 +115,7 @@ describe("OrderBook UT", function() {
       limitPrice: "1900000000000000000", //1.9
       deadline: 999999999999,
       autoWithdraw: false,
-      nonce: utils.formatBytes32String("this is close long nonce")
+      nonce: utils.formatBytes32String("this is close long nonce"),
     };
 
     wrongCloseOrder = {
@@ -127,7 +128,7 @@ describe("OrderBook UT", function() {
       limitPrice: "1900000000000000000", //1.9
       deadline: 999999999999,
       autoWithdraw: false,
-      nonce: utils.formatBytes32String("this is wrong close long nonce")
+      nonce: utils.formatBytes32String("this is wrong close long nonce"),
     };
 
     closeOrderShort = {
@@ -140,12 +141,12 @@ describe("OrderBook UT", function() {
       limitPrice: "2100000000000000000", //2.1
       deadline: 999999999999,
       autoWithdraw: false,
-      nonce: utils.formatBytes32String("this is close short nonce")
+      nonce: utils.formatBytes32String("this is close short nonce"),
     };
   });
 
-  describe("batchExecuteOpen", function() {
-    it("can batchExecuteOpen", async function() {
+  describe("batchExecuteOpen", function () {
+    it("can batchExecuteOpen", async function () {
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
       const order1Encoded = abiCoder.encode([orderStruct], [order1]);
@@ -156,7 +157,7 @@ describe("OrderBook UT", function() {
       expect(result.quoteSize.toNumber()).to.be.equal(10000);
     });
 
-    it("not revert all when batchExecuteOpen with requireSuccess false", async function() {
+    it("not revert all when batchExecuteOpen with requireSuccess false", async function () {
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
       const wOrderEncoded = abiCoder.encode([orderStruct], [wrongOrder]);
@@ -169,20 +170,20 @@ describe("OrderBook UT", function() {
       expect(result.quoteSize.toNumber()).to.be.equal(0);
     });
 
-    it("revert all when batchExecuteOpen with requireSuccess true", async function() {
+    it("revert all when batchExecuteOpen with requireSuccess true", async function () {
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
       const wOrderEncoded = abiCoder.encode([orderStruct], [wrongOrder]);
       const wOrderSign = await addr1.signMessage(utils.arrayify(utils.keccak256(wOrderEncoded)));
 
       await expect(orderBook.batchExecuteOpen([order, wrongOrder], [orderSign, wOrderSign], true)).to.be.revertedWith(
-        "OB.EO: call failed"
+        "OB.EO: CALL_FAILED"
       );
     });
   });
 
-  describe("batchExecuteClose", function() {
-    beforeEach(async function() {
+  describe("batchExecuteClose", function () {
+    beforeEach(async function () {
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
       await orderBook.batchExecuteOpen([order], [orderSign], false);
@@ -190,7 +191,7 @@ describe("OrderBook UT", function() {
       expect(result.quoteSize.toNumber()).to.be.equal(-30000);
     });
 
-    it("can batchExecuteClose", async function() {
+    it("can batchExecuteClose", async function () {
       const cOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrder]);
       let cOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(cOrderEncoded)));
 
@@ -199,7 +200,7 @@ describe("OrderBook UT", function() {
       expect(result.quoteSize.toNumber()).to.be.equal(0);
     });
 
-    it("not revert all when batchExecuteClose with requireSuccess false", async function() {
+    it("not revert all when batchExecuteClose with requireSuccess false", async function () {
       const cOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrder]);
       const cOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(cOrderEncoded)));
       const wOrderEncoded = abiCoder.encode([closeOrderStruct], [wrongCloseOrder]);
@@ -212,7 +213,7 @@ describe("OrderBook UT", function() {
       expect(result.quoteSize.toNumber()).to.be.equal(0);
     });
 
-    it("revert all when batchExecuteClose with requireSuccess true", async function() {
+    it("revert all when batchExecuteClose with requireSuccess true", async function () {
       const cOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrder]);
       const cOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(cOrderEncoded)));
       const wcOrderEncoded = abiCoder.encode([closeOrderStruct], [wrongCloseOrder]);
@@ -220,12 +221,12 @@ describe("OrderBook UT", function() {
 
       await expect(
         orderBook.batchExecuteClose([closeOrder, wrongCloseOrder], [cOrderSign, wcOrderSign], true)
-      ).to.be.revertedWith("OB.EC: call failed");
+      ).to.be.revertedWith("OB.EC: CALL_FAILED");
     });
   });
 
-  describe("executeOpen", function() {
-    it("execute a new open long position order", async function() {
+  describe("executeOpen", function () {
+    it("execute a new open long position order", async function () {
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
       await orderBook.executeOpen(order, orderSign);
@@ -233,7 +234,7 @@ describe("OrderBook UT", function() {
       expect(result.quoteSize.toNumber()).to.be.equal(-30000);
     });
 
-    it("execute a new open short position order", async function() {
+    it("execute a new open short position order", async function () {
       const orderEncoded = abiCoder.encode([orderStruct], [order1]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
@@ -242,7 +243,7 @@ describe("OrderBook UT", function() {
       expect(result.quoteSize.toNumber()).to.be.equal(40000);
     });
 
-    it("revert when execute a wrong order", async function() {
+    it("revert when execute a wrong order", async function () {
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
@@ -250,7 +251,7 @@ describe("OrderBook UT", function() {
       await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OB.VO: NOT_SIGNER");
     });
 
-    it("revert when execute an used order", async function() {
+    it("revert when execute an used order", async function () {
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
 
@@ -258,7 +259,7 @@ describe("OrderBook UT", function() {
       await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OB.VO: NONCE_USED");
     });
 
-    it("revert when execute a expired order", async function() {
+    it("revert when execute a expired order", async function () {
       order.deadline = 10000;
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
@@ -266,7 +267,7 @@ describe("OrderBook UT", function() {
       await expect(orderBook.executeOpen(order, orderSign)).to.be.revertedWith("OB.VO: EXPIRED");
     });
 
-    it("revert when execute to an invalid router", async function() {
+    it("revert when execute to an invalid router", async function () {
       order.routerToExecute = addr1.address;
       const orderEncoded = abiCoder.encode([orderStruct], [order]);
       const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
@@ -275,15 +276,15 @@ describe("OrderBook UT", function() {
     });
   });
 
-  describe("executeClose", function() {
-    describe("open long first", async function() {
-      beforeEach(async function() {
+  describe("executeClose", function () {
+    describe("open long first", async function () {
+      beforeEach(async function () {
         const orderEncoded = abiCoder.encode([orderStruct], [order]);
         const orderSign = await owner.signMessage(utils.arrayify(utils.keccak256(orderEncoded)));
         await orderBook.executeOpen(order, orderSign);
       });
 
-      it("execute a new close long position order", async function() {
+      it("execute a new close long position order", async function () {
         const cOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrder]);
         const cOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(cOrderEncoded)));
 
@@ -293,14 +294,14 @@ describe("OrderBook UT", function() {
       });
     });
 
-    describe("open short first", async function() {
-      beforeEach(async function() {
+    describe("open short first", async function () {
+      beforeEach(async function () {
         const sOrderEncoded = abiCoder.encode([orderStruct], [orderShort]);
         const sOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(sOrderEncoded)));
         await orderBook.executeOpen(orderShort, sOrderSign);
       });
 
-      it("execute a new close short position order", async function() {
+      it("execute a new close short position order", async function () {
         const csOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
         const csOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(csOrderEncoded)));
 
@@ -309,40 +310,34 @@ describe("OrderBook UT", function() {
         expect(result.quoteSize.toNumber()).to.be.equal(0);
       });
 
-      it("revert when execute a wrong order", async function() {
+      it("revert when execute a wrong order", async function () {
         const csOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
         const csOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(csOrderEncoded)));
 
         closeOrderShort.side = 1 - closeOrderShort.side;
-        await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith(
-          "OB.VC: NOT_SIGNER"
-        );
+        await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith("OB.VC: NOT_SIGNER");
       });
 
-      it("revert when execute an used order", async function() {
+      it("revert when execute an used order", async function () {
         const csOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
         const csOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(csOrderEncoded)));
 
         await orderBook.executeClose(closeOrderShort, csOrderSign);
-        await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith(
-          "OB.VC: NONCE_USED"
-        );
+        await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith("OB.VC: NONCE_USED");
       });
 
-      it("revert when execute a expired order", async function() {
+      it("revert when execute a expired order", async function () {
         closeOrderShort.deadline = 10000;
         const csOrderEncoded = abiCoder.encode([closeOrderStruct], [closeOrderShort]);
         const csOrderSign = await owner.signMessage(utils.arrayify(utils.keccak256(csOrderEncoded)));
 
-        await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith(
-          "OB.VC: EXPIRED"
-        );
+        await expect(orderBook.executeClose(closeOrderShort, csOrderSign)).to.be.revertedWith("OB.VC: EXPIRED");
       });
     });
   });
 
-  describe("setRouterForKeeper", function() {
-    it("routerForKeeper", async function() {
+  describe("setRouterForKeeper", function () {
+    it("routerForKeeper", async function () {
       expect(await orderBook.routerForKeeper()).to.be.equal(routerForKeeper.address);
     });
   });

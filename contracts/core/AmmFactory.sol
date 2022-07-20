@@ -4,8 +4,8 @@ pragma solidity ^0.8.0;
 import "./Amm.sol";
 import "../interfaces/IAmmFactory.sol";
 import "../interfaces/IPriceOracle.sol";
-
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+
 contract AmmFactory is IAmmFactory {
     address public immutable override upperFactory; // PairFactory
     address public immutable override config;
@@ -36,14 +36,14 @@ contract AmmFactory is IAmmFactory {
         require(baseToken != address(0) && quoteToken != address(0), "AmmFactory.createAmm: ZERO_ADDRESS");
         require(getAmm[baseToken][quoteToken] == address(0), "AmmFactory.createAmm: AMM_EXIST");
         bytes32 salt = keccak256(abi.encodePacked(baseToken, quoteToken));
-       //  bytes memory ammBytecode = type(Amm).creationCode;
-       address amm;
+        // bytes memory ammBytecode = type(Amm).creationCode;
+        address amm;
         assembly {
             amm := create2(0, add(ammBytecode, 32), mload(ammBytecode), salt)
         }
-        proxyContract =  address(new TransparentUpgradeableProxy(amm, proxyAdmin, ""));
-        getAmm[baseToken][quoteToken] =  address(proxyContract);
-        emit AmmCreated(baseToken, quoteToken, amm,  address(proxyContract));
+        proxyContract = address(new TransparentUpgradeableProxy(amm, proxyAdmin, ""));
+        getAmm[baseToken][quoteToken] =  proxyContract;
+        emit AmmCreated(baseToken, quoteToken, amm,  proxyContract);
     }
 
     function initAmm(

@@ -11,15 +11,20 @@ import "./Margin.sol";
 import "./Amm.sol";
 
 contract PairFactory is IPairFactory, Ownable {
+    event ProxyAdminChanged(address indexed oldProxyAdmin, address indexed newProxyAdmin);
+    event AmmBytecodeChanged(bytes oldBytecode, bytes newBytecode);
+    event MarginBytecodeChanged(bytes oldBytecode, bytes newBytecode);
+
     address public override ammFactory;
     address public override marginFactory;
-    //todo
-    bytes public  marginBytecode ;
-    bytes public  ammBytecode ;
+    
+    bytes public marginBytecode ;
+    bytes public ammBytecode ;
     address public proxyAdmin;
 
     constructor() {
         owner = msg.sender;
+        proxyAdmin = owner;
     }
 
     function init(address ammFactory_, address marginFactory_) external onlyOwner {
@@ -41,18 +46,18 @@ contract PairFactory is IPairFactory, Ownable {
         emit NewPair(baseToken, quoteToken, amm, margin);
     }
 
-
-    // todo
-    function setMarginBytecode( bytes memory newMarginByteCode) external  {
-        marginBytecode = newMarginByteCode; 
+    function setMarginBytecode(bytes memory newMarginBytecode) external onlyOwner {
+        emit MarginBytecodeChanged(marginBytecode, newMarginBytecode);
+        marginBytecode = newMarginBytecode; 
     }
 
-    //todo
-    function setAmmBytecode( bytes memory newAmmBytecode) external   {
-        ammBytecode = newAmmBytecode; 
+    function setAmmBytecode(bytes memory newAmmBytecode) external onlyOwner {
+        emit AmmBytecodeChanged(ammBytecode, newAmmBytecode);
+        ammBytecode = newAmmBytecode;
     }
 
- function setProxyAdmin( address newProxyAdmin) external   {
+    function setProxyAdmin(address newProxyAdmin) external onlyOwner {
+        emit ProxyAdminChanged(proxyAdmin, newProxyAdmin);
         proxyAdmin = newProxyAdmin; 
     }
 
@@ -63,6 +68,4 @@ contract PairFactory is IPairFactory, Ownable {
     function getMargin(address baseToken, address quoteToken) external view override returns (address) {
         return IMarginFactory(marginFactory).getMargin(baseToken, quoteToken);
     }
-
-
 }

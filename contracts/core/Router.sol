@@ -384,10 +384,10 @@ contract Router is IRouter, Initializable {
         uint256 amountIn,
         uint256 reserveIn,
         uint256 reserveOut
-    ) internal pure returns (uint256 amountOut) {
+    ) internal view returns (uint256 amountOut) {
         require(amountIn > 0, "Router.getAmountOut: INSUFFICIENT_INPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "Router.getAmountOut: INSUFFICIENT_LIQUIDITY");
-        uint256 amountInWithFee = amountIn * 999;
+        uint256 amountInWithFee = amountIn * IConfig(config).getSwapFeeParameter(address(this));
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = reserveIn * 1000 + amountInWithFee;
         amountOut = numerator / denominator;
@@ -398,11 +398,11 @@ contract Router is IRouter, Initializable {
         uint256 amountOut,
         uint256 reserveIn,
         uint256 reserveOut
-    ) internal pure returns (uint256 amountIn) {
+    ) internal view returns (uint256 amountIn) {
         require(amountOut > 0, "Router.getAmountIn: INSUFFICIENT_OUTPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "Router.getAmountIn: INSUFFICIENT_LIQUIDITY");
         uint256 numerator = reserveIn * amountOut * 1000;
-        uint256 denominator = (reserveOut - amountOut) * 999;
+        uint256 denominator = (reserveOut - amountOut) * IConfig(config).getSwapFeeParameter(address(this));
         amountIn = numerator / denominator + 1;
     }
 }
