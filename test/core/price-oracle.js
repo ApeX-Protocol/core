@@ -3,6 +3,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 describe("PriceOracle contract", function () {
+  let owner;
   let baseToken;
   let quoteToken;
   let marginAddress = "0xb9cBC6759a4b71C127047c6aAcdDB569168A5046";
@@ -14,6 +15,7 @@ describe("PriceOracle contract", function () {
   let oracle;
 
   beforeEach(async function () {
+    [owner] = await ethers.getSigners();
     const MyToken = await ethers.getContractFactory("MyToken");
     baseToken = await MyToken.deploy("Base Token", "BT", 18, BigNumber.from("100000000000000000000000000"));
     quoteToken = await MyToken.deploy("Quote Token", "QT", 6, BigNumber.from("1000000000000000"));
@@ -36,7 +38,7 @@ describe("PriceOracle contract", function () {
 
     const PriceOracle = await ethers.getContractFactory("PriceOracle");
     oracle = await PriceOracle.deploy();
-    await oracle.initialize(baseToken.address, v3factory.address);
+    await oracle.initialize(owner.address, baseToken.address, v3factory.address);
     // console.log("oracle:", oracle.address);
   });
 
@@ -187,16 +189,16 @@ describe("PriceOracle contract", function () {
       await amm.setReserves(BigNumber.from("1000000000000000000"), BigNumber.from("2000000000"));
       let result = await oracle.getMarkPrice(amm.address);
       console.log("markPrice:", BigNumber.from(result.price).toString());
-      let markPriceInRatio = await oracle.getMarkPriceInRatio(amm.address);
-      console.log("markPriceInRatio:", BigNumber.from(markPriceInRatio).toString());
+      let markPriceInRatio = await oracle.getMarkPriceInRatio(amm.address, 1000000, 0);
+      console.log("markPriceInRatio:", BigNumber.from(markPriceInRatio.resultBaseAmount).toString());
     });
 
     it("getMarkPriceInRatio: price < 1", async function () {
       await amm.setReserves(BigNumber.from("1000000000000000000000"), BigNumber.from("2000000"));
       let result = await oracle.getMarkPrice(amm.address);
       console.log("markPrice:", BigNumber.from(result.price).toString());
-      let markPriceInRatio = await oracle.getMarkPriceInRatio(amm.address);
-      console.log("markPriceInRatio:", BigNumber.from(markPriceInRatio).toString());
+      let markPriceInRatio = await oracle.getMarkPriceInRatio(amm.address, 0, "1000000");
+      console.log("markPriceInRatio:", BigNumber.from(markPriceInRatio.resultQuoteAmount).toString());
     });
   });
 
