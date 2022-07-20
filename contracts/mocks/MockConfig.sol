@@ -18,7 +18,7 @@ contract MockConfig {
 
     address public priceOracle;
 
-    uint8 public beta = 50; // 50-200，50 means 0.5
+    uint256 public beta = 50; // 50-200，50 means 0.5
     uint256 public maxCPFBoost = 10; // default 10
     uint256 public rebasePriceGap = 5; //0-100 , if 5 means 5%
     uint256 public tradingSlippage = 5; //0-100, if 5 means 5%
@@ -26,6 +26,7 @@ contract MockConfig {
     uint256 public liquidateThreshold = 10000; //if 10000, means debt ratio < 100%
     uint256 public liquidateFeeRatio = 100; //if 100, means liquidator bot get 1% as fee
     uint256 public feeParameter = 11; // 100 * (1/fee-1)
+    uint256 public swapFeeParameter = 999; // 
     uint256 public lpWithdrawThresholdForNet = 10; // 1-100
     uint256 public lpWithdrawThresholdForTotal = 50; 
     mapping(address => bool) public routerMap;
