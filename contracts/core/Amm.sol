@@ -90,7 +90,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         baseAmount = IERC20(baseToken).balanceOf(address(this));
         require(baseAmount > 0, "Amm.mint: ZERO_BASE_AMOUNT");
 
-       // bool feeOn = _mintFee(_baseReserve, _quoteReserve);
+        bool feeOn = _mintFee(_baseReserve, _quoteReserve);
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
 
         if (_totalSupply == 0) {
@@ -121,7 +121,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         _update(_baseReserve + baseAmount, _quoteReserve + quoteAmount, _baseReserve, _quoteReserve, false);
         lpFund += baseAmount;
 
-        kLast = uint256(baseReserve) * quoteReserve;
+        if (feeOn)  kLast = uint256(baseReserve) * quoteReserve;
 
         _safeTransfer(baseToken, margin, baseAmount);
         IVault(margin).deposit(msg.sender, baseAmount);
@@ -150,7 +150,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         uint256 realBaseReserve = getRealBaseReserve();
 
         // calculate the fee
-       // bool feeOn = _mintFee(_baseReserve, _quoteReserve);
+        bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
         uint256 _totalSupply = totalSupply; // gas savings, must be defined here since totalSupply can update in _mintFee
         baseAmount = (liquidity * realBaseReserve) / _totalSupply;
@@ -172,7 +172,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
 
         _burn(address(this), liquidity);
         _update(_baseReserve - baseAmount, _quoteReserve - quoteAmount, _baseReserve, _quoteReserve, false);
-        kLast = uint256(baseReserve) * quoteReserve;
+        if (feeOn)  kLast = uint256(baseReserve) * quoteReserve;
         lpFund -= baseAmount;
 
         IVault(margin).withdraw(msg.sender, to, baseAmount);
@@ -254,7 +254,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         require(outputToken == baseToken || outputToken == quoteToken, "Amm.forceSwap: WRONG_OUTPUT_TOKEN");
         require(inputToken != outputToken, "Amm.forceSwap: SAME_TOKENS");
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-       // bool feeOn = _mintFee(_baseReserve, _quoteReserve);
+        bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
         uint256 reserve0;
         uint256 reserve1;
@@ -267,7 +267,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         }
 
         _update(reserve0, reserve1, _baseReserve, _quoteReserve, true);
-        kLast = uint256(baseReserve) * quoteReserve;
+        if (feeOn)   kLast = uint256(baseReserve) * quoteReserve;
 
         emit ForceSwap(trader, inputToken, outputToken, inputAmount, outputAmount);
     }
@@ -280,7 +280,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         require(block.timestamp - rebaseTimestampLast >= interval, "Amm.rebase: NOT_REACH_NEXT_REBASE_TIME");
 
         (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-     //   bool feeOn = _mintFee(_baseReserve, _quoteReserve);
+        bool feeOn = _mintFee(_baseReserve, _quoteReserve);
 
         uint256 quoteReserveFromInternal;
         (uint256 quoteReserveFromExternal, uint8 priceSource) = IPriceOracle(IConfig(config).priceOracle()).quote(
@@ -306,7 +306,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
             "Amm.rebase: NOT_BEYOND_PRICE_GAP"
         );
 
-        quoteReserveAfter = quoteReserveFromExternal;
+        if (feeOn)  quoteReserveAfter = quoteReserveFromExternal;
 
         rebaseTimestampLast = uint32(block.timestamp % 2**32);
         _update(_baseReserve, quoteReserveAfter, _baseReserve, _quoteReserve, true);
@@ -315,13 +315,13 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         emit Rebase(_quoteReserve, quoteReserveAfter, _baseReserve, quoteReserveFromInternal, quoteReserveFromExternal);
     }
 
-    // function collectFee() external override returns (bool feeOn) {
-    //     require(IConfig(config).routerMap(msg.sender), "Amm.collectFee: FORBIDDEN");
+    function collectFee() external override returns (bool feeOn) {
+        require(IConfig(config).routerMap(msg.sender), "Amm.collectFee: FORBIDDEN");
 
-    //     (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
-    //     feeOn = _mintFee(_baseReserve, _quoteReserve);
-    //     if (feeOn) kLast = uint256(_baseReserve) * _quoteReserve;
-    // }
+        (uint112 _baseReserve, uint112 _quoteReserve, ) = getReserves();
+        feeOn = _mintFee(_baseReserve, _quoteReserve);
+        if (feeOn) kLast = uint256(_baseReserve) * _quoteReserve;
+    }
 
     /// notice view method for estimating swap
     function estimateSwap(
@@ -340,7 +340,7 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         uint256 realBaseReserve = getRealBaseReserve();
         int256 quoteTokenOfNetPosition = IMargin(margin).netPosition();
         uint256 quoteTokenOfTotalPosition = IMargin(margin).totalPosition();
-        uint256 _totalSupply = totalSupply;
+        uint256 _totalSupply = totalSupply + getFeeLiquidity();
 
         uint256 lpWithdrawThresholdForNet = IConfig(config).getLpWithdrawThresholdForNet(address(this));
         uint256 lpWithdrawThresholdForTotal = IConfig(config).getLpWithdrawThresholdForTotal(address(this));
@@ -370,26 +370,26 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         maxLiquidity = (maxWithdrawBaseAmount * _totalSupply) / realBaseReserve;
     }
 
-    // function getFeeLiquidity() public view override returns (uint256) {
-    //     address feeTo = IAmmFactory(factory).feeTo();
-    //     bool feeOn = feeTo != address(0);
-    //     uint256 _kLast = kLast; // gas savings
-    //     uint256 liquidity;
-    //     if (feeOn) {
-    //         if (_kLast != 0) {
-    //             uint256 rootK = Math.sqrt(uint256(baseReserve) * quoteReserve);
-    //             uint256 rootKLast = Math.sqrt(_kLast);
-    //             if (rootK > rootKLast) {
-    //                 uint256 numerator = totalSupply * (rootK - rootKLast);
+    function getFeeLiquidity() public view override returns (uint256) {
+        address feeTo = IAmmFactory(factory).feeTo();
+        bool feeOn = feeTo != address(0);
+        uint256 _kLast = kLast; // gas savings
+        uint256 liquidity;
+        if (feeOn) {
+            if (_kLast != 0) {
+                uint256 rootK = Math.sqrt(uint256(baseReserve) * quoteReserve);
+                uint256 rootKLast = Math.sqrt(_kLast);
+                if (rootK > rootKLast) {
+                    uint256 numerator = totalSupply * (rootK - rootKLast);
 
-    //                 uint256 feeParameter = IConfig(config).feeParameter();
-    //                 uint256 denominator = (rootK * feeParameter) / 100 + rootKLast;
-    //                 liquidity = numerator / denominator;
-    //             }
-    //         }
-    //     }
-    //     return liquidity;
-    // }
+                    uint256 feeParameter = IConfig(config).feeParameter();
+                    uint256 denominator = (rootK * feeParameter) / 100 + rootKLast;
+                    liquidity = numerator / denominator;
+                }
+            }
+        }
+        return liquidity;
+    }
 
     function getReserves()
         public
@@ -475,10 +475,10 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         uint256 amountIn,
         uint256 reserveIn,
         uint256 reserveOut
-    ) internal pure returns (uint256 amountOut) {
+    ) internal view returns (uint256 amountOut) {
         require(amountIn > 0, "Amm._getAmountOut: INSUFFICIENT_INPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "Amm._getAmountOut: INSUFFICIENT_LIQUIDITY");
-        uint256 amountInWithFee = amountIn * 1000;
+        uint256 amountInWithFee = amountIn * IConfig(config).getSwapFeeParameter(address(this));
         uint256 numerator = amountInWithFee * reserveOut;
         uint256 denominator = reserveIn * 1000 + amountInWithFee;
         amountOut = numerator / denominator;
@@ -489,36 +489,36 @@ contract Amm is IAmm, LiquidityERC20, Reentrant, Initializable {
         uint256 amountOut,
         uint256 reserveIn,
         uint256 reserveOut
-    ) internal pure returns (uint256 amountIn) {
+    ) internal view returns (uint256 amountIn) {
         require(amountOut > 0, "Amm._getAmountIn: INSUFFICIENT_OUTPUT_AMOUNT");
         require(reserveIn > 0 && reserveOut > 0, "Amm._getAmountIn: INSUFFICIENT_LIQUIDITY");
         uint256 numerator = reserveIn * amountOut * 1000;
-        uint256 denominator = (reserveOut - amountOut) * 1000;
+        uint256 denominator = (reserveOut - amountOut) * IConfig(config).getSwapFeeParameter(address(this));
         amountIn = (numerator / denominator) + 1;
     }
 
     // if fee is on, mint liquidity equivalent to 1/6th of the growth in sqrt(k)
-    // function _mintFee(uint112 reserve0, uint112 reserve1) private returns (bool feeOn) {
-    //     address feeTo = IAmmFactory(factory).feeTo();
-    //     feeOn = feeTo != address(0);
-    //     uint256 _kLast = kLast; // gas savings
-    //     if (feeOn) {
-    //         if (_kLast != 0) {
-    //             uint256 rootK = Math.sqrt(uint256(reserve0) * reserve1);
-    //             uint256 rootKLast = Math.sqrt(_kLast);
-    //             if (rootK > rootKLast) {
-    //                 uint256 numerator = totalSupply * (rootK - rootKLast);
+    function _mintFee(uint112 reserve0, uint112 reserve1) private returns (bool feeOn) {
+        address feeTo = IAmmFactory(factory).feeTo();
+        feeOn = feeTo != address(0);
+        uint256 _kLast = kLast; // gas savings
+        if (feeOn) {
+            if (_kLast != 0) {
+                uint256 rootK = Math.sqrt(uint256(reserve0) * reserve1);
+                uint256 rootKLast = Math.sqrt(_kLast);
+                if (rootK > rootKLast) {
+                    uint256 numerator = totalSupply * (rootK - rootKLast);
 
-    //                 uint256 feeParameter = IConfig(config).feeParameter();
-    //                 uint256 denominator = (rootK * feeParameter) / 100 + rootKLast;
-    //                 uint256 liquidity = numerator / denominator;
-    //                 if (liquidity > 0) _mint(feeTo, liquidity);
-    //             }
-    //         }
-    //     } else if (_kLast != 0) {
-    //         kLast = 0;
-    //     }
-    // }
+                    uint256 feeParameter = IConfig(config).feeParameter();
+                    uint256 denominator = (rootK * feeParameter) / 100 + rootKLast;
+                    uint256 liquidity = numerator / denominator;
+                    if (liquidity > 0) _mint(feeTo, liquidity);
+                }
+            }
+        } else if (_kLast != 0) {
+            kLast = 0;
+        }
+    }
 
     function _update(
         uint256 baseReserveNew,

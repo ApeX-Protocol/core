@@ -586,7 +586,7 @@ contract Margin is IMargin, IVault, Reentrant, Initializable {
             );
 
             uint256 a = baseAmount * 10000;
-            uint256 b = (10000 - IConfig(config).initMarginRatio());
+            uint256 b = (10000 - IConfig(config).getInitMarginRatio(address(this)));
 
             //calculate how many base needed to maintain current position
             uint256 baseNeeded = a / b;
